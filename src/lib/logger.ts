@@ -5,14 +5,12 @@ const addCallerInfo = winston.format((info) => {
 	const stack = new Error().stack!;
 	const stackLines = stack.split('\n');
 
-	// const callerLine = stackLines.find(
-	// 	(line) =>
-	// 		(line.includes('.ts') || line.includes('.js')) &&
-	// 		!line.includes('logger.ts') &&
-	// 		!line.includes('node_modules')
-	// );
-	// I think it should just always be the last one, if not we can use the above code
-	const callerLine = stackLines[stackLines.length - 1];
+	const callerLine = stackLines.find(
+		(line) =>
+			(line.includes('.ts') || line.includes('.js')) &&
+			!line.includes('logger.ts') &&
+			!line.includes('node_modules')
+	);
 
 	if (callerLine) {
 		// Extract file path and line number
@@ -29,8 +27,9 @@ const addCallerInfo = winston.format((info) => {
 	return info;
 });
 
+const log_level = process.env.NODE_ENV === 'production' ? 'info' : 'debug';
 const logger = winston.createLogger({
-	level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+	level: log_level,
 	format: winston.format.combine(
 		addCallerInfo(),
 		winston.format.timestamp({
@@ -51,6 +50,7 @@ const logger = winston.createLogger({
 		})
 	]
 });
+logger.info(`Logger initialized with level ${log_level}`);
 
 // Export logger and convenience methods
 export default logger;
