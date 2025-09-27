@@ -1,4 +1,4 @@
-type ExternalGame = {
+type IGDBExternalGame = {
 	checksum: string;
 	countries?: number[];
 	created_at: number;
@@ -10,6 +10,24 @@ type ExternalGame = {
 	updated_at: number;
 	url: string;
 	year?: number;
+};
+
+type IGDBCompany = {
+	id: number;
+	name: string;
+	websites?: { url: string }[];
+};
+
+type IGDBInvolvedCompany = {
+	id: number;
+	company: number;
+	developer: boolean;
+	publisher: boolean;
+};
+
+type IGDBCover = {
+	id: number;
+	image_id: string;
 };
 
 type ImageSize =

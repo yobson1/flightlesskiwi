@@ -12,12 +12,58 @@
 </svelte:head>
 <ModeWatcher />
 
-<header>
-	<Nav />
-</header>
-<main>
-	{@render children?.()}
-</main>
-<footer>
-	<p>&copy; 2025 Flightless Kiwi</p>
-</footer>
+<div class="layout">
+	<header>
+		<nav>
+			<Nav />
+		</nav>
+	</header>
+	<main class="main-container">
+		<div class="content">
+			{@render children?.()}
+		</div>
+	</main>
+	<footer>
+		<p>&copy; 2025 Flightless Kiwi</p>
+	</footer>
+</div>
+
+<style>
+	.layout {
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+	}
+
+	header {
+		padding: 1rem;
+		width: 100%;
+		display: flex;
+		justify-content: center;
+	}
+
+	nav {
+		max-width: 1200px;
+		min-width: 320px;
+		width: 80%;
+	}
+
+	.main-container {
+		flex: 1;
+		display: flex;
+		justify-content: center;
+		padding: 2rem 1rem;
+	}
+
+	.content {
+		max-width: 1200px;
+		min-width: 320px;
+		width: 80%;
+	}
+
+	footer {
+		padding: 1rem;
+		width: 100%;
+		text-align: center;
+	}
+</style>
