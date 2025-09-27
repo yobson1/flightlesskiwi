@@ -60,6 +60,7 @@
 		"winston": "^3.17.0"
 	},
 	"dependencies": {
-		"@humanspeak/svelte-markdown": "^0.8.12"
+		"@humanspeak/svelte-markdown": "^0.8.12",
+		"mode-watcher": "^1.1.0"
 	}
 }
