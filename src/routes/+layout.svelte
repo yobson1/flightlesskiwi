@@ -1,6 +1,8 @@
 <script lang="ts">
+	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-
+	import Nav from '$lib/components/Nav.svelte';
+	
 	let { children } = $props();
 </script>
 
@@ -8,4 +10,12 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{@render children?.()}
+<header>
+	<Nav />
+</header>
+<main>
+	{@render children?.()}
+</main>
+<footer>
+	<p>&copy; 2025 Flightless Kiwi</p>
+</footer>
