@@ -166,7 +166,7 @@
 	}
 
 	.platforms a:hover {
-		filter: brightness(1.3) drop-shadow(0 0 3px var(--color-primary));
+		filter: brightness(1.3) drop-shadow(0 0 1px var(--color-primary));
 		transform: scale(1.05);
 	}
 
