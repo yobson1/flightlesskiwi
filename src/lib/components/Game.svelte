@@ -54,22 +54,22 @@
 
 			<Separator />
 
-			<div class="companies">
-				<div class="company-section">
+			<div class="game-details">
+				<div class="details-section">
 					<Skeleton class="mb-2 h-5 w-24" />
 					<div class="space-y-1">
 						<Skeleton class="h-4 w-32" />
 						<Skeleton class="h-4 w-28" />
 					</div>
 				</div>
-				<div class="company-section">
+				<div class="details-section">
 					<Skeleton class="mb-2 h-5 w-24" />
 					<div class="space-y-1">
 						<Skeleton class="h-4 w-36" />
 					</div>
 				</div>
 				<Separator />
-				<div class="company-section">
+				<div class="details-section">
 					<Skeleton class="mb-2 h-5 w-16" />
 					<div class="space-y-1">
 						<Skeleton class="h-4 w-20" />
@@ -118,9 +118,9 @@
 
 			<Separator />
 
-			<div class="companies">
+			<div class="game-details">
 				{#if game.developers.length > 0}
-					<div class="company-section">
+					<div class="details-section">
 						<h3>Developers</h3>
 						<ul>
 							{#each game.developers as developer (developer)}
@@ -136,7 +136,7 @@
 					</div>
 				{/if}
 				{#if game.publishers.length > 0}
-					<div class="company-section">
+					<div class="details-section">
 						<h3>Publishers</h3>
 						<ul>
 							{#each game.publishers as publisher (publisher)}
@@ -155,7 +155,7 @@
 					<Separator />
 				{/if}
 				{#if game.engines.length > 0}
-					<div class="company-section">
+					<div class="details-section">
 						<h3>Engine{game.engines.length > 1 ? 's' : ''}</h3>
 						<ul>
 							{#each game.engines as engine (engine)}
@@ -235,28 +235,28 @@
 		flex-wrap: wrap;
 	}
 
-	.companies {
+	.game-details {
 		display: flex;
 		gap: 1.5rem;
 		flex-wrap: wrap;
 	}
 
-	.company-section h3 {
+	.details-section h3 {
 		margin: 0 0 0.5rem 0;
 		font-size: 1.25rem;
 		font-weight: 600;
 	}
 
-	.company-section li {
+	.details-section li {
 		margin-bottom: 0.25rem;
 	}
 
-	.company-section a {
+	.details-section a {
 		color: inherit;
 		text-decoration: underline;
 	}
 
-	.company-section a:hover {
+	.details-section a:hover {
 		text-decoration: none;
 	}
 
@@ -270,29 +270,6 @@
 	.platforms a:hover {
 		filter: brightness(1.3) drop-shadow(0 0 1px var(--color-primary));
 		transform: scale(1.05);
-	}
-
-	.skeleton-cover {
-		width: 264px;
-		/* https://api-docs.igdb.com/#images says it should be 374px but im getting 352px */
-		height: 352px;
-		background-color: var(--color-muted);
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		opacity: 0.7;
-	}
-
-	.skeleton-content {
-		flex: 1;
-		background-color: var(--color-muted);
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 200px;
-		opacity: 0.7;
 	}
 
 	.error {
@@ -316,7 +293,7 @@
 			text-align: center;
 		}
 
-		.companies {
+		.game-details {
 			flex-direction: column;
 			gap: 1.5rem;
 		}
