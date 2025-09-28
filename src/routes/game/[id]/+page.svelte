@@ -59,7 +59,6 @@
 					</ul>
 				</div>
 			{/if}
-			<Separator orientation="vertical" />
 			{#if data.game.publishers.length > 0}
 				<div class="company-section">
 					<h3>Publishers</h3>
@@ -74,6 +73,21 @@
 							</li>
 						{/each}
 					</ul>
+				</div>
+			{/if}
+			{#if (data.game.developers.length > 0 || data.game.publishers.length > 0) && data.game.engines.length > 0}
+				<Separator />
+			{/if}
+			{#if data.game.engines.length > 0}
+				<div class="company-section">
+					<h3>Engine{data.game.engines.length > 1 ? 's' : ''}</h3>
+					{#each data.game.engines as engine (engine)}
+						{#if engine.url}
+							<a href={engine.url} rel="external">{engine.name}</a>
+						{:else}
+							{engine.name}
+						{/if}
+					{/each}
 				</div>
 			{/if}
 		</div>
@@ -135,7 +149,7 @@
 
 	.companies {
 		display: flex;
-		gap: 3rem;
+		gap: 2rem;
 		flex-wrap: wrap;
 	}
 

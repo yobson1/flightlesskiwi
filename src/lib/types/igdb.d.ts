@@ -30,6 +30,12 @@ type IGDBCover = {
 	image_id: string;
 };
 
+type IGDBGameEngine = {
+	id: number;
+	name: string;
+	url?: string;
+};
+
 type ImageSize =
 	| 'cover_small'
 	| 'cover_big'

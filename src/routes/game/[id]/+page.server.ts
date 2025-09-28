@@ -14,12 +14,18 @@ type Company = {
 	url?: string;
 };
 
+type Engine = {
+	name: string;
+	url?: string;
+};
+
 type Game = {
 	name: string;
 	cover_url: string;
 	platforms: Platform[];
 	developers: Company[];
 	publishers: Company[];
+	engines: Engine[];
 };
 
 function constructImageUrl(imageId: string, size: ImageSize): string {
@@ -112,6 +118,19 @@ async function getInvolvedCompanies(
 	return { developers, publishers };
 }
 
+async function getEngines(engineIds: number[]): Promise<Engine[]> {
+	if (!engineIds?.length) return [];
+
+	const engines: IGDBGameEngine[] = (
+		await (await igdb()).fields('name,url').where(`id=(${engineIds})`).request('/game_engines')
+	).data;
+
+	return engines.map((engine) => ({
+		name: engine.name,
+		url: engine.url
+	}));
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const gameID = params.id;
 
@@ -125,10 +144,11 @@ export const load: PageServerLoad = async ({ params }) => {
 		const gameData = games[0];
 
 		// Fetch all game details in parallel
-		const [cover_url, platforms, { developers, publishers }] = await Promise.all([
+		const [cover_url, platforms, { developers, publishers }, engines] = await Promise.all([
 			getCover(gameData.cover),
 			getPcPlatforms(gameData.external_games),
-			getInvolvedCompanies(gameData.involved_companies)
+			getInvolvedCompanies(gameData.involved_companies),
+			getEngines(gameData.game_engines)
 		]);
 
 		const game: Game = {
@@ -136,7 +156,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			cover_url,
 			platforms,
 			developers,
-			publishers
+			publishers,
+			engines
 		};
 
 		debug(`Game data for ID ${gameID}: ${JSON.stringify(game)}`);
