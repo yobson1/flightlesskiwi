@@ -4,7 +4,6 @@
 	import SimpleIconsItchdotio from '~icons/simple-icons/itchdotio';
 	import SimpleIconsEpicgames from '~icons/simple-icons/epicgames';
 	import { GameSource } from '$lib/enums/igdb';
-	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import type { PageProps } from './$types';
 
@@ -13,7 +12,9 @@
 </script>
 
 <div class="game-layout">
-	<img src={data.game.cover_url} alt={data.game.name} class="cover" />
+	<div class="cover-wrapper" style={`--cover-glow: url(${data.game.cover_url});`}>
+		<img src={data.game.cover_url} alt={data.game.name} class="cover" />
+	</div>
 
 	<div class="game-content">
 		<div class="game-header">
@@ -21,7 +22,7 @@
 
 			<div class="platforms">
 				{#each data.game.platforms as platform (platform)}
-					<Button variant="link" size="icon" href={platform.url}>
+					<a href={platform.url}>
 						{#if platform.game_source === GameSource.gog}
 							<SimpleIconsGogdotcom style={`height: ${iconSize}; width: ${iconSize};`} />
 						{/if}
@@ -34,7 +35,7 @@
 						{#if platform.game_source === GameSource.epic_game_store}
 							<SimpleIconsEpicgames style={`height: ${iconSize}; width: ${iconSize};`} />
 						{/if}
-					</Button>
+					</a>
 				{/each}
 			</div>
 		</div>
@@ -86,11 +87,25 @@
 		align-items: flex-start;
 	}
 
+	.cover-wrapper {
+		position: relative;
+	}
+
 	.cover {
 		width: 264px;
 		height: auto;
 		border-radius: 8px;
-		flex-shrink: 0;
+		position: relative;
+	}
+
+	.cover-wrapper::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background-image: var(--cover-glow);
+		border-radius: inherit;
+		filter: blur(22px) brightness(1.1);
+		transform: scale(0.99) translateX(-4px);
 	}
 
 	.game-content {
@@ -141,6 +156,18 @@
 
 	.company-section a:hover {
 		text-decoration: none;
+	}
+
+	.platforms a {
+		color: var(--color-primary);
+		transition:
+			filter 0.2s ease,
+			transform 0.2s ease;
+	}
+
+	.platforms a:hover {
+		filter: brightness(1.3) drop-shadow(0 0 3px var(--color-primary));
+		transform: scale(1.05);
 	}
 
 	/* Mobile responsiveness */
