@@ -1,9 +1,7 @@
 # flightlesskiwi
 
-<div align="center">
 [![GitHub License](https://img.shields.io/github/license/yobson1/flightlesskiwi)](https://github.com/yobson1/flightlesskiwi/blob/main/LICENSE)
 ![SvelteKit Badge](https://img.shields.io/badge/built_with-SvelteKit-FF3E00?logo=svelte&link=https%3A%2F%2Fsvelte.dev%2F)
-</div>
 
 [flightlessmango.com](https://flightlessmango.com)/[flightlesssomething](https://github.com/erkexzcx/flightlesssomething) clone
 
