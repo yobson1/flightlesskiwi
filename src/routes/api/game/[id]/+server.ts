@@ -1,33 +1,8 @@
+import { json } from '@sveltejs/kit';
 import { igdb } from '$lib/server/igdb';
-import type { PageServerLoad } from './$types';
 import { GameSource } from '$lib/enums/igdb';
-import { debug } from '$lib/logger';
-
-type Platform = {
-	name: string;
-	url: string;
-	game_source: GameSource;
-};
-
-type Company = {
-	name: string;
-	url?: string;
-};
-
-type Engine = {
-	name: string;
-	url?: string;
-};
-
-type Game = {
-	name: string;
-	cover_url: string;
-	platforms: Platform[];
-	developers: Company[];
-	publishers: Company[];
-	engines: Engine[];
-	release_date: string | undefined;
-};
+import { debug, error } from '$lib/logger';
+import type { RequestHandler } from './$types';
 
 function constructImageUrl(imageId: string, size: ImageSize): string {
 	return `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.webp`;
@@ -132,9 +107,7 @@ async function getEngines(engineIds: number[]): Promise<Engine[]> {
 	}));
 }
 
-export const load: PageServerLoad = async ({ params }) => {
-	const gameID = params.id;
-
+async function fetchGame(gameID: number): Promise<Game> {
 	try {
 		const games = (await (await igdb()).fields('*').where(`id=${gameID}`).request('/games')).data;
 
@@ -169,9 +142,24 @@ export const load: PageServerLoad = async ({ params }) => {
 
 		debug(`Game data for ID ${gameID}: ${JSON.stringify(game)}`);
 
-		return { game };
-	} catch (error) {
-		console.error('Error fetching game:', error);
-		throw error;
+		return game;
+	} catch (err) {
+		error('Error fetching game:', err);
+		throw err;
+	}
+}
+
+export const GET: RequestHandler = async ({ params }) => {
+	const gameID = Number(params.id);
+
+	if (!gameID) {
+		return json({ error: 'Game ID is required' }, { status: 400 });
+	}
+
+	try {
+		const game = await fetchGame(gameID);
+		return json(game);
+	} catch (err) {
+		return json({ error: err instanceof Error ? err.message : 'Game not found' }, { status: 404 });
 	}
 };
