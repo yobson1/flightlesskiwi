@@ -26,6 +26,7 @@ type Game = {
 	developers: Company[];
 	publishers: Company[];
 	engines: Engine[];
+	release_date: string | undefined;
 };
 
 function constructImageUrl(imageId: string, size: ImageSize): string {
@@ -151,13 +152,19 @@ export const load: PageServerLoad = async ({ params }) => {
 			getEngines(gameData.game_engines)
 		]);
 
+		// Format release date if available
+		const release_date = gameData.first_release_date
+			? new Date(gameData.first_release_date * 1000).toDateString()
+			: undefined;
+
 		const game: Game = {
 			name: gameData.name,
 			cover_url,
 			platforms,
 			developers,
 			publishers,
-			engines
+			engines,
+			release_date
 		};
 
 		debug(`Game data for ID ${gameID}: ${JSON.stringify(game)}`);

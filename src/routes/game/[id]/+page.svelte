@@ -18,7 +18,10 @@
 
 	<div class="game-content">
 		<div class="game-header">
-			<h2>{data.game.name}</h2>
+			<h1>{data.game.name}</h1>
+			{#if data.game.release_date}
+				<h2 class="release-date">{data.game.release_date}</h2>
+			{/if}
 
 			<div class="platforms">
 				{#each data.game.platforms as platform (platform)}
@@ -81,13 +84,17 @@
 			{#if data.game.engines.length > 0}
 				<div class="company-section">
 					<h3>Engine{data.game.engines.length > 1 ? 's' : ''}</h3>
-					{#each data.game.engines as engine (engine)}
-						{#if engine.url}
-							<a href={engine.url} rel="external">{engine.name}</a>
-						{:else}
-							{engine.name}
-						{/if}
-					{/each}
+					<ul>
+						{#each data.game.engines as engine (engine)}
+							<li>
+								{#if engine.url}
+									<a href={engine.url} rel="external">{engine.name}</a>
+								{:else}
+									{engine.name}
+								{/if}
+							</li>
+						{/each}
+					</ul>
 				</div>
 			{/if}
 		</div>
@@ -126,22 +133,29 @@
 		flex: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 2rem;
+		gap: 1.7rem;
 	}
 
 	.game-header {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
 	}
 
-	.game-header h2 {
+	.game-header h1 {
 		margin: 0;
 		font-size: 2rem;
 		font-weight: 700;
 	}
 
+	.release-date {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 400;
+		color: var(--color-muted-foreground);
+	}
+
 	.platforms {
+		margin-top: 1.5rem;
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
@@ -149,7 +163,7 @@
 
 	.companies {
 		display: flex;
-		gap: 2rem;
+		gap: 1.5rem;
 		flex-wrap: wrap;
 	}
 
