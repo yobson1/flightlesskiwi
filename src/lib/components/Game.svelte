@@ -5,6 +5,7 @@
 	import SimpleIconsEpicgames from '~icons/simple-icons/epicgames';
 	import { GameSource } from '$lib/enums/igdb';
 	import { Separator } from '$lib/components/ui/separator';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { onMount } from 'svelte';
 
 	const iconSize = '28px';
@@ -37,13 +38,44 @@
 </script>
 
 {#if loading}
-	<!-- TODO: Add actual skeletons -->
 	<div class="game-layout">
-		<div class="skeleton-cover">
-			<h1>Skel</h1>
-		</div>
-		<div class="skeleton-content">
-			<h1>Skel</h1>
+		<Skeleton class="h-[352px] w-[264px] rounded-lg" />
+		<div class="game-content">
+			<div class="game-header">
+				<Skeleton class="mb-2 h-8 w-80" />
+				<Skeleton class="mb-4 h-4 w-16" />
+
+				<div class="platforms">
+					<Skeleton class="h-7 w-7 rounded" />
+					<Skeleton class="h-7 w-7 rounded" />
+					<Skeleton class="h-7 w-7 rounded" />
+				</div>
+			</div>
+
+			<Separator />
+
+			<div class="companies">
+				<div class="company-section">
+					<Skeleton class="mb-2 h-5 w-24" />
+					<div class="space-y-1">
+						<Skeleton class="h-4 w-32" />
+						<Skeleton class="h-4 w-28" />
+					</div>
+				</div>
+				<div class="company-section">
+					<Skeleton class="mb-2 h-5 w-24" />
+					<div class="space-y-1">
+						<Skeleton class="h-4 w-36" />
+					</div>
+				</div>
+				<Separator />
+				<div class="company-section">
+					<Skeleton class="mb-2 h-5 w-16" />
+					<div class="space-y-1">
+						<Skeleton class="h-4 w-20" />
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 {:else if error}
@@ -242,7 +274,8 @@
 
 	.skeleton-cover {
 		width: 264px;
-		height: 374px; /* Typical cover aspect ratio */
+		/* https://api-docs.igdb.com/#images says it should be 374px but im getting 352px */
+		height: 352px;
 		background-color: var(--color-muted);
 		border-radius: 8px;
 		display: flex;
