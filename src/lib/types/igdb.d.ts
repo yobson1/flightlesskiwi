@@ -1,42 +1,4 @@
-type IGDBExternalGame = {
-	checksum: string;
-	countries?: number[];
-	created_at: number;
-	external_game_source: GameSource;
-	game: number;
-	game_release_format: number;
-	name: string;
-	uid: string;
-	updated_at: number;
-	url: string;
-	year?: number;
-};
-
-type IGDBCompany = {
-	id: number;
-	name: string;
-	websites?: { url: string }[];
-};
-
-type IGDBInvolvedCompany = {
-	id: number;
-	company: number;
-	developer: boolean;
-	publisher: boolean;
-};
-
-type IGDBCover = {
-	id: number;
-	image_id: string;
-};
-
-type IGDBGameEngine = {
-	id: number;
-	name: string;
-	url?: string;
-};
-
-type ImageSize =
+export type ImageSize =
 	| 'cover_small'
 	| 'cover_big'
 	| 'screenshot_med'
@@ -47,3 +9,48 @@ type ImageSize =
 	| 'micro'
 	| '720p'
 	| '1080p';
+
+interface Cover {
+	id: number;
+	image_id: string;
+}
+
+export interface ExternalGame {
+	id: number;
+	url: string;
+	external_game_source: number;
+}
+
+export interface GameEngine {
+	id: number;
+	name: string;
+	url: string;
+}
+
+export interface Website {
+	id: number;
+	url: string;
+}
+
+export interface Company {
+	id: number;
+	name: string;
+	websites?: Website[];
+}
+
+export interface InvolvedCompany {
+	id: number;
+	company: Company;
+	developer: boolean;
+	publisher: boolean;
+}
+
+export interface Game {
+	id: number;
+	cover: Cover;
+	external_games: ExternalGame[];
+	first_release_date: number;
+	game_engines?: GameEngine[];
+	involved_companies: InvolvedCompany[];
+	name: string;
+}

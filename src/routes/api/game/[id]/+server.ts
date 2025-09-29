@@ -1,115 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { igdb } from '$lib/server/igdb';
-import { GameSource } from '$lib/enums/igdb';
 import { debug, error } from '$lib/logger';
 import LRUCache from '$lib/lrucache';
 import type { RequestHandler } from './$types';
+import type { Game } from '$lib/types/igdb';
 
 // each game is about 0.5-1KB in size
 let gameCache: LRUCache<number, Game> = new LRUCache(1000);
-
-function constructImageUrl(imageId: string, size: ImageSize): string {
-	return `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.webp`;
-}
-
-async function getCover(coverId: number): Promise<string> {
-	if (!coverId) return '';
-
-	const covers: IGDBCover[] = (
-		await (await igdb()).fields('image_id').where(`id=${coverId}`).request('/covers')
-	).data;
-
-	return covers[0] ? constructImageUrl(covers[0].image_id, 'cover_big') : '';
-}
-
-async function getPcPlatforms(externalGameIds: number[]): Promise<Platform[]> {
-	if (!externalGameIds?.length) return [];
-
-	const externalGames: IGDBExternalGame[] = (
-		await (await igdb()).fields('*').where(`id=(${externalGameIds})`).request('/external_games')
-	).data;
-
-	const pcPlatforms = externalGames.filter(
-		(game) =>
-			game.external_game_source === GameSource.gog ||
-			game.external_game_source === GameSource.steam ||
-			game.external_game_source === GameSource.itch_io ||
-			game.external_game_source === GameSource.epic_game_store
-	);
-
-	return pcPlatforms.map((platform) => ({
-		name: platform.uid,
-		url: platform.url,
-		game_source: platform.external_game_source
-	}));
-}
-
-async function getInvolvedCompanies(
-	involvedCompanyIds: number[]
-): Promise<{ developers: Company[]; publishers: Company[] }> {
-	if (!involvedCompanyIds?.length) {
-		return { developers: [], publishers: [] };
-	}
-
-	const involvedCompanies: IGDBInvolvedCompany[] = (
-		await (await igdb())
-			.fields('company,developer,publisher')
-			.where(`id=(${involvedCompanyIds})`)
-			.request('/involved_companies')
-	).data;
-
-	const companyIds = [...new Set(involvedCompanies.map((ic) => ic.company))].filter(Boolean);
-
-	if (!companyIds.length) {
-		return { developers: [], publishers: [] };
-	}
-
-	const companies: IGDBCompany[] = (
-		await (await igdb())
-			.fields('name,websites.url')
-			.where(`id=(${companyIds})`)
-			.request('/companies')
-	).data;
-
-	const companyMap = new Map(companies.map((company) => [company.id, company]));
-
-	const developers: Company[] = involvedCompanies
-		.filter((ic) => ic.developer)
-		.map((ic) => {
-			const company = companyMap.get(ic.company);
-			return {
-				name: company?.name || 'Unknown',
-				url: company?.websites?.[0]?.url
-			};
-		})
-		.filter((dev) => dev.name !== 'Unknown');
-
-	const publishers: Company[] = involvedCompanies
-		.filter((ic) => ic.publisher)
-		.map((ic) => {
-			const company = companyMap.get(ic.company);
-			return {
-				name: company?.name || 'Unknown',
-				url: company?.websites?.[0]?.url
-			};
-		})
-		.filter((pub) => pub.name !== 'Unknown');
-
-	return { developers, publishers };
-}
-
-async function getEngines(engineIds: number[]): Promise<Engine[]> {
-	if (!engineIds?.length) return [];
-
-	const engines: IGDBGameEngine[] = (
-		await (await igdb()).fields('name,url').where(`id=(${engineIds})`).request('/game_engines')
-	).data;
-
-	return engines.map((engine) => ({
-		name: engine.name,
-		url: engine.url
-	}));
-}
 
 async function fetchGame(gameID: number): Promise<Game> {
 	try {
@@ -120,37 +17,21 @@ async function fetchGame(gameID: number): Promise<Game> {
 		}
 		debug(`Cache miss for game ID ${gameID}`);
 
-		const games = (await (await igdb()).fields('*').where(`id=${gameID}`).request('/games')).data;
+		const games: Game[] = (
+			await (await igdb())
+				.fields(
+					'name, first_release_date, cover.image_id, external_games.external_game_source, external_games.url, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url'
+				)
+				.where(`id = ${gameID}`)
+				.limit(1)
+				.request('/games')
+		).data;
 
 		if (games.length === 0) {
 			throw new Error('Game not found');
 		}
 
-		const gameData = games[0];
-
-		// Fetch all game details in parallel
-		const [cover_url, platforms, { developers, publishers }, engines] = await Promise.all([
-			getCover(gameData.cover),
-			getPcPlatforms(gameData.external_games),
-			getInvolvedCompanies(gameData.involved_companies),
-			getEngines(gameData.game_engines)
-		]);
-
-		// Format release date if available
-		const release_date = gameData.first_release_date
-			? new Date(gameData.first_release_date * 1000).toDateString()
-			: undefined;
-
-		const game: Game = {
-			name: gameData.name,
-			cover_url,
-			platforms,
-			developers,
-			publishers,
-			engines,
-			release_date
-		};
-
+		const game = games[0];
 		const sizeInBytes = new Blob([JSON.stringify(game)]).size;
 		const sizeInKB = (sizeInBytes / 1024).toFixed(2);
 		debug(`Game data for ID ${gameID}: ${JSON.stringify(game)}`);

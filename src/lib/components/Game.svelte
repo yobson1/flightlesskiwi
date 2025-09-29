@@ -3,10 +3,15 @@
 	import SimpleIconsSteam from '~icons/simple-icons/steam';
 	import SimpleIconsItchdotio from '~icons/simple-icons/itchdotio';
 	import SimpleIconsEpicgames from '~icons/simple-icons/epicgames';
+	import type { ImageSize, Game, Company } from '$lib/types/igdb';
 	import { GameSource } from '$lib/enums/igdb';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { onMount } from 'svelte';
+
+	function constructImageUrl(imageId: string, size: ImageSize): string {
+		return `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.webp`;
+	}
 
 	const iconSize = '28px';
 
@@ -16,6 +21,9 @@
 
 	let { gameId }: Props = $props();
 	let game: Game | null = $state(null);
+	let coverUrl: string | null = $state(null);
+	let developers: Company[] | null = $state(null);
+	let publishers: Company[] | null = $state(null);
 	let loading = $state(true);
 	let error: string | null = $state(null);
 
@@ -29,6 +37,13 @@
 			}
 
 			game = await response.json();
+			coverUrl = constructImageUrl(game!.cover?.image_id || '', 'cover_big');
+			developers = game!.involved_companies
+				.filter((company) => company.developer)
+				.map((involved) => involved.company);
+			publishers = game!.involved_companies
+				.filter((company) => company.publisher)
+				.map((involved) => involved.company);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'An error occurred';
 		} finally {
@@ -86,33 +101,37 @@
 		</div>
 	{:else if game}
 		<div class="game-layout">
-			<div class="cover-wrapper" style={`--cover-glow: url(${game.cover_url});`}>
-				<img src={game.cover_url} alt={game.name} class="cover" />
+			<div class="cover-wrapper" style={`--cover-glow: url(${coverUrl});`}>
+				<img src={coverUrl} alt={game.name} class="cover" />
 			</div>
 
 			<div class="game-content">
 				<div class="game-header">
 					<h1>{game.name}</h1>
-					{#if game.release_date}
-						<h2 class="release-date">{game.release_date}</h2>
-					{/if}
+					<h2 class="release-date">{new Date(game.first_release_date * 1000).toDateString()}</h2>
 
 					<div class="platforms">
-						{#each game.platforms as platform (platform)}
-							<a href={platform.url}>
-								{#if platform.game_source === GameSource.gog}
-									<SimpleIconsGogdotcom style={`height: ${iconSize}; width: ${iconSize};`} />
-								{/if}
-								{#if platform.game_source === GameSource.steam}
-									<SimpleIconsSteam style={`height: ${iconSize}; width: ${iconSize};`} />
-								{/if}
-								{#if platform.game_source === GameSource.itch_io}
-									<SimpleIconsItchdotio style={`height: ${iconSize}; width: ${iconSize};`} />
-								{/if}
-								{#if platform.game_source === GameSource.epic_game_store}
-									<SimpleIconsEpicgames style={`height: ${iconSize}; width: ${iconSize};`} />
-								{/if}
-							</a>
+						{#each game.external_games as platform (platform)}
+							{#if platform.external_game_source === GameSource.gog}
+								<a href={platform.url}
+									><SimpleIconsGogdotcom style={`height: ${iconSize}; width: ${iconSize};`} /></a
+								>
+							{/if}
+							{#if platform.external_game_source === GameSource.steam}
+								<a href={platform.url}
+									><SimpleIconsSteam style={`height: ${iconSize}; width: ${iconSize};`} /></a
+								>
+							{/if}
+							{#if platform.external_game_source === GameSource.itch_io}
+								<a href={platform.url}
+									><SimpleIconsItchdotio style={`height: ${iconSize}; width: ${iconSize};`} /></a
+								>
+							{/if}
+							{#if platform.external_game_source === GameSource.epic_game_store}
+								<a href={platform.url}
+									><SimpleIconsEpicgames style={`height: ${iconSize}; width: ${iconSize};`} /></a
+								>
+							{/if}
 						{/each}
 					</div>
 				</div>
@@ -120,14 +139,14 @@
 				<Separator />
 
 				<div class="game-details">
-					{#if game.developers.length > 0}
+					{#if developers && developers.length > 0}
 						<div class="details-section">
 							<h3>Developers</h3>
 							<ul>
-								{#each game.developers as developer (developer)}
+								{#each developers as developer (developer)}
 									<li>
-										{#if developer.url}
-											<a href={developer.url} rel="external">{developer.name}</a>
+										{#if developer.websites && developer.websites[0]}
+											<a href={developer.websites[0].url} rel="external">{developer.name}</a>
 										{:else}
 											{developer.name}
 										{/if}
@@ -136,14 +155,14 @@
 							</ul>
 						</div>
 					{/if}
-					{#if game.publishers.length > 0}
+					{#if publishers && publishers.length > 0}
 						<div class="details-section">
 							<h3>Publishers</h3>
 							<ul>
-								{#each game.publishers as publisher (publisher)}
+								{#each publishers as publisher (publisher)}
 									<li>
-										{#if publisher.url}
-											<a href={publisher.url} rel="external">{publisher.name}</a>
+										{#if publisher.websites && publisher.websites[0]}
+											<a href={publisher.websites[0].url} rel="external">{publisher.name}</a>
 										{:else}
 											{publisher.name}
 										{/if}
@@ -152,14 +171,14 @@
 							</ul>
 						</div>
 					{/if}
-					{#if (game.developers.length > 0 || game.publishers.length > 0) && game.engines.length > 0}
+					{#if ((developers && developers.length > 0) || (publishers && publishers.length > 0)) && game.game_engines && game.game_engines.length > 0}
 						<Separator />
 					{/if}
-					{#if game.engines.length > 0}
+					{#if game.game_engines && game.game_engines.length > 0}
 						<div class="details-section">
-							<h3>Engine{game.engines.length > 1 ? 's' : ''}</h3>
+							<h3>Engine{game.game_engines.length > 1 ? 's' : ''}</h3>
 							<ul>
-								{#each game.engines as engine (engine)}
+								{#each game.game_engines as engine (engine)}
 									<li>
 										{#if engine.url}
 											<a href={engine.url} rel="external">{engine.name}</a>
