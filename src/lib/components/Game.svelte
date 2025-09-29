@@ -37,145 +37,151 @@
 	});
 </script>
 
-{#if loading}
-	<div class="game-layout">
-		<Skeleton class="h-[352px] w-[264px] rounded-lg" />
-		<div class="game-content">
-			<div class="game-header">
-				<Skeleton class="mb-2 h-8 w-80" />
-				<Skeleton class="mb-4 h-4 w-16" />
+<div class="game">
+	{#if loading}
+		<div class="game-layout">
+			<Skeleton class="h-[352px] w-[264px] rounded-lg" />
+			<div class="game-content">
+				<div class="game-header">
+					<Skeleton class="mb-2 h-8 w-80" />
+					<Skeleton class="mb-4 h-4 w-16" />
 
-				<div class="platforms">
-					<Skeleton class="h-7 w-7 rounded" />
-					<Skeleton class="h-7 w-7 rounded" />
-					<Skeleton class="h-7 w-7 rounded" />
-				</div>
-			</div>
-
-			<Separator />
-
-			<div class="game-details">
-				<div class="details-section">
-					<Skeleton class="mb-2 h-5 w-24" />
-					<div class="space-y-1">
-						<Skeleton class="h-4 w-32" />
-						<Skeleton class="h-4 w-28" />
+					<div class="platforms">
+						<Skeleton class="h-7 w-7 rounded" />
+						<Skeleton class="h-7 w-7 rounded" />
+						<Skeleton class="h-7 w-7 rounded" />
 					</div>
 				</div>
-				<div class="details-section">
-					<Skeleton class="mb-2 h-5 w-24" />
-					<div class="space-y-1">
-						<Skeleton class="h-4 w-36" />
-					</div>
-				</div>
+
 				<Separator />
-				<div class="details-section">
-					<Skeleton class="mb-2 h-5 w-16" />
-					<div class="space-y-1">
-						<Skeleton class="h-4 w-20" />
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-{:else if error}
-	<div class="error">
-		<h2>Error loading game</h2>
-		<p>{error}</p>
-	</div>
-{:else if game}
-	<div class="game-layout">
-		<div class="cover-wrapper" style={`--cover-glow: url(${game.cover_url});`}>
-			<img src={game.cover_url} alt={game.name} class="cover" />
-		</div>
 
-		<div class="game-content">
-			<div class="game-header">
-				<h1>{game.name}</h1>
-				{#if game.release_date}
-					<h2 class="release-date">{game.release_date}</h2>
-				{/if}
-
-				<div class="platforms">
-					{#each game.platforms as platform (platform)}
-						<a href={platform.url}>
-							{#if platform.game_source === GameSource.gog}
-								<SimpleIconsGogdotcom style={`height: ${iconSize}; width: ${iconSize};`} />
-							{/if}
-							{#if platform.game_source === GameSource.steam}
-								<SimpleIconsSteam style={`height: ${iconSize}; width: ${iconSize};`} />
-							{/if}
-							{#if platform.game_source === GameSource.itch_io}
-								<SimpleIconsItchdotio style={`height: ${iconSize}; width: ${iconSize};`} />
-							{/if}
-							{#if platform.game_source === GameSource.epic_game_store}
-								<SimpleIconsEpicgames style={`height: ${iconSize}; width: ${iconSize};`} />
-							{/if}
-						</a>
-					{/each}
-				</div>
-			</div>
-
-			<Separator />
-
-			<div class="game-details">
-				{#if game.developers.length > 0}
+				<div class="game-details">
 					<div class="details-section">
-						<h3>Developers</h3>
-						<ul>
-							{#each game.developers as developer (developer)}
-								<li>
-									{#if developer.url}
-										<a href={developer.url} rel="external">{developer.name}</a>
-									{:else}
-										{developer.name}
-									{/if}
-								</li>
-							{/each}
-						</ul>
+						<Skeleton class="mb-2 h-5 w-24" />
+						<div class="space-y-1">
+							<Skeleton class="h-4 w-32" />
+							<Skeleton class="h-4 w-28" />
+						</div>
 					</div>
-				{/if}
-				{#if game.publishers.length > 0}
 					<div class="details-section">
-						<h3>Publishers</h3>
-						<ul>
-							{#each game.publishers as publisher (publisher)}
-								<li>
-									{#if publisher.url}
-										<a href={publisher.url} rel="external">{publisher.name}</a>
-									{:else}
-										{publisher.name}
-									{/if}
-								</li>
-							{/each}
-						</ul>
+						<Skeleton class="mb-2 h-5 w-24" />
+						<div class="space-y-1">
+							<Skeleton class="h-4 w-36" />
+						</div>
 					</div>
-				{/if}
-				{#if (game.developers.length > 0 || game.publishers.length > 0) && game.engines.length > 0}
 					<Separator />
-				{/if}
-				{#if game.engines.length > 0}
 					<div class="details-section">
-						<h3>Engine{game.engines.length > 1 ? 's' : ''}</h3>
-						<ul>
-							{#each game.engines as engine (engine)}
-								<li>
-									{#if engine.url}
-										<a href={engine.url} rel="external">{engine.name}</a>
-									{:else}
-										{engine.name}
-									{/if}
-								</li>
-							{/each}
-						</ul>
+						<Skeleton class="mb-2 h-5 w-16" />
+						<div class="space-y-1">
+							<Skeleton class="h-4 w-20" />
+						</div>
 					</div>
-				{/if}
+				</div>
 			</div>
 		</div>
-	</div>
-{/if}
+	{:else if error}
+		<div class="error">
+			<h2>Error loading game</h2>
+			<p>{error}</p>
+		</div>
+	{:else if game}
+		<div class="game-layout">
+			<div class="cover-wrapper" style={`--cover-glow: url(${game.cover_url});`}>
+				<img src={game.cover_url} alt={game.name} class="cover" />
+			</div>
+
+			<div class="game-content">
+				<div class="game-header">
+					<h1>{game.name}</h1>
+					{#if game.release_date}
+						<h2 class="release-date">{game.release_date}</h2>
+					{/if}
+
+					<div class="platforms">
+						{#each game.platforms as platform (platform)}
+							<a href={platform.url}>
+								{#if platform.game_source === GameSource.gog}
+									<SimpleIconsGogdotcom style={`height: ${iconSize}; width: ${iconSize};`} />
+								{/if}
+								{#if platform.game_source === GameSource.steam}
+									<SimpleIconsSteam style={`height: ${iconSize}; width: ${iconSize};`} />
+								{/if}
+								{#if platform.game_source === GameSource.itch_io}
+									<SimpleIconsItchdotio style={`height: ${iconSize}; width: ${iconSize};`} />
+								{/if}
+								{#if platform.game_source === GameSource.epic_game_store}
+									<SimpleIconsEpicgames style={`height: ${iconSize}; width: ${iconSize};`} />
+								{/if}
+							</a>
+						{/each}
+					</div>
+				</div>
+
+				<Separator />
+
+				<div class="game-details">
+					{#if game.developers.length > 0}
+						<div class="details-section">
+							<h3>Developers</h3>
+							<ul>
+								{#each game.developers as developer (developer)}
+									<li>
+										{#if developer.url}
+											<a href={developer.url} rel="external">{developer.name}</a>
+										{:else}
+											{developer.name}
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if game.publishers.length > 0}
+						<div class="details-section">
+							<h3>Publishers</h3>
+							<ul>
+								{#each game.publishers as publisher (publisher)}
+									<li>
+										{#if publisher.url}
+											<a href={publisher.url} rel="external">{publisher.name}</a>
+										{:else}
+											{publisher.name}
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if (game.developers.length > 0 || game.publishers.length > 0) && game.engines.length > 0}
+						<Separator />
+					{/if}
+					{#if game.engines.length > 0}
+						<div class="details-section">
+							<h3>Engine{game.engines.length > 1 ? 's' : ''}</h3>
+							<ul>
+								{#each game.engines as engine (engine)}
+									<li>
+										{#if engine.url}
+											<a href={engine.url} rel="external">{engine.name}</a>
+										{:else}
+											{engine.name}
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
+</div>
 
 <style>
+	.game {
+		margin-bottom: 1rem;
+	}
+
 	.game-layout {
 		display: flex;
 		gap: 2rem;
