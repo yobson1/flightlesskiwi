@@ -2,7 +2,11 @@ import { json } from '@sveltejs/kit';
 import { igdb } from '$lib/server/igdb';
 import { GameSource } from '$lib/enums/igdb';
 import { debug, error } from '$lib/logger';
+import LRUCache from '$lib/lrucache';
 import type { RequestHandler } from './$types';
+
+// each game is about 0.5-1KB in size
+let gameCache: LRUCache<number, Game> = new LRUCache(1000);
 
 function constructImageUrl(imageId: string, size: ImageSize): string {
 	return `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.webp`;
@@ -109,6 +113,13 @@ async function getEngines(engineIds: number[]): Promise<Engine[]> {
 
 async function fetchGame(gameID: number): Promise<Game> {
 	try {
+		const cachedGame = gameCache.get(gameID);
+		if (cachedGame) {
+			debug(`Cache hit for game ID ${gameID}`);
+			return cachedGame;
+		}
+		debug(`Cache miss for game ID ${gameID}`);
+
 		const games = (await (await igdb()).fields('*').where(`id=${gameID}`).request('/games')).data;
 
 		if (games.length === 0) {
@@ -140,8 +151,12 @@ async function fetchGame(gameID: number): Promise<Game> {
 			release_date
 		};
 
+		const sizeInBytes = new Blob([JSON.stringify(game)]).size;
+		const sizeInKB = (sizeInBytes / 1024).toFixed(2);
 		debug(`Game data for ID ${gameID}: ${JSON.stringify(game)}`);
+		debug(`Size of game data for ID ${gameID}: ${sizeInKB}KB`);
 
+		gameCache.set(gameID, game);
 		return game;
 	} catch (err) {
 		error('Error fetching game:', err);
