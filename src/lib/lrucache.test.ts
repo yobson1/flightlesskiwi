@@ -75,7 +75,7 @@ describe('LRUCache', () => {
 		});
 	});
 
-	describe('LRU behavior with get()', () => {
+	describe('get()', () => {
 		it('should move accessed item to end (most recently used)', () => {
 			cache.set('a', 1);
 			cache.set('b', 2);
