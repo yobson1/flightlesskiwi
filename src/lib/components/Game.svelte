@@ -3,7 +3,7 @@
 	import SimpleIconsSteam from '~icons/simple-icons/steam';
 	import SimpleIconsItchdotio from '~icons/simple-icons/itchdotio';
 	import SimpleIconsEpicgames from '~icons/simple-icons/epicgames';
-	import type { ImageSize, Game, Company } from '$lib/types/igdb';
+	import type { ImageSize, Game } from '$lib/types/igdb';
 	import { GameSource } from '$lib/enums/igdb';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -15,17 +15,43 @@
 
 	const iconSize = '28px';
 
+	const platformIcons = {
+		[GameSource.gog]: SimpleIconsGogdotcom,
+		[GameSource.steam]: SimpleIconsSteam,
+		[GameSource.itch_io]: SimpleIconsItchdotio,
+		[GameSource.epic_game_store]: SimpleIconsEpicgames
+	};
+	const pcPlatforms = Object.keys(platformIcons).map(Number);
+
 	interface Props {
 		gameId: number;
 	}
 
 	let { gameId }: Props = $props();
 	let game: Game | null = $state(null);
-	let coverUrl: string | null = $state(null);
-	let developers: Company[] | null = $state(null);
-	let publishers: Company[] | null = $state(null);
 	let loading = $state(true);
 	let error: string | null = $state(null);
+
+	let coverUrl = $derived.by(() => {
+		if (!game?.cover?.image_id) return null;
+		return constructImageUrl(game.cover.image_id, 'cover_big');
+	});
+
+	let developers = $derived.by(() => {
+		return game?.involved_companies
+			.filter((company) => company.developer)
+			.map((involved) => involved.company);
+	});
+
+	let publishers = $derived.by(() => {
+		return game?.involved_companies
+			.filter((company) => company.publisher)
+			.map((involved) => involved.company);
+	});
+
+	let availablePlatforms = $derived.by(() => {
+		return game?.external_games.filter((eg) => pcPlatforms.includes(eg.external_game_source));
+	});
 
 	onMount(async () => {
 		try {
@@ -37,13 +63,6 @@
 			}
 
 			game = await response.json();
-			coverUrl = constructImageUrl(game!.cover?.image_id || '', 'cover_big');
-			developers = game!.involved_companies
-				.filter((company) => company.developer)
-				.map((involved) => involved.company);
-			publishers = game!.involved_companies
-				.filter((company) => company.publisher)
-				.map((involved) => involved.company);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'An error occurred';
 		} finally {
@@ -110,30 +129,17 @@
 					<h1>{game.name}</h1>
 					<h2 class="release-date">{new Date(game.first_release_date * 1000).toDateString()}</h2>
 
-					<div class="platforms">
-						{#each game.external_games as platform (platform)}
-							{#if platform.external_game_source === GameSource.gog}
-								<a href={platform.url}
-									><SimpleIconsGogdotcom style={`height: ${iconSize}; width: ${iconSize};`} /></a
-								>
-							{/if}
-							{#if platform.external_game_source === GameSource.steam}
-								<a href={platform.url}
-									><SimpleIconsSteam style={`height: ${iconSize}; width: ${iconSize};`} /></a
-								>
-							{/if}
-							{#if platform.external_game_source === GameSource.itch_io}
-								<a href={platform.url}
-									><SimpleIconsItchdotio style={`height: ${iconSize}; width: ${iconSize};`} /></a
-								>
-							{/if}
-							{#if platform.external_game_source === GameSource.epic_game_store}
-								<a href={platform.url}
-									><SimpleIconsEpicgames style={`height: ${iconSize}; width: ${iconSize};`} /></a
-								>
-							{/if}
-						{/each}
-					</div>
+					{#if availablePlatforms && availablePlatforms.length > 0}
+						<div class="platforms">
+							{#each availablePlatforms as platform (platform.id)}
+								{@const IconComponent =
+									platformIcons[platform.external_game_source as keyof typeof platformIcons]}
+								<a href={platform.url}>
+									<IconComponent style={`height: ${iconSize}; width: ${iconSize};`} />
+								</a>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
 				<Separator />
