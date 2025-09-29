@@ -13,6 +13,10 @@
 		return `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.webp`;
 	}
 
+	function formatReleaseDate(timestamp: number): string {
+		return new Date(timestamp * 1000).toDateString();
+	}
+
 	const iconSize = '28px';
 
 	const platformIcons = {
@@ -38,19 +42,27 @@
 	});
 
 	let developers = $derived.by(() => {
-		return game?.involved_companies
+		if (!game) return [];
+		return game.involved_companies
 			.filter((company) => company.developer)
 			.map((involved) => involved.company);
 	});
 
 	let publishers = $derived.by(() => {
-		return game?.involved_companies
+		if (!game) return [];
+		return game.involved_companies
 			.filter((company) => company.publisher)
 			.map((involved) => involved.company);
 	});
 
 	let availablePlatforms = $derived.by(() => {
-		return game?.external_games.filter((eg) => pcPlatforms.includes(eg.external_game_source));
+		if (!game) return [];
+		return game.external_games.filter((eg) => pcPlatforms.includes(eg.external_game_source));
+	});
+
+	let hasCompanyInfo = $derived(developers.length > 0 || publishers.length > 0);
+	let hasEngines = $derived.by(() => {
+		return !!game?.game_engines && game.game_engines.length > 0;
 	});
 
 	onMount(async () => {
@@ -127,15 +139,15 @@
 			<div class="game-content">
 				<div class="game-header">
 					<h1>{game.name}</h1>
-					<h2 class="release-date">{new Date(game.first_release_date * 1000).toDateString()}</h2>
+					<h2 class="release-date">{formatReleaseDate(game.first_release_date)}</h2>
 
-					{#if availablePlatforms && availablePlatforms.length > 0}
+					{#if availablePlatforms.length > 0}
 						<div class="platforms">
 							{#each availablePlatforms as platform (platform.id)}
 								{@const IconComponent =
 									platformIcons[platform.external_game_source as keyof typeof platformIcons]}
-								<a href={platform.url}>
-									<IconComponent style={`height: ${iconSize}; width: ${iconSize};`} />
+								<a href={platform.url} aria-label={`View on ${platform.external_game_source}`}>
+									<IconComponent width={iconSize} height={iconSize} />
 								</a>
 							{/each}
 						</div>
@@ -145,13 +157,13 @@
 				<Separator />
 
 				<div class="game-details">
-					{#if developers && developers.length > 0}
+					{#if developers.length > 0}
 						<div class="details-section">
 							<h3>Developers</h3>
 							<ul>
-								{#each developers as developer (developer)}
+								{#each developers as developer (developer.id)}
 									<li>
-										{#if developer.websites && developer.websites[0]}
+										{#if developer.websites?.[0]?.url}
 											<a href={developer.websites[0].url} rel="external">{developer.name}</a>
 										{:else}
 											{developer.name}
@@ -161,13 +173,13 @@
 							</ul>
 						</div>
 					{/if}
-					{#if publishers && publishers.length > 0}
+					{#if publishers.length > 0}
 						<div class="details-section">
 							<h3>Publishers</h3>
 							<ul>
-								{#each publishers as publisher (publisher)}
+								{#each publishers as publisher (publisher.id)}
 									<li>
-										{#if publisher.websites && publisher.websites[0]}
+										{#if publisher.websites?.[0]?.url}
 											<a href={publisher.websites[0].url} rel="external">{publisher.name}</a>
 										{:else}
 											{publisher.name}
@@ -177,14 +189,14 @@
 							</ul>
 						</div>
 					{/if}
-					{#if ((developers && developers.length > 0) || (publishers && publishers.length > 0)) && game.game_engines && game.game_engines.length > 0}
+					{#if hasCompanyInfo && hasEngines}
 						<Separator />
 					{/if}
-					{#if game.game_engines && game.game_engines.length > 0}
+					{#if hasEngines && game.game_engines}
 						<div class="details-section">
 							<h3>Engine{game.game_engines.length > 1 ? 's' : ''}</h3>
 							<ul>
-								{#each game.game_engines as engine (engine)}
+								{#each game.game_engines as engine (engine.id)}
 									<li>
 										{#if engine.url}
 											<a href={engine.url} rel="external">{engine.name}</a>
