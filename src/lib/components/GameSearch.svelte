@@ -196,16 +196,16 @@
 							<div class="relative h-16 w-12">
 								{#if game.cover?.image_id}
 									{#if imageLoadingStates[game.id] !== false}
-										<Skeleton class="h-16 w-12 rounded" />
+										<Skeleton class="absolute inset-0 rounded" />
 									{/if}
 									<img
 										src={constructImageUrl(game.cover.image_id, 'cover_small')}
 										alt={game.name}
-										class="h-16 w-12 rounded object-cover"
+										class="absolute inset-0 rounded object-cover text-transparent"
 										onload={() => handleImageLoad(game.id)}
 									/>
 								{:else}
-									<Skeleton class="h-16 w-12 rounded" />
+									<Skeleton class="inset-0 rounded" />
 								{/if}
 							</div>
 							<div class="min-w-0 flex-1">
