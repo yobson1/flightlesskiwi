@@ -8,12 +8,18 @@ import type { Game } from '$lib/types/igdb';
 // each game is about 0.5-1KB in size
 let gameCache: LRUCache<number, Game> = new LRUCache(1000);
 
-async function fetchGame(gameID: number): Promise<Game> {
+export const GET: RequestHandler = async ({ params }) => {
+	const gameID = Number(params.id);
+
+	if (!gameID) {
+		return json({ error: 'Game ID is required' }, { status: 400 });
+	}
+
 	try {
 		const cachedGame = gameCache.get(gameID);
 		if (cachedGame) {
 			debug(`Cache hit for game ID ${gameID}`);
-			return cachedGame;
+			return json(cachedGame);
 		}
 		debug(`Cache miss for game ID ${gameID}`);
 
@@ -28,7 +34,7 @@ async function fetchGame(gameID: number): Promise<Game> {
 		).data;
 
 		if (games.length === 0) {
-			throw new Error('Game not found');
+			return json({ error: 'Game not found' }, { status: 404 });
 		}
 
 		const game = games[0];
@@ -38,24 +44,9 @@ async function fetchGame(gameID: number): Promise<Game> {
 		debug(`Size of game data for ID ${gameID}: ${sizeInKB}KB`);
 
 		gameCache.set(gameID, game);
-		return game;
-	} catch (err) {
-		error('Error fetching game:', err);
-		throw err;
-	}
-}
-
-export const GET: RequestHandler = async ({ params }) => {
-	const gameID = Number(params.id);
-
-	if (!gameID) {
-		return json({ error: 'Game ID is required' }, { status: 400 });
-	}
-
-	try {
-		const game = await fetchGame(gameID);
 		return json(game);
 	} catch (err) {
-		return json({ error: err instanceof Error ? err.message : 'Game not found' }, { status: 404 });
+		error(`Failed to fetch game ID ${gameID}:`, err);
+		return json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
 	}
 };

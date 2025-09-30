@@ -46,6 +46,6 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json(deduped);
 	} catch (err) {
 		error(`Failed to search games for query "${params.query}": ${err}`);
-		return json([]);
+		return json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
 	}
 };
