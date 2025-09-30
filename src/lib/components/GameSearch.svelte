@@ -47,9 +47,8 @@
 		currentSearchQuery = query;
 		const thisSearchQuery = query;
 
+		resetSearch(true);
 		errorMessage = null;
-		loading = true;
-		open = true;
 
 		try {
 			const response = await fetch(`/api/game/search/${encodeURIComponent(query)}`, {
@@ -99,7 +98,7 @@
 		clearTimeout(debounceTimer);
 
 		if (!searchQuery.trim()) {
-			resetSearch();
+			resetSearch(false);
 			return;
 		}
 
@@ -145,11 +144,11 @@
 		imageLoadingStates = newLoadingStates;
 	}
 
-	function resetSearch() {
+	function resetSearch(isSearching: boolean) {
 		results = [];
-		open = false;
-		loading = false;
 		imageLoadingStates = {};
+		open = isSearching;
+		loading = isSearching;
 	}
 </script>
 
@@ -205,7 +204,7 @@
 										onload={() => handleImageLoad(game.id)}
 									/>
 								{:else}
-									<Skeleton class="inset-0 rounded" />
+									<Skeleton class="absolute inset-0 rounded" />
 								{/if}
 							</div>
 							<div class="min-w-0 flex-1">
