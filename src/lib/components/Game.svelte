@@ -84,7 +84,7 @@
 	{#if loading}
 		<div class="flex items-start gap-8 max-md:flex-col max-md:items-center">
 			<Skeleton class="h-[352px] w-[264px] rounded-lg" />
-			<div class="flex flex-1 flex-col gap-[1.7rem]">
+			<div class="flex flex-1 flex-col gap-6">
 				<div class="flex flex-col">
 					<Skeleton class="mb-2 h-8 w-80" />
 					<Skeleton class="mb-4 h-4 w-16" />
@@ -133,7 +133,7 @@
 				<img src={coverUrl} alt={game.name} class="cover" />
 			</div>
 
-			<div class="flex flex-1 flex-col gap-[1.7rem] max-md:text-center">
+			<div class="flex flex-1 flex-col gap-6 max-md:text-center">
 				<div class="flex flex-col">
 					<h1 class="m-0 text-4xl font-bold">{game.name}</h1>
 					<h2 class="m-0 text-base font-normal text-muted-foreground">
@@ -148,7 +148,7 @@
 								<a
 									href={platform.url}
 									aria-label={`View on ${platform.external_game_source}`}
-									class="text-primary transition-all duration-200 ease-in-out hover:scale-105 hover:brightness-125 hover:drop-shadow-[0_0_1px_var(--primary)]"
+									class="text-primary transition-all duration-200 ease-in-out hover:scale-105 hover:brightness-125 hover:drop-shadow-[0_0_1px_var(---primary)]"
 								>
 									<IconComponent width={iconSize} height={iconSize} />
 								</a>
