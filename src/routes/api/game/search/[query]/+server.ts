@@ -9,22 +9,22 @@ const FIELDS = 'name, first_release_date, cover.image_id';
 export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const instance = await igdb();
-		const encodedQuery = encodeURIComponent(params.query);
+		const escapedQuery = params.query.replace(/"/g, '\\"');
 
-		const searchPromise = instance.fields(FIELDS).search(encodedQuery).limit(4).request('/games');
+		const searchPromise = instance.fields(FIELDS).search(escapedQuery).limit(4).request('/games');
 
 		const multiPromise = instance
 			.multi([
 				apicalypse()
 					.query('games', 'Exact Match')
 					.fields(FIELDS)
-					.where(`name ~ "${encodedQuery}"`)
+					.where(`name ~ "${escapedQuery}"`)
 					.limit(1)
 					.build(),
 				apicalypse()
 					.query('games', 'Custom Search')
 					.fields(FIELDS)
-					.where(`name ~ *"${encodedQuery}"* | alternative_names.name ~ *"${encodedQuery}"*`)
+					.where(`name ~ *"${escapedQuery}"* | alternative_names.name ~ *"${escapedQuery}"*`)
 					.sort('total_rating desc')
 					.limit(4)
 					.build()
