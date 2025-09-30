@@ -51,6 +51,6 @@ export interface Game {
 	external_games: ExternalGame[];
 	first_release_date: number;
 	game_engines?: GameEngine[];
-	involved_companies: InvolvedCompany[];
+	involved_companies?: InvolvedCompany[];
 	name: string;
 }

@@ -42,14 +42,14 @@
 	});
 
 	let developers = $derived.by(() => {
-		if (!game) return [];
+		if (!game?.involved_companies) return [];
 		return game.involved_companies
 			.filter((company) => company.developer)
 			.map((involved) => involved.company);
 	});
 
 	let publishers = $derived.by(() => {
-		if (!game) return [];
+		if (!game?.involved_companies) return [];
 		return game.involved_companies
 			.filter((company) => company.publisher)
 			.map((involved) => involved.company);
@@ -62,7 +62,7 @@
 
 	let hasCompanyInfo = $derived(developers.length > 0 || publishers.length > 0);
 	let hasEngines = $derived.by(() => {
-		return !!game?.game_engines && game.game_engines.length > 0;
+		return (game?.game_engines?.length ?? 0) > 0;
 	});
 
 	onMount(async () => {
