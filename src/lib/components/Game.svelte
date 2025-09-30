@@ -5,7 +5,7 @@
 	import SimpleIconsEpicgames from '~icons/simple-icons/epicgames';
 	import type { Game } from '$lib/types/igdb';
 	import { constructImageUrl } from '$lib/igdb';
-	import { GameSource } from '$lib/enums/igdb';
+	import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { onMount } from 'svelte';
@@ -23,6 +23,13 @@
 		[GameSource.epic_game_store]: SimpleIconsEpicgames
 	};
 	const pcPlatforms = Object.keys(platformIcons).map(Number);
+
+	const websiteCategoryToGameSource: Record<number, GameSource> = {
+		[WebsiteCategory.steam]: GameSource.steam,
+		[WebsiteCategory.gog]: GameSource.gog,
+		[WebsiteCategory.itch]: GameSource.itch_io,
+		[WebsiteCategory.epicgames]: GameSource.epic_game_store
+	};
 
 	interface Props {
 		gameId: number;
@@ -53,8 +60,20 @@
 	});
 
 	let availablePlatforms = $derived.by(() => {
-		if (!game?.external_games) return [];
-		return game.external_games.filter((eg) => pcPlatforms.includes(eg.external_game_source));
+		const platformMap = new Map<number, string>();
+
+		// they can be in either external_games or websites
+		game?.external_games
+			?.filter((eg) => pcPlatforms.includes(eg.external_game_source))
+			.forEach((eg) => platformMap.set(eg.external_game_source, eg.url));
+		game?.websites?.forEach((website) => {
+			const gameSource = websiteCategoryToGameSource[website.type];
+			if (gameSource !== undefined && !platformMap.has(gameSource)) {
+				platformMap.set(gameSource, website.url);
+			}
+		});
+
+		return Array.from(platformMap.entries()).map(([source, url]) => ({ source, url }));
 	});
 
 	let hasCompanyInfo = $derived(developers.length > 0 || publishers.length > 0);
@@ -142,12 +161,11 @@
 
 					{#if availablePlatforms.length > 0}
 						<div class="mt-6 flex flex-wrap gap-2">
-							{#each availablePlatforms as platform (platform.id)}
+							{#each availablePlatforms as platform (platform.source)}
 								{@const IconComponent =
-									platformIcons[platform.external_game_source as keyof typeof platformIcons]}
+									platformIcons[platform.source as keyof typeof platformIcons]}
 								<a
 									href={platform.url}
-									aria-label={`View on ${platform.external_game_source}`}
 									class="text-primary transition-all duration-200 ease-in-out hover:scale-105 hover:brightness-125 hover:drop-shadow-[0_0_1px_var(---primary)]"
 								>
 									<IconComponent width={iconSize} height={iconSize} />

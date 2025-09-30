@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		const games: Game[] = (
 			await (await igdb())
 				.fields(
-					'name, first_release_date, cover.image_id, external_games.external_game_source, external_games.url, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url'
+					'name, first_release_date, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url'
 				)
 				.where(`id = ${gameID}`)
 				.limit(1)

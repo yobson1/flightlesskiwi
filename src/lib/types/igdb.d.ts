@@ -30,6 +30,7 @@ export interface GameEngine {
 export interface Website {
 	id: number;
 	url: string;
+	type: number;
 }
 
 export interface Company {
@@ -49,6 +50,7 @@ export interface Game {
 	id: number;
 	cover: Cover;
 	external_games?: ExternalGame[];
+	websites?: Website[];
 	first_release_date: number;
 	game_engines?: GameEngine[];
 	involved_companies?: InvolvedCompany[];
