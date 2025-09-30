@@ -54,3 +54,10 @@ export interface Game {
 	involved_companies?: InvolvedCompany[];
 	name: string;
 }
+
+export interface GameSearchResult {
+	id: number;
+	name: string;
+	first_release_date: number;
+	cover: Cover;
+}

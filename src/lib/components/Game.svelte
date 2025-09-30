@@ -3,15 +3,12 @@
 	import SimpleIconsSteam from '~icons/simple-icons/steam';
 	import SimpleIconsItchdotio from '~icons/simple-icons/itchdotio';
 	import SimpleIconsEpicgames from '~icons/simple-icons/epicgames';
-	import type { ImageSize, Game } from '$lib/types/igdb';
+	import type { Game } from '$lib/types/igdb';
+	import { constructImageUrl } from '$lib/igdb';
 	import { GameSource } from '$lib/enums/igdb';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { onMount } from 'svelte';
-
-	function constructImageUrl(imageId: string, size: ImageSize): string {
-		return `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.webp`;
-	}
 
 	function formatReleaseDate(timestamp: number): string {
 		return new Date(timestamp * 1000).toDateString();
