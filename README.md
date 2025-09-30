@@ -2,7 +2,6 @@
 
 [![GitHub License](https://img.shields.io/github/license/yobson1/flightlesskiwi)](https://github.com/yobson1/flightlesskiwi/blob/main/LICENSE)
 [![SvelteKit Badge](https://img.shields.io/badge/built_with-SvelteKit-FF3E00?logo=svelte&link=https%3A%2F%2Fsvelte.dev%2F)](https://kit.svelte.dev)
-![wakapi](https://img.shields.io/endpoint?url=https%3A%2F%2Fwaka.yobson.xyz%2Fapi%2Fcompat%2Fshields%2Fv1%2Fyobson%2Finterval%3Aany%2Fproject%3Aflightlesskiwi&logo=wakatime&logoColor=white&label=wakapi)
 
 
 
