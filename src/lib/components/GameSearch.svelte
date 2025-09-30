@@ -7,6 +7,12 @@
 	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
+	interface Props {
+		onSelected?: (gameId: number) => void;
+	}
+
+	let { onSelected }: Props = $props();
+
 	let searchQuery = $state('');
 	let results = $state<GameSearchResult[]>([]);
 	let loading = $state(false);
@@ -93,6 +99,7 @@
 		console.log('Selected game:', game);
 		open = false;
 		isMouseOverResults = false;
+		onSelected?.(game.id);
 	}
 
 	function handleImageLoad(gameId: number) {

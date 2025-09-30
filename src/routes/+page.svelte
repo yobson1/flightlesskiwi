@@ -1,10 +1,17 @@
-<script>
+<script lang="ts">
 	import Game from '$lib/components/Game.svelte';
 	import GameSearch from '$lib/components/GameSearch.svelte';
+
+	let selectedGameId = $state<number | null>(null);
+
+	function handleGameSelected(gameId: number) {
+		selectedGameId = gameId;
+	}
 </script>
 
-<GameSearch />
-<Game gameId={4121} />
-<Game gameId={119171} />
-<Game gameId={26758} />
-<Game gameId={1372} />
+<GameSearch onSelected={handleGameSelected} />
+{#if selectedGameId}
+	{#key selectedGameId}
+		<Game gameId={selectedGameId} />
+	{/key}
+{/if}
