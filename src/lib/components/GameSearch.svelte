@@ -192,7 +192,7 @@
 							class="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent"
 							onclick={() => selectGame(game)}
 						>
-							<div class="relative h-16 w-12">
+							<div class="relative flex h-16 w-12 items-center">
 								{#if game.cover?.image_id}
 									{#if imageLoadingStates[game.id] !== false}
 										<Skeleton class="absolute inset-0 rounded" />
@@ -200,7 +200,7 @@
 									<img
 										src={constructImageUrl(game.cover.image_id, 'cover_small')}
 										alt={game.name}
-										class="absolute inset-0 rounded object-cover text-transparent"
+										class="absolute rounded text-transparent"
 										onload={() => handleImageLoad(game.id)}
 									/>
 								{:else}
