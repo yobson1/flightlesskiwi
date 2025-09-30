@@ -9,9 +9,10 @@
 
 	interface Props {
 		onSelected?: (gameId: number) => void;
+		noParent?: boolean;
 	}
 
-	let { onSelected }: Props = $props();
+	let { onSelected, noParent = false }: Props = $props();
 
 	let searchQuery = $state('');
 	let results = $state<GameSearchResult[]>([]);
@@ -99,7 +100,8 @@
 		console.log('Selected game:', game);
 		open = false;
 		isMouseOverResults = false;
-		onSelected?.(game.id);
+
+		onSelected?.(noParent ? game.id : (game.parent_game ?? game.version_parent ?? game.id));
 	}
 
 	function handleImageLoad(gameId: number) {

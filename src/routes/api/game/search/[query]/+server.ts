@@ -4,7 +4,7 @@ import apicalypse from 'apicalypse';
 import { error } from '$lib/logger';
 import type { RequestHandler } from './$types';
 
-const FIELDS = 'name, first_release_date, cover.image_id';
+const FIELDS = 'name, first_release_date, cover.image_id, parent_game, version_parent';
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {

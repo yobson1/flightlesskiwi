@@ -62,4 +62,6 @@ export interface GameSearchResult {
 	name: string;
 	first_release_date: number;
 	cover: Cover;
+	parent_game?: number;
+	version_parent?: number;
 }
