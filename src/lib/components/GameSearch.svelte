@@ -7,6 +7,8 @@
 	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
+	// Props
+
 	interface Props {
 		onSelected?: (gameId: number) => void;
 		noParent?: boolean;
@@ -14,24 +16,30 @@
 
 	let { onSelected, noParent = false }: Props = $props();
 
+	// State
+
 	let searchQuery = $state('');
 	let results = $state<GameSearchResult[]>([]);
 	let loading = $state(false);
 	let open = $state(false);
 	let errorMessage = $state<string | null>(null);
-	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let imageLoadingStates = $state<Record<number, boolean>>({});
 	let isMouseOverResults = false;
-	let abortController: AbortController | undefined;
-	let currentSearchQuery = '';
+
+	// Derived state
 
 	let hasResults = $derived(results.length > 0);
 	let shouldShowDropdown = $derived(open && searchQuery.trim());
 
-	let imageLoadingStates = $state<Record<number, boolean>>({});
+	// Async tracking
+
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let abortController: AbortController | undefined;
+	let currentSearchQuery = '';
+
+	// Search logic
 
 	async function searchGames(query: string) {
-		errorMessage = null;
-
 		abortController?.abort();
 		abortController = new AbortController();
 
@@ -39,6 +47,7 @@
 		currentSearchQuery = query;
 		const thisSearchQuery = query;
 
+		errorMessage = null;
 		loading = true;
 		open = true;
 
@@ -48,6 +57,7 @@
 			});
 			const data = await response.json();
 
+			// Ignore stale results
 			if (thisSearchQuery !== currentSearchQuery) {
 				console.log(
 					`ignoring stale results for "${thisSearchQuery}" (current: "${currentSearchQuery}")`
@@ -57,15 +67,7 @@
 
 			if (response.ok) {
 				results = data;
-
-				// init loading state for images
-				const newLoadingStates: Record<number, boolean> = {};
-				for (const game of results) {
-					if (game.cover?.image_id) {
-						newLoadingStates[game.id] = true;
-					}
-				}
-				imageLoadingStates = newLoadingStates;
+				initializeImageLoadingStates(data);
 			} else {
 				errorMessage = data.error || `Failed to search games (${response.status})`;
 				results = [];
@@ -84,13 +86,11 @@
 			// only update loading state if this is still the current search
 			if (thisSearchQuery === currentSearchQuery) {
 				loading = false;
-			} else {
-				console.log(
-					`Not updating loading state for stale search "${thisSearchQuery}" (current: "${currentSearchQuery}")`
-				);
 			}
 		}
 	}
+
+	// Event Handlers
 
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -99,10 +99,7 @@
 		clearTimeout(debounceTimer);
 
 		if (!searchQuery.trim()) {
-			results = [];
-			open = false;
-			loading = false;
-			imageLoadingStates = {};
+			resetSearch();
 			return;
 		}
 
@@ -134,6 +131,25 @@
 
 	function handleImageLoad(gameId: number) {
 		imageLoadingStates[gameId] = false;
+	}
+
+	// Util
+
+	function initializeImageLoadingStates(games: GameSearchResult[]) {
+		const newLoadingStates: Record<number, boolean> = {};
+		for (const game of games) {
+			if (game.cover?.image_id) {
+				newLoadingStates[game.id] = true;
+			}
+		}
+		imageLoadingStates = newLoadingStates;
+	}
+
+	function resetSearch() {
+		results = [];
+		open = false;
+		loading = false;
+		imageLoadingStates = {};
 	}
 </script>
 
