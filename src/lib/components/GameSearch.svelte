@@ -64,7 +64,7 @@
 
 		debounceTimer = setTimeout(() => {
 			searchGames(searchQuery);
-		}, 150);
+		}, 200);
 	}
 
 	function handleBlur() {
