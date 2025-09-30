@@ -48,7 +48,7 @@ export interface InvolvedCompany {
 export interface Game {
 	id: number;
 	cover: Cover;
-	external_games: ExternalGame[];
+	external_games?: ExternalGame[];
 	first_release_date: number;
 	game_engines?: GameEngine[];
 	involved_companies?: InvolvedCompany[];

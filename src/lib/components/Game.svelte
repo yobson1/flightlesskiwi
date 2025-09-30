@@ -53,7 +53,7 @@
 	});
 
 	let availablePlatforms = $derived.by(() => {
-		if (!game) return [];
+		if (!game?.external_games) return [];
 		return game.external_games.filter((eg) => pcPlatforms.includes(eg.external_game_source));
 	});
 
