@@ -108,7 +108,7 @@
 					<Skeleton class="mb-2 h-8 w-80" />
 					<Skeleton class="mb-4 h-4 w-16" />
 
-					<div class="mt-6 flex flex-wrap gap-2">
+					<div class="mt-4 flex flex-wrap gap-2">
 						<Skeleton class="h-7 w-7 rounded" />
 						<Skeleton class="h-7 w-7 rounded" />
 						<Skeleton class="h-7 w-7 rounded" />
@@ -160,7 +160,7 @@
 					</h2>
 
 					{#if availablePlatforms.length > 0}
-						<div class="mt-6 flex flex-wrap gap-2">
+						<div class="mt-4 flex flex-wrap gap-2">
 							{#each availablePlatforms as platform (platform.source)}
 								{@const IconComponent =
 									platformIcons[platform.source as keyof typeof platformIcons]}
