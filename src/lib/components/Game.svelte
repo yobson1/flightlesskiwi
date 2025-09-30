@@ -84,7 +84,7 @@
 	{#if loading}
 		<div class="flex items-start gap-8 max-md:flex-col max-md:items-center">
 			<Skeleton class="h-[352px] w-[264px] rounded-lg" />
-			<div class="flex flex-1 flex-col gap-6">
+			<div class="flex flex-1 flex-col gap-4">
 				<div class="flex flex-col">
 					<Skeleton class="mb-2 h-8 w-80" />
 					<Skeleton class="mb-4 h-4 w-16" />
@@ -98,7 +98,7 @@
 
 				<Separator />
 
-				<div class="flex flex-wrap gap-6 max-md:flex-col max-md:gap-6">
+				<div class="flex flex-wrap gap-4 max-md:flex-col max-md:gap-4">
 					<div>
 						<Skeleton class="mb-2 h-5 w-24" />
 						<div class="space-y-1">
@@ -133,7 +133,7 @@
 				<img src={coverUrl} alt={game.name} class="cover" />
 			</div>
 
-			<div class="flex flex-1 flex-col gap-6 max-md:text-center">
+			<div class="flex flex-1 flex-col gap-4 max-md:text-center">
 				<div class="flex flex-col">
 					<h1 class="m-0 text-4xl font-bold">{game.name}</h1>
 					<h2 class="m-0 text-base font-normal text-muted-foreground">
@@ -159,7 +159,7 @@
 
 				<Separator />
 
-				<div class="flex flex-wrap gap-6 max-md:flex-col max-md:gap-6">
+				<div class="flex flex-wrap gap-4 max-md:flex-col max-md:gap-4">
 					{#if developers.length > 0}
 						<div>
 							<h3 class="m-0 mb-2 text-xl font-semibold">Developers</h3>
