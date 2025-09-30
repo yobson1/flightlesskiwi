@@ -97,7 +97,7 @@
 	}
 
 	function selectGame(game: GameSearchResult) {
-		console.log('Selected game:', game);
+		console.log(`Selected game: ${game.name}[${game.id}]`);
 		open = false;
 		isMouseOverResults = false;
 
