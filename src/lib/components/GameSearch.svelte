@@ -18,9 +18,9 @@
 	let results = $state<GameSearchResult[]>([]);
 	let loading = $state(false);
 	let open = $state(false);
-	let debounceTimer = $state<ReturnType<typeof setTimeout>>();
-	let isMouseOverResults = $state(false);
 	let errorMessage = $state<string | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let isMouseOverResults = false;
 
 	let hasResults = $derived(results.length > 0);
 	let shouldShowDropdown = $derived(open && searchQuery.trim());
@@ -80,7 +80,7 @@
 
 		debounceTimer = setTimeout(() => {
 			searchGames(searchQuery);
-		}, 200);
+		}, 500);
 	}
 
 	function handleBlur() {
@@ -158,7 +158,6 @@
 										src={constructImageUrl(game.cover.image_id, 'cover_small')}
 										alt={game.name}
 										class="h-16 w-12 rounded object-cover"
-										class:hidden={imageLoadingStates[game.id] !== false}
 										onload={() => handleImageLoad(game.id)}
 									/>
 								{:else}
