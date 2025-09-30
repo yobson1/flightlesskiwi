@@ -99,153 +99,150 @@
 	});
 </script>
 
-<div class="mb-4">
-	{#if loading}
-		<div class="flex items-start gap-8 max-md:flex-col max-md:items-center">
-			<Skeleton class="h-[352px] w-[264px] rounded-lg" />
-			<div class="flex flex-1 flex-col gap-4">
-				<div class="flex flex-col">
-					<Skeleton class="mb-2 h-8 w-80" />
-					<Skeleton class="mb-4 h-4 w-16" />
+{#if loading}
+	<div class="flex items-start gap-8 max-md:flex-col max-md:items-center">
+		<Skeleton class="h-[352px] w-[264px] rounded-lg" />
+		<div class="flex flex-1 flex-col gap-4">
+			<div class="flex flex-col">
+				<Skeleton class="mb-2 h-8 w-80" />
+				<Skeleton class="mb-4 h-4 w-16" />
 
+				<div class="mt-4 flex flex-wrap gap-2">
+					<Skeleton class="h-7 w-7 rounded" />
+					<Skeleton class="h-7 w-7 rounded" />
+					<Skeleton class="h-7 w-7 rounded" />
+				</div>
+			</div>
+
+			<Separator />
+
+			<div class="flex flex-wrap gap-4 max-md:flex-col max-md:gap-4">
+				<div>
+					<Skeleton class="mb-2 h-5 w-24" />
+					<div class="space-y-1">
+						<Skeleton class="h-4 w-32" />
+						<Skeleton class="h-4 w-28" />
+					</div>
+				</div>
+				<div>
+					<Skeleton class="mb-2 h-5 w-24" />
+					<div class="space-y-1">
+						<Skeleton class="h-4 w-36" />
+					</div>
+				</div>
+				<Separator />
+				<div>
+					<Skeleton class="mb-2 h-5 w-16" />
+					<div class="space-y-1">
+						<Skeleton class="h-4 w-20" />
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+{:else if error}
+	<div class="p-8 text-center text-destructive">
+		<h2>Error loading game</h2>
+		<p>{error}</p>
+	</div>
+{:else if game}
+	<div class="flex items-start gap-8 max-md:flex-col max-md:items-center">
+		<div class="cover-wrapper relative" style={`--cover-glow: url(${coverUrl});`}>
+			<img src={coverUrl} alt={game.name} class="cover" />
+		</div>
+
+		<div class="flex flex-1 flex-col gap-4 max-md:text-center">
+			<div class="flex flex-col">
+				<h1 class="m-0 text-4xl font-bold">{game.name}</h1>
+				<h2 class="m-0 text-base font-normal text-muted-foreground">
+					{formatReleaseDate(game.first_release_date)}
+				</h2>
+
+				{#if availablePlatforms.length > 0}
 					<div class="mt-4 flex flex-wrap gap-2">
-						<Skeleton class="h-7 w-7 rounded" />
-						<Skeleton class="h-7 w-7 rounded" />
-						<Skeleton class="h-7 w-7 rounded" />
+						{#each availablePlatforms as platform (platform.source)}
+							{@const IconComponent = platformIcons[platform.source as keyof typeof platformIcons]}
+							<a
+								href={platform.url}
+								class="text-primary transition-all duration-200 ease-in-out hover:scale-105 hover:brightness-125 hover:drop-shadow-[0_0_0.5px_var(--primary)]"
+							>
+								<IconComponent width={iconSize} height={iconSize} />
+							</a>
+						{/each}
 					</div>
-				</div>
-
-				<Separator />
-
-				<div class="flex flex-wrap gap-4 max-md:flex-col max-md:gap-4">
-					<div>
-						<Skeleton class="mb-2 h-5 w-24" />
-						<div class="space-y-1">
-							<Skeleton class="h-4 w-32" />
-							<Skeleton class="h-4 w-28" />
-						</div>
-					</div>
-					<div>
-						<Skeleton class="mb-2 h-5 w-24" />
-						<div class="space-y-1">
-							<Skeleton class="h-4 w-36" />
-						</div>
-					</div>
-					<Separator />
-					<div>
-						<Skeleton class="mb-2 h-5 w-16" />
-						<div class="space-y-1">
-							<Skeleton class="h-4 w-20" />
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	{:else if error}
-		<div class="p-8 text-center text-destructive">
-			<h2>Error loading game</h2>
-			<p>{error}</p>
-		</div>
-	{:else if game}
-		<div class="flex items-start gap-8 max-md:flex-col max-md:items-center">
-			<div class="cover-wrapper relative" style={`--cover-glow: url(${coverUrl});`}>
-				<img src={coverUrl} alt={game.name} class="cover" />
+				{/if}
 			</div>
 
-			<div class="flex flex-1 flex-col gap-4 max-md:text-center">
-				<div class="flex flex-col">
-					<h1 class="m-0 text-4xl font-bold">{game.name}</h1>
-					<h2 class="m-0 text-base font-normal text-muted-foreground">
-						{formatReleaseDate(game.first_release_date)}
-					</h2>
+			<Separator />
 
-					{#if availablePlatforms.length > 0}
-						<div class="mt-4 flex flex-wrap gap-2">
-							{#each availablePlatforms as platform (platform.source)}
-								{@const IconComponent =
-									platformIcons[platform.source as keyof typeof platformIcons]}
-								<a
-									href={platform.url}
-									class="text-primary transition-all duration-200 ease-in-out hover:scale-105 hover:brightness-125 hover:drop-shadow-[0_0_0.5px_var(--primary)]"
-								>
-									<IconComponent width={iconSize} height={iconSize} />
-								</a>
+			<div class="flex flex-wrap gap-4 max-md:flex-col max-md:gap-4">
+				{#if developers.length > 0}
+					<div>
+						<h3 class="m-0 mb-2 text-xl font-semibold">Developers</h3>
+						<ul>
+							{#each developers as developer (developer.id)}
+								<li class="mb-1">
+									{#if developer.websites?.[0]?.url}
+										<a
+											href={developer.websites[0].url}
+											rel="external"
+											class="underline hover:no-underline">{developer.name}</a
+										>
+									{:else}
+										{developer.name}
+									{/if}
+								</li>
 							{/each}
-						</div>
-					{/if}
-				</div>
-
-				<Separator />
-
-				<div class="flex flex-wrap gap-4 max-md:flex-col max-md:gap-4">
-					{#if developers.length > 0}
-						<div>
-							<h3 class="m-0 mb-2 text-xl font-semibold">Developers</h3>
-							<ul>
-								{#each developers as developer (developer.id)}
-									<li class="mb-1">
-										{#if developer.websites?.[0]?.url}
-											<a
-												href={developer.websites[0].url}
-												rel="external"
-												class="underline hover:no-underline">{developer.name}</a
-											>
-										{:else}
-											{developer.name}
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-					{#if publishers.length > 0}
-						<div>
-							<h3 class="m-0 mb-2 text-xl font-semibold">Publishers</h3>
-							<ul>
-								{#each publishers as publisher (publisher.id)}
-									<li class="mb-1">
-										{#if publisher.websites?.[0]?.url}
-											<a
-												href={publisher.websites[0].url}
-												rel="external"
-												class="underline hover:no-underline">{publisher.name}</a
-											>
-										{:else}
-											{publisher.name}
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-					{#if hasCompanyInfo && hasEngines}
-						<Separator />
-					{/if}
-					{#if hasEngines && game.game_engines}
-						<div>
-							<h3 class="m-0 mb-2 text-xl font-semibold">
-								Engine{game.game_engines.length > 1 ? 's' : ''}
-							</h3>
-							<ul>
-								{#each game.game_engines as engine (engine.id)}
-									<li class="mb-1">
-										{#if engine.url}
-											<a href={engine.url} rel="external" class="underline hover:no-underline"
-												>{engine.name}</a
-											>
-										{:else}
-											{engine.name}
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-				</div>
+						</ul>
+					</div>
+				{/if}
+				{#if publishers.length > 0}
+					<div>
+						<h3 class="m-0 mb-2 text-xl font-semibold">Publishers</h3>
+						<ul>
+							{#each publishers as publisher (publisher.id)}
+								<li class="mb-1">
+									{#if publisher.websites?.[0]?.url}
+										<a
+											href={publisher.websites[0].url}
+											rel="external"
+											class="underline hover:no-underline">{publisher.name}</a
+										>
+									{:else}
+										{publisher.name}
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+				{#if hasCompanyInfo && hasEngines}
+					<Separator />
+				{/if}
+				{#if hasEngines && game.game_engines}
+					<div>
+						<h3 class="m-0 mb-2 text-xl font-semibold">
+							Engine{game.game_engines.length > 1 ? 's' : ''}
+						</h3>
+						<ul>
+							{#each game.game_engines as engine (engine.id)}
+								<li class="mb-1">
+									{#if engine.url}
+										<a href={engine.url} rel="external" class="underline hover:no-underline"
+											>{engine.name}</a
+										>
+									{:else}
+										{engine.name}
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
 			</div>
 		</div>
-	{/if}
-</div>
+	</div>
+{/if}
 
 <style>
 	.cover {
