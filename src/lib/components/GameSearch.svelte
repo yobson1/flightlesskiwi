@@ -13,6 +13,7 @@
 	let open = $state(false);
 	let debounceTimer = $state<ReturnType<typeof setTimeout>>();
 	let isMouseOverResults = $state(false);
+	let errorMessage = $state<string | null>(null);
 
 	let hasResults = $derived(results.length > 0);
 	let shouldShowDropdown = $derived(open && searchQuery.trim());
@@ -20,6 +21,7 @@
 	let imageLoadingStates = $state<Record<number, boolean>>({});
 
 	async function searchGames(query: string) {
+		errorMessage = null;
 		if (!query.trim()) {
 			results = [];
 			open = false;
@@ -30,8 +32,11 @@
 		open = true;
 		try {
 			const response = await fetch(`/api/game/search/${encodeURIComponent(query)}`);
+			const data = await response.json();
+
 			if (response.ok) {
-				results = await response.json();
+				results = data;
+				errorMessage = null;
 
 				// init loading state for images
 				const newLoadingStates: Record<number, boolean> = {};
@@ -41,9 +46,13 @@
 					}
 				}
 				imageLoadingStates = newLoadingStates;
+			} else {
+				errorMessage = data.error || `Failed to search games (${response.status})`;
+				results = [];
 			}
 		} catch (error) {
 			console.error('Search error:', error);
+			errorMessage = error instanceof Error ? error.message : 'Failed to search games';
 			results = [];
 		} finally {
 			loading = false;
@@ -119,6 +128,8 @@
 		>
 			{#if loading}
 				<div class="p-4 text-center text-sm text-muted-foreground">Loading...</div>
+			{:else if errorMessage}
+				<div class="p-4 text-center text-sm text-destructive">Error: {errorMessage}</div>
 			{:else if !hasResults}
 				<div class="p-4 text-center text-sm text-muted-foreground">No games found</div>
 			{:else}
