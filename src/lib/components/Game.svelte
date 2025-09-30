@@ -166,7 +166,7 @@
 									platformIcons[platform.source as keyof typeof platformIcons]}
 								<a
 									href={platform.url}
-									class="text-primary transition-all duration-200 ease-in-out hover:scale-105 hover:brightness-125 hover:drop-shadow-[0_0_1px_var(---primary)]"
+									class="text-primary transition-all duration-200 ease-in-out hover:scale-105 hover:brightness-125 hover:drop-shadow-[0_0_0.5px_var(--primary)]"
 								>
 									<IconComponent width={iconSize} height={iconSize} />
 								</a>
