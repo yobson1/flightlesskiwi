@@ -21,6 +21,8 @@
 	let errorMessage = $state<string | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let isMouseOverResults = false;
+	let abortController: AbortController | undefined;
+	let currentSearchQuery = '';
 
 	let hasResults = $derived(results.length > 0);
 	let shouldShowDropdown = $derived(open && searchQuery.trim());
@@ -29,21 +31,32 @@
 
 	async function searchGames(query: string) {
 		errorMessage = null;
-		if (!query.trim()) {
-			results = [];
-			open = false;
-			return;
-		}
+
+		abortController?.abort();
+		abortController = new AbortController();
+
+		// Track this search query to ignore stale results
+		currentSearchQuery = query;
+		const thisSearchQuery = query;
 
 		loading = true;
 		open = true;
+
 		try {
-			const response = await fetch(`/api/game/search/${encodeURIComponent(query)}`);
+			const response = await fetch(`/api/game/search/${encodeURIComponent(query)}`, {
+				signal: abortController.signal
+			});
 			const data = await response.json();
+
+			if (thisSearchQuery !== currentSearchQuery) {
+				console.log(
+					`ignoring stale results for "${thisSearchQuery}" (current: "${currentSearchQuery}")`
+				);
+				return;
+			}
 
 			if (response.ok) {
 				results = data;
-				errorMessage = null;
 
 				// init loading state for images
 				const newLoadingStates: Record<number, boolean> = {};
@@ -58,11 +71,24 @@
 				results = [];
 			}
 		} catch (error) {
+			// these are expected when we cancel requests
+			if (error instanceof Error && error.name === 'AbortError') {
+				console.log(`aborted "${thisSearchQuery}" search`);
+				return;
+			}
+
 			console.error('Search error:', error);
 			errorMessage = error instanceof Error ? error.message : 'Failed to search games';
 			results = [];
 		} finally {
-			loading = false;
+			// only update loading state if this is still the current search
+			if (thisSearchQuery === currentSearchQuery) {
+				loading = false;
+			} else {
+				console.log(
+					`Not updating loading state for stale search "${thisSearchQuery}" (current: "${currentSearchQuery}")`
+				);
+			}
 		}
 	}
 
@@ -75,12 +101,14 @@
 		if (!searchQuery.trim()) {
 			results = [];
 			open = false;
+			loading = false;
+			imageLoadingStates = {};
 			return;
 		}
 
 		debounceTimer = setTimeout(() => {
 			searchGames(searchQuery);
-		}, 500);
+		}, 350);
 	}
 
 	function handleBlur() {
