@@ -222,52 +222,87 @@ async function syncGames(igdbGames: IGDBGame[]) {
 }
 
 async function igdbSync(lastSyncTimestamp: number) {
+	info(
+		`Syncing games since ${new Date(lastSyncTimestamp * 1000).toISOString()}(${lastSyncTimestamp})`
+	);
+
 	await seedStores();
 
-	const RATE_LIMIT = 4;
-	const BATCH_SIZE = 500;
-	const DELAY = 1000 / RATE_LIMIT;
+	const REQUESTS_PER_BATCH = 4;
+	const GAMES_PER_REQUEST = 500;
+	const GAMES_PER_BATCH = REQUESTS_PER_BATCH * GAMES_PER_REQUEST;
+	const BATCH_DELAY = 1000;
 	const FIELDS =
 		'name, first_release_date, parent_game, version_parent, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url';
 
-	let offset = 0;
 	const totalGames = (
-		await (await igdb()).where(`updated_at > ${lastSyncTimestamp}`).request('/games/count')
+		await (await igdb())
+			.fields('id')
+			.where(`updated_at > ${lastSyncTimestamp}`)
+			.request('/games/count')
 	).data.count;
+
+	if (totalGames === 0) {
+		info('No new games to sync');
+		return;
+	}
+
 	info(`Syncing ${totalGames} games`);
-	await sleep(DELAY);
+	await sleep(BATCH_DELAY);
 
-	while (true) {
+	// Helper function to fetch a batch of 4 requests
+	async function fetchBatch(startOffset: number): Promise<IGDBGame[]> {
+		const promises: Promise<{ data: IGDBGame[] }>[] = [];
+
+		for (let i = 0; i < REQUESTS_PER_BATCH; i++) {
+			const offset = startOffset + i * GAMES_PER_REQUEST;
+
+			promises.push(
+				(await igdb())
+					.fields(FIELDS)
+					.limit(GAMES_PER_REQUEST)
+					.offset(offset)
+					.sort('created_at', 'asc')
+					.where(`updated_at > ${lastSyncTimestamp}`)
+					.request('/games')
+			);
+		}
+
+		const results = await Promise.all(promises);
+		return results.flatMap((result) => result.data);
+	}
+
+	let offset = 0;
+
+	// Fetch the initial batch and wait
+	info(`Fetching initial batch (games 0 to ${Math.min(GAMES_PER_BATCH, totalGames)})...`);
+	let currentGames = await fetchBatch(offset);
+	await sleep(BATCH_DELAY);
+
+	while (currentGames.length > 0) {
 		const iterationStart = Date.now();
-		info(`Syncing games ${offset} to ${offset + BATCH_SIZE}...`);
+		const currentOffset = offset;
+		offset += GAMES_PER_BATCH;
 
-		const games = (
-			await (await igdb())
-				.fields(FIELDS)
-				.limit(BATCH_SIZE)
-				.offset(offset)
-				.sort('created_at', 'asc')
-				.where(`updated_at > ${lastSyncTimestamp}`)
-				.request('/games')
-		).data;
-		const curBatch = games.length;
+		// Kick off the next batch fetch immediately (don't await yet)
+		info(`Processing games ${currentOffset} to ${currentOffset + currentGames.length}...`);
+		const nextBatchPromise = fetchBatch(offset);
 
-		// in case totalGames is a multiple of BATCH_SIZE
-		if (curBatch === 0) break;
+		// Process the current batch
+		await syncGames(currentGames);
 
-		await syncGames(games);
+		if (currentGames.length < GAMES_PER_BATCH) break;
 
-		// that was the last batch
-		if (curBatch < BATCH_SIZE) break;
-
-		offset += BATCH_SIZE;
-
-		// only sleep for the remainder of DELAY if iteration was faster than DELAY
+		// Await the next batch and ensure we respect rate limits
 		const iterationTime = Date.now() - iterationStart;
-		const remainingDelay = DELAY - iterationTime;
+		const remainingDelay = BATCH_DELAY - iterationTime;
+
 		if (remainingDelay > 0) {
+			info(`Waiting ${remainingDelay}ms before fetching next batch...`);
 			await sleep(remainingDelay);
 		}
+
+		currentGames = await nextBatchPromise;
 	}
 
 	info('Sync complete!');
