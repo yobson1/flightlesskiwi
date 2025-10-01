@@ -21,24 +21,6 @@ export const GET: RequestHandler = async ({ params }) => {
 						.where(like(alternativeName.name, searchPattern))
 				)
 			),
-			with: {
-				storeLinks: {
-					with: {
-						store: true
-					}
-				},
-				involvedCompanies: {
-					with: {
-						company: true
-					}
-				},
-				usedEngines: {
-					with: {
-						engine: true
-					}
-				},
-				alternativeNames: true
-			},
 			limit: 6
 		});
 

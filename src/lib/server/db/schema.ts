@@ -191,7 +191,7 @@ export type InvolvedCompany = typeof involvedCompany.$inferSelect;
 export type Game = typeof game.$inferSelect;
 export type AlternativeName = typeof alternativeName.$inferSelect;
 
-export type SearchGame = Game & {
+export type FullGame = Game & {
 	storeLinks: (StoreLink & {
 		store: Store;
 	})[];
@@ -201,5 +201,4 @@ export type SearchGame = Game & {
 	usedEngines: (UsedEngine & {
 		engine: GameEngine;
 	})[];
-	alternativeNames: AlternativeName[];
 };

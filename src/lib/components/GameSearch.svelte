@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input';
 	import { constructImageUrl } from '$lib/igdb';
-	import type { SearchGame } from '$lib/server/db/schema';
+	import type { Game } from '$lib/server/db/schema';
 	import { fly } from 'svelte/transition';
 	import LineMdSearchTwotone from '$lib/components/icons/LineMdSearchTwotone.svelte';
 	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';
@@ -19,7 +19,7 @@
 	// State
 
 	let searchQuery = $state('');
-	let results = $state<SearchGame[]>([]);
+	let results = $state<Game[]>([]);
 	let loading = $state(false);
 	let open = $state(false);
 	let errorMessage = $state<string | null>(null);
@@ -120,7 +120,7 @@
 		}
 	}
 
-	function selectGame(game: SearchGame) {
+	function selectGame(game: Game) {
 		console.log(`Selected game: ${game.name}[${game.id}]`);
 		open = false;
 		isMouseOverResults = false;
@@ -134,7 +134,7 @@
 
 	// Util
 
-	function initializeImageLoadingStates(games: SearchGame[]) {
+	function initializeImageLoadingStates(games: Game[]) {
 		const newLoadingStates: Record<number, boolean> = {};
 		for (const game of games) {
 			if (game.coverImgId) {
