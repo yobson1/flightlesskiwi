@@ -13,6 +13,7 @@ import {
 	gameEngine,
 	storeLink,
 	store,
+	syncState,
 	STORES
 } from '$lib/server/db/schema';
 import * as auth from '$lib/server/auth';
@@ -212,7 +213,7 @@ async function syncGames(igdbGames: IGDBGame[]) {
 	}
 }
 
-async function igdbSync(lastSyncTimestamp?: number) {
+async function igdbSync(lastSyncTimestamp: number) {
 	await seedStores();
 
 	const RATE_LIMIT = 4;
@@ -223,25 +224,22 @@ async function igdbSync(lastSyncTimestamp?: number) {
 
 	let offset = 0;
 	const totalGames = (
-		await (await igdb())
-			.where(lastSyncTimestamp ? `updated_at > ${lastSyncTimestamp}` : 'id != null')
-			.request('/games/count')
+		await (await igdb()).where(`updated_at > ${lastSyncTimestamp}`).request('/games/count')
 	).data.count;
 	info(`Syncing ${totalGames} games`);
 	await sleep(DELAY);
 
 	while (true) {
+		const iterationStart = Date.now();
 		info(`Syncing games ${offset} to ${offset + BATCH_SIZE}...`);
 
 		const games = (
-			await (
-				await igdb()
-			)
+			await (await igdb())
 				.fields(FIELDS)
 				.limit(BATCH_SIZE)
 				.offset(offset)
 				.sort('created_at', 'asc')
-				.where(lastSyncTimestamp ? `updated_at > ${lastSyncTimestamp}` : 'id != null')
+				.where(`updated_at > ${lastSyncTimestamp}`)
 				.request('/games')
 		).data;
 		const curBatch = games.length;
@@ -255,10 +253,26 @@ async function igdbSync(lastSyncTimestamp?: number) {
 		if (curBatch < BATCH_SIZE) break;
 
 		offset += BATCH_SIZE;
-		await sleep(DELAY);
+
+		// only sleep for the remainder of DELAY if iteration was faster than DELAY
+		const iterationTime = Date.now() - iterationStart;
+		const remainingDelay = DELAY - iterationTime;
+		if (remainingDelay > 0) {
+			await sleep(remainingDelay);
+		}
 	}
 
-	info('Full sync complete!');
+	info('Sync complete!');
+	await setLastSyncTime();
 }
 
-igdbSync();
+async function setLastSyncTime() {
+	await db.update(syncState).set({ lastSync: new Date() });
+}
+
+async function getLastSyncTime() {
+	const state = await db.select().from(syncState).limit(1);
+	return state[0]?.lastSync ? Math.floor(state[0].lastSync.getTime() / 1000) : 0;
+}
+
+igdbSync(await getLastSyncTime());

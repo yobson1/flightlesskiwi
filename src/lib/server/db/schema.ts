@@ -74,6 +74,10 @@ export const game = sqliteTable('game', {
 	versionParent: integer('version_parent_id').references((): any => game.id)
 });
 
+export const syncState = sqliteTable('sync_state', {
+	lastSync: integer('last_sync', { mode: 'timestamp' }).notNull()
+});
+
 // Relations for game data tables
 export const gameRelations = relations(game, ({ many, one }) => ({
 	storeLinks: many(storeLink),
