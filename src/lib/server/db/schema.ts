@@ -21,7 +21,7 @@ export const store = sqliteTable('store', {
 });
 
 export const storeLink = sqliteTable('store_link', {
-	id: integer('id').primaryKey(),
+	id: integer('id').primaryKey({ autoIncrement: true }),
 	gameId: integer('game_id')
 		.notNull()
 		.references(() => game.id),
@@ -38,7 +38,7 @@ export const gameEngine = sqliteTable('game_engine', {
 });
 
 export const usedEngine = sqliteTable('used_engine', {
-	id: integer('id').primaryKey(),
+	id: integer('id').primaryKey({ autoIncrement: true }),
 	gameId: integer('game_id')
 		.notNull()
 		.references(() => game.id),

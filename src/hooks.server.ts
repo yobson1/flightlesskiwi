@@ -131,7 +131,6 @@ async function syncGames(igdbGames: IGDBGame[]) {
 
 			await db.insert(storeLink).values(
 				storeLinks.map((link, index) => ({
-					id: igdbGame.id * 10 + index, // Simple ID generation
 					gameId: igdbGame.id,
 					storeId: link.storeId,
 					url: link.url
@@ -168,7 +167,7 @@ async function syncGames(igdbGames: IGDBGame[]) {
 
 			await db.insert(involvedCompany).values(
 				igdbGame.involved_companies.map((ic, index) => ({
-					id: igdbGame.id * 100 + index, // Simple ID generation
+					id: ic.id,
 					gameId: igdbGame.id,
 					companyId: ic.company.id,
 					developer: ic.developer,
@@ -204,7 +203,6 @@ async function syncGames(igdbGames: IGDBGame[]) {
 
 			await db.insert(usedEngine).values(
 				igdbGame.game_engines.map((engine, index) => ({
-					id: igdbGame.id * 100 + index, // Simple ID generation
 					gameId: igdbGame.id,
 					engineId: engine.id
 				}))
