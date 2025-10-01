@@ -80,6 +80,14 @@ export const involvedCompany = sqliteTable(
 	})
 );
 
+export const alternativeName = sqliteTable('alternative_name', {
+	id: integer('id').primaryKey(),
+	gameId: integer('game_id')
+		.notNull()
+		.references(() => game.id),
+	name: text('name').notNull()
+});
+
 export const game = sqliteTable('game', {
 	id: integer('id').primaryKey(),
 	name: text('name').notNull(),
@@ -95,6 +103,7 @@ export const syncState = sqliteTable('sync_state', {
 
 // Relations for game data tables
 export const gameRelations = relations(game, ({ many, one }) => ({
+	alternativeNames: many(alternativeName),
 	storeLinks: many(storeLink),
 	involvedCompanies: many(involvedCompany),
 	usedEngines: many(usedEngine),
@@ -110,6 +119,13 @@ export const gameRelations = relations(game, ({ many, one }) => ({
 	}),
 	childGames: many(game, { relationName: 'parentGame' }),
 	versions: many(game, { relationName: 'versionParent' })
+}));
+
+export const alternativeNameRelations = relations(alternativeName, ({ one }) => ({
+	game: one(game, {
+		fields: [alternativeName.gameId],
+		references: [game.id]
+	})
 }));
 
 export const storeLinkRelations = relations(storeLink, ({ one }) => ({
@@ -173,3 +189,17 @@ export type UsedEngine = typeof usedEngine.$inferSelect;
 export type Company = typeof company.$inferSelect;
 export type InvolvedCompany = typeof involvedCompany.$inferSelect;
 export type Game = typeof game.$inferSelect;
+export type AlternativeName = typeof alternativeName.$inferSelect;
+
+export type SearchGame = Game & {
+	storeLinks: (StoreLink & {
+		store: Store;
+	})[];
+	involvedCompanies: (InvolvedCompany & {
+		company: Company;
+	})[];
+	usedEngines: (UsedEngine & {
+		engine: GameEngine;
+	})[];
+	alternativeNames: AlternativeName[];
+};

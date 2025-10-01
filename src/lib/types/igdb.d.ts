@@ -46,6 +46,11 @@ export interface InvolvedCompany {
 	publisher: boolean;
 }
 
+export interface AlternativeName {
+	id: number;
+	name: string;
+}
+
 export interface Game {
 	id: number;
 	cover: Cover;
@@ -55,6 +60,7 @@ export interface Game {
 	game_engines?: GameEngine[];
 	involved_companies?: InvolvedCompany[];
 	name: string;
+	alternative_names?: AlternativeName[];
 	parent_game?: number;
 	version_parent?: number;
 }

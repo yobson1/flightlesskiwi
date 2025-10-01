@@ -1,10 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
-import { info, error } from '$lib/logger';
+import { info } from '$lib/logger';
 import { igdb } from '$lib/server/igdb';
 import type { Game as IGDBGame } from '$lib/types/igdb';
 import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
 import { db } from '$lib/server/db';
-import { eq } from 'drizzle-orm';
 import {
 	game,
 	involvedCompany,
@@ -14,6 +13,7 @@ import {
 	storeLink,
 	store,
 	syncState,
+	alternativeName,
 	STORES
 } from '$lib/server/db/schema';
 import * as auth from '$lib/server/auth';
@@ -218,6 +218,19 @@ async function syncGames(igdbGames: IGDBGame[]) {
 				)
 				.onConflictDoNothing();
 		}
+
+		if (igdbGame.alternative_names) {
+			await db
+				.insert(alternativeName)
+				.values(
+					igdbGame.alternative_names.map((name) => ({
+						id: name.id,
+						gameId: igdbGame.id,
+						name: name.name
+					}))
+				)
+				.onConflictDoNothing();
+		}
 	}
 }
 
@@ -233,7 +246,7 @@ async function igdbSync(lastSyncTimestamp: number) {
 	const GAMES_PER_BATCH = REQUESTS_PER_BATCH * GAMES_PER_REQUEST;
 	const BATCH_DELAY = 1000;
 	const FIELDS =
-		'name, first_release_date, parent_game, version_parent, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url';
+		'name, first_release_date, parent_game, version_parent, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url, alternative_names.name';
 
 	const totalGames = (
 		await (await igdb())
@@ -310,7 +323,13 @@ async function igdbSync(lastSyncTimestamp: number) {
 }
 
 async function setLastSyncTime() {
-	await db.update(syncState).set({ lastSync: new Date() });
+	const state = await db.select().from(syncState).limit(1);
+
+	if (state.length === 0) {
+		await db.insert(syncState).values({ lastSync: new Date() });
+	} else {
+		await db.update(syncState).set({ lastSync: new Date() });
+	}
 }
 
 async function getLastSyncTime() {
