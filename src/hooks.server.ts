@@ -126,16 +126,21 @@ async function syncGames(igdbGames: IGDBGame[]) {
 
 		const storeLinks = extractStoreLinks(igdbGame);
 		if (storeLinks.length > 0) {
-			// Delete existing store links for this game
-			await db.delete(storeLink).where(eq(storeLink.gameId, igdbGame.id));
-
-			await db.insert(storeLink).values(
-				storeLinks.map((link, index) => ({
-					gameId: igdbGame.id,
-					storeId: link.storeId,
-					url: link.url
-				}))
-			);
+			for (const link of storeLinks) {
+				await db
+					.insert(storeLink)
+					.values({
+						gameId: igdbGame.id,
+						storeId: link.storeId,
+						url: link.url
+					})
+					.onConflictDoUpdate({
+						target: [storeLink.gameId, storeLink.storeId],
+						set: {
+							url: link.url
+						}
+					});
+			}
 		}
 
 		if (igdbGame.involved_companies) {
@@ -162,18 +167,23 @@ async function syncGames(igdbGames: IGDBGame[]) {
 					});
 			}
 
-			// Delete existing involved companies for this game
-			await db.delete(involvedCompany).where(eq(involvedCompany.gameId, igdbGame.id));
-
-			await db.insert(involvedCompany).values(
-				igdbGame.involved_companies.map((ic, index) => ({
-					id: ic.id,
-					gameId: igdbGame.id,
-					companyId: ic.company.id,
-					developer: ic.developer,
-					publisher: ic.publisher
-				}))
-			);
+			for (const ic of igdbGame.involved_companies) {
+				await db
+					.insert(involvedCompany)
+					.values({
+						gameId: igdbGame.id,
+						companyId: ic.company.id,
+						developer: ic.developer,
+						publisher: ic.publisher
+					})
+					.onConflictDoUpdate({
+						target: [involvedCompany.gameId, involvedCompany.companyId],
+						set: {
+							developer: ic.developer,
+							publisher: ic.publisher
+						}
+					});
+			}
 		}
 
 		if (igdbGame.game_engines) {
@@ -198,15 +208,15 @@ async function syncGames(igdbGames: IGDBGame[]) {
 					});
 			}
 
-			// Delete existing used engines for this game
-			await db.delete(usedEngine).where(eq(usedEngine.gameId, igdbGame.id));
-
-			await db.insert(usedEngine).values(
-				igdbGame.game_engines.map((engine, index) => ({
-					gameId: igdbGame.id,
-					engineId: engine.id
-				}))
-			);
+			await db
+				.insert(usedEngine)
+				.values(
+					igdbGame.game_engines.map((engine, index) => ({
+						gameId: igdbGame.id,
+						engineId: engine.id
+					}))
+				)
+				.onConflictDoNothing();
 		}
 	}
 }

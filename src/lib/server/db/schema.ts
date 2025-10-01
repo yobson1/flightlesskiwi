@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, integer, text, primaryKey } from 'drizzle-orm/sqlite-core';
 
 export const user = sqliteTable('user', {
 	id: text('id').primaryKey(),
@@ -20,16 +20,21 @@ export const store = sqliteTable('store', {
 	name: text('name').notNull()
 });
 
-export const storeLink = sqliteTable('store_link', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	gameId: integer('game_id')
-		.notNull()
-		.references(() => game.id),
-	storeId: integer('store_id')
-		.notNull()
-		.references(() => store.id),
-	url: text('url').notNull()
-});
+export const storeLink = sqliteTable(
+	'store_link',
+	{
+		gameId: integer('game_id')
+			.notNull()
+			.references(() => game.id),
+		storeId: integer('store_id')
+			.notNull()
+			.references(() => store.id),
+		url: text('url').notNull()
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.gameId, table.storeId] })
+	})
+);
 
 export const gameEngine = sqliteTable('game_engine', {
 	id: integer('id').primaryKey(),
@@ -37,15 +42,20 @@ export const gameEngine = sqliteTable('game_engine', {
 	url: text('url')
 });
 
-export const usedEngine = sqliteTable('used_engine', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	gameId: integer('game_id')
-		.notNull()
-		.references(() => game.id),
-	engineId: integer('engine_id')
-		.notNull()
-		.references(() => gameEngine.id)
-});
+export const usedEngine = sqliteTable(
+	'used_engine',
+	{
+		gameId: integer('game_id')
+			.notNull()
+			.references(() => game.id),
+		engineId: integer('engine_id')
+			.notNull()
+			.references(() => gameEngine.id)
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.gameId, table.engineId] })
+	})
+);
 
 export const company = sqliteTable('company', {
 	id: integer('id').primaryKey(),
@@ -53,17 +63,22 @@ export const company = sqliteTable('company', {
 	url: text('url')
 });
 
-export const involvedCompany = sqliteTable('involved_company', {
-	id: integer('id').primaryKey(),
-	gameId: integer('game_id')
-		.notNull()
-		.references(() => game.id),
-	companyId: integer('company_id')
-		.notNull()
-		.references(() => company.id),
-	developer: integer('developer', { mode: 'boolean' }).notNull(),
-	publisher: integer('publisher', { mode: 'boolean' }).notNull()
-});
+export const involvedCompany = sqliteTable(
+	'involved_company',
+	{
+		gameId: integer('game_id')
+			.notNull()
+			.references(() => game.id),
+		companyId: integer('company_id')
+			.notNull()
+			.references(() => company.id),
+		developer: integer('developer', { mode: 'boolean' }).notNull(),
+		publisher: integer('publisher', { mode: 'boolean' }).notNull()
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.gameId, table.companyId] })
+	})
+);
 
 export const game = sqliteTable('game', {
 	id: integer('id').primaryKey(),
