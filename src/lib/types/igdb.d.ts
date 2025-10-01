@@ -51,10 +51,12 @@ export interface Game {
 	cover: Cover;
 	external_games?: ExternalGame[];
 	websites?: Website[];
-	first_release_date: number;
+	first_release_date?: number;
 	game_engines?: GameEngine[];
 	involved_companies?: InvolvedCompany[];
 	name: string;
+	parent_game?: number;
+	version_parent?: number;
 }
 
 export interface GameSearchResult {
