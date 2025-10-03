@@ -127,7 +127,7 @@
 			<div class="flex flex-col">
 				<h1 class="m-0 text-4xl font-bold">{gameName}</h1>
 				<h2 class="m-0 text-base font-normal text-muted-foreground">
-					{new Date(game.releaseDate!).getFullYear()}
+					{game.releaseDate ? new Date(game.releaseDate).getFullYear() : 'Unknown'}
 				</h2>
 
 				{#if game.storeLinks?.length > 0}
