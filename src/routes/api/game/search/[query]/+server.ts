@@ -8,9 +8,14 @@ import type { GameSearchResult } from '$lib/types/igdb';
 export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const words = params.query.trim().split(/\s+/);
-		// treat each word as a separate prefix phrase
-		// `kingdom come deliverance` becomes `"kingdom"* "come"* "deliverance"*`
-		const searchTerm = words.map((word) => `"${word.replace(/"/g, '""')}"*`).join(' ');
+		// treat each word as a prefix or exact match
+		// `kingdom come deliverance` becomes `"kingdom"* OR "kingdom" "come"* OR "come" "deliverance"* OR "deliverance"`
+		const searchTerm = words
+			.map((word) => {
+				const escaped = word.replace(/"/g, '""');
+				return `"${escaped}"* OR "${escaped}"`;
+			})
+			.join(' ');
 
 		const results: GameSearchResult[] = db.all(sql`
 		WITH best_matches AS (
