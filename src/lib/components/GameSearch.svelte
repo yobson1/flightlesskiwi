@@ -153,7 +153,16 @@
 		}
 	}
 
-	function handleFocus() {
+	function handleFocus(event: FocusEvent) {
+		const target = event.target as HTMLInputElement;
+
+		// handle cached input values
+		if (searchQuery === '' && target.value.trim()) {
+			searchQuery = target.value;
+			searchGames(searchQuery);
+			return;
+		}
+
 		// reopen if we have results and a search query
 		if (hasResults && searchQuery.trim()) {
 			open = true;
