@@ -12,58 +12,22 @@
 </svelte:head>
 <ModeWatcher />
 
-<div class="layout">
-	<header>
-		<nav>
+<div class="flex min-h-screen flex-col">
+	<header class="flex w-full justify-center">
+		<nav class="flex w-4/5 max-w-screen-xl min-w-80 justify-between rounded-md py-1">
+			<a href="/" class="flex items-center gap-2">
+				<img src={favicon} alt="Home" class="h-8 w-8" />
+				<span class="font-semibold">flightlesskiwi</span>
+			</a>
 			<Nav />
 		</nav>
 	</header>
-	<main class="main-container">
-		<div class="content">
+	<main class="flex flex-1 justify-center px-4 py-8">
+		<div class="w-4/5 max-w-screen-xl min-w-80">
 			{@render children?.()}
 		</div>
 	</main>
-	<footer>
-		<p>&copy; 2025 Flightless Kiwi</p>
+	<footer class="w-full p-4 text-center">
+		<p>&copy; 2025</p>
 	</footer>
 </div>
-
-<style>
-	.layout {
-		display: flex;
-		flex-direction: column;
-		min-height: 100vh;
-	}
-
-	header {
-		padding: 1rem;
-		width: 100%;
-		display: flex;
-		justify-content: center;
-	}
-
-	nav {
-		max-width: 1200px;
-		min-width: 320px;
-		width: 80%;
-	}
-
-	.main-container {
-		flex: 1;
-		display: flex;
-		justify-content: center;
-		padding: 2rem 1rem;
-	}
-
-	.content {
-		max-width: 1200px;
-		min-width: 320px;
-		width: 80%;
-	}
-
-	footer {
-		padding: 1rem;
-		width: 100%;
-		text-align: center;
-	}
-</style>
