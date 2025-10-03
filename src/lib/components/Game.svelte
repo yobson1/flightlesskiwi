@@ -12,8 +12,8 @@
 	const iconSize = '28px';
 
 	const platformIcons = [
-		SimpleIconsGogdotcom,
 		SimpleIconsSteam,
+		SimpleIconsGogdotcom,
 		SimpleIconsItchdotio,
 		SimpleIconsEpicgames
 	];
