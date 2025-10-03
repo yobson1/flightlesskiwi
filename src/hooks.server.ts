@@ -56,6 +56,17 @@ async function seedStores() {
 		.onConflictDoNothing();
 }
 
+function getCommonPunctuation() {
+	const punctuation = [];
+	for (let i = 0; i <= 0xffff; i++) {
+		const char = String.fromCharCode(i);
+		if (/\p{P}/u.test(char)) {
+			punctuation.push(char);
+		}
+	}
+	return punctuation.join('');
+}
+
 async function createFTSIndex() {
 	const ftsExists = await db.get(sql`
 		SELECT name FROM sqlite_master
@@ -63,14 +74,17 @@ async function createFTSIndex() {
 	`);
 
 	if (!ftsExists) {
-		db.run(sql`
+		const punctuation = getCommonPunctuation();
+		const escapedPunctuation = punctuation.replace(/'/g, "''").replace(/"/g, '""');
+		const createQuery = `
 			CREATE VIRTUAL TABLE game_name_fts USING fts5(
 				name,
 				content="game_name",
 				content_rowid="id",
-				tokenize="porter unicode61"
+				tokenize="porter unicode61 remove_diacritics 2 tokenchars '${escapedPunctuation}'"
 			);
-		`);
+		`;
+		db.run(createQuery);
 
 		db.run(sql`
 			CREATE TRIGGER game_name_fts_insert AFTER INSERT ON game_name BEGIN
