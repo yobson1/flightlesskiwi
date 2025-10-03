@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { sqliteTable, integer, text, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, integer, text, primaryKey, unique } from 'drizzle-orm/sqlite-core';
 
 export const user = sqliteTable('user', {
 	id: text('id').primaryKey(),
@@ -80,17 +80,21 @@ export const involvedCompany = sqliteTable(
 	})
 );
 
-export const alternativeName = sqliteTable('alternative_name', {
-	id: integer('id').primaryKey(),
-	gameId: integer('game_id')
-		.notNull()
-		.references(() => game.id),
-	name: text('name').notNull()
-});
+export const gameName = sqliteTable(
+	'game_name',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gameId: integer('game_id')
+			.notNull()
+			.references(() => game.id),
+		name: text('name').notNull(),
+		isPrimary: integer('is_primary', { mode: 'boolean' }).notNull().default(false)
+	},
+	(table) => [unique().on(table.gameId, table.name)]
+);
 
 export const game = sqliteTable('game', {
 	id: integer('id').primaryKey(),
-	name: text('name').notNull(),
 	releaseDate: integer('release_date', { mode: 'timestamp' }),
 	coverImgId: text('cover_img_id'),
 	parentGame: integer('parent_game_id').references((): any => game.id),
@@ -103,7 +107,7 @@ export const syncState = sqliteTable('sync_state', {
 
 // Relations for game data tables
 export const gameRelations = relations(game, ({ many, one }) => ({
-	alternativeNames: many(alternativeName),
+	names: many(gameName),
 	storeLinks: many(storeLink),
 	involvedCompanies: many(involvedCompany),
 	usedEngines: many(usedEngine),
@@ -121,9 +125,9 @@ export const gameRelations = relations(game, ({ many, one }) => ({
 	versions: many(game, { relationName: 'versionParent' })
 }));
 
-export const alternativeNameRelations = relations(alternativeName, ({ one }) => ({
+export const gameNameRelations = relations(gameName, ({ one }) => ({
 	game: one(game, {
-		fields: [alternativeName.gameId],
+		fields: [gameName.gameId],
 		references: [game.id]
 	})
 }));
@@ -189,7 +193,7 @@ export type UsedEngine = typeof usedEngine.$inferSelect;
 export type Company = typeof company.$inferSelect;
 export type InvolvedCompany = typeof involvedCompany.$inferSelect;
 export type Game = typeof game.$inferSelect;
-export type AlternativeName = typeof alternativeName.$inferSelect;
+export type GameName = typeof gameName.$inferSelect;
 
 export type FullGame = Game & {
 	storeLinks: (StoreLink & {

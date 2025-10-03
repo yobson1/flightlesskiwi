@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input';
 	import { constructImageUrl } from '$lib/igdb';
-	import type { Game } from '$lib/server/db/schema';
+	import type { GameSearchResult } from '$lib/types/igdb';
 	import { fly } from 'svelte/transition';
 	import LineMdSearchTwotone from '$lib/components/icons/LineMdSearchTwotone.svelte';
 	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';
@@ -19,7 +19,7 @@
 	// State
 
 	let searchQuery = $state('');
-	let results = $state<Game[]>([]);
+	let results = $state<GameSearchResult[]>([]);
 	let loading = $state(false);
 	let open = $state(false);
 	let errorMessage = $state<string | null>(null);
@@ -120,12 +120,12 @@
 		}
 	}
 
-	function selectGame(game: Game) {
+	function selectGame(game: GameSearchResult) {
 		console.log(`Selected game: ${game.name}[${game.id}]`);
 		open = false;
 		isMouseOverResults = false;
 
-		onSelected?.(noParent ? game.id : (game.parentGame ?? game.versionParent ?? game.id));
+		onSelected?.(noParent ? game.id : (game.parent_game_id ?? game.version_parent_id ?? game.id));
 	}
 
 	function handleImageLoad(gameId: number) {
@@ -134,10 +134,10 @@
 
 	// Util
 
-	function initializeImageLoadingStates(games: Game[]) {
+	function initializeImageLoadingStates(games: GameSearchResult[]) {
 		const newLoadingStates: Record<number, boolean> = {};
 		for (const game of games) {
-			if (game.coverImgId) {
+			if (game.cover_img_id) {
 				newLoadingStates[game.id] = true;
 			}
 		}
@@ -193,12 +193,12 @@
 							onclick={() => selectGame(game)}
 						>
 							<div class="relative flex h-16 w-12 items-center">
-								{#if game.coverImgId}
+								{#if game.cover_img_id}
 									{#if imageLoadingStates[game.id] !== false}
 										<Skeleton class="absolute inset-0 rounded" />
 									{/if}
 									<img
-										src={constructImageUrl(game.coverImgId, 'cover_small')}
+										src={constructImageUrl(game.cover_img_id, 'cover_small')}
 										alt={game.name}
 										class="absolute rounded text-transparent"
 										onload={() => handleImageLoad(game.id)}
@@ -209,9 +209,9 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<div class="truncate font-medium">{game.name}</div>
-								{#if game.releaseDate}
+								{#if game.release_date}
 									<div class="text-sm text-muted-foreground">
-										{new Date(game.releaseDate).getFullYear()}
+										{new Date(game.release_date * 1000).getFullYear()}
 									</div>
 								{/if}
 							</div>

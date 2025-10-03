@@ -13,11 +13,12 @@ import {
 	storeLink,
 	store,
 	syncState,
-	alternativeName,
+	gameName,
 	STORES
 } from '$lib/server/db/schema';
 import * as auth from '$lib/server/auth';
 import { sleep } from 'bun';
+import { and, eq, sql } from 'drizzle-orm';
 
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const sessionToken = event.cookies.get(auth.sessionCookieName);
@@ -53,6 +54,43 @@ async function seedStores() {
 			{ id: STORES.EPIC.id, name: STORES.EPIC.name }
 		])
 		.onConflictDoNothing();
+}
+
+async function createFTSIndex() {
+	const ftsExists = await db.get(sql`
+		SELECT name FROM sqlite_master
+		WHERE type='table' AND name='game_name_fts'
+	`);
+
+	if (!ftsExists) {
+		db.run(sql`
+			CREATE VIRTUAL TABLE game_name_fts USING fts5(
+				name,
+				content="game_name",
+				content_rowid="id",
+				tokenize="porter unicode61"
+			);
+		`);
+
+		db.run(sql`
+			CREATE TRIGGER game_name_fts_insert AFTER INSERT ON game_name BEGIN
+		 		INSERT INTO game_name_fts(rowid, name) VALUES (NEW.id, NEW.name);
+				END;
+		`);
+
+		db.run(sql`
+			CREATE TRIGGER game_name_fts_update AFTER UPDATE ON game_name BEGIN
+				INSERT INTO game_name_fts(game_name_fts, rowid, name) VALUES('delete', OLD.id, OLD.name);
+				INSERT INTO game_name_fts(rowid, name) VALUES (NEW.id, NEW.name);
+			END;
+		`);
+
+		db.run(sql`
+			CREATE TRIGGER game_name_fts_delete AFTER DELETE ON game_name BEGIN
+				INSERT INTO game_name_fts(game_name_fts, rowid, name) VALUES('delete', OLD.id, OLD.name);
+			END;
+		`);
+	}
 }
 
 function extractStoreLinks(igdbGame: IGDBGame) {
@@ -103,7 +141,6 @@ async function syncGames(igdbGames: IGDBGame[]) {
 			.insert(game)
 			.values({
 				id: igdbGame.id,
-				name: igdbGame.name,
 				releaseDate: igdbGame.first_release_date
 					? new Date(igdbGame.first_release_date * 1000)
 					: null,
@@ -114,7 +151,6 @@ async function syncGames(igdbGames: IGDBGame[]) {
 			.onConflictDoUpdate({
 				target: game.id,
 				set: {
-					name: igdbGame.name,
 					releaseDate: igdbGame.first_release_date
 						? new Date(igdbGame.first_release_date * 1000)
 						: null,
@@ -123,6 +159,24 @@ async function syncGames(igdbGames: IGDBGame[]) {
 					versionParent: igdbGame.version_parent || null
 				}
 			});
+
+		// update existing primary if exists
+		const updated = await db
+			.update(gameName)
+			.set({ name: igdbGame.name })
+			.where(and(eq(gameName.gameId, igdbGame.id), eq(gameName.isPrimary, true)))
+			.returning();
+
+		if (updated.length === 0) {
+			await db
+				.insert(gameName)
+				.values({
+					gameId: igdbGame.id,
+					name: igdbGame.name,
+					isPrimary: true
+				})
+				.onConflictDoNothing();
+		}
 
 		const storeLinks = extractStoreLinks(igdbGame);
 		if (storeLinks.length > 0) {
@@ -221,10 +275,9 @@ async function syncGames(igdbGames: IGDBGame[]) {
 
 		if (igdbGame.alternative_names) {
 			await db
-				.insert(alternativeName)
+				.insert(gameName)
 				.values(
 					igdbGame.alternative_names.map((name) => ({
-						id: name.id,
 						gameId: igdbGame.id,
 						name: name.name
 					}))
@@ -238,8 +291,6 @@ async function igdbSync(lastSyncTimestamp: number) {
 	info(
 		`Syncing games since ${new Date(lastSyncTimestamp * 1000).toISOString()}(${lastSyncTimestamp})`
 	);
-
-	await seedStores();
 
 	const REQUESTS_PER_BATCH = 4;
 	const GAMES_PER_REQUEST = 500;
@@ -292,6 +343,9 @@ async function igdbSync(lastSyncTimestamp: number) {
 	let currentGames = await fetchBatch(offset);
 	await sleep(BATCH_DELAY);
 
+	// wrapping it via db.transaction doesn't seem to give any performance benefits
+	// manually like this does.
+	db.run(sql`BEGIN TRANSACTION;`);
 	while (currentGames.length > 0) {
 		const iterationStart = Date.now();
 		const currentOffset = offset;
@@ -317,6 +371,7 @@ async function igdbSync(lastSyncTimestamp: number) {
 
 		currentGames = await nextBatchPromise;
 	}
+	db.run(sql`COMMIT;`);
 
 	info('Sync complete!');
 	await setLastSyncTime();
@@ -337,4 +392,6 @@ async function getLastSyncTime() {
 	return state[0]?.lastSync ? Math.floor(state[0].lastSync.getTime() / 1000) : 0;
 }
 
+await createFTSIndex();
+await seedStores();
 igdbSync(await getLastSyncTime());

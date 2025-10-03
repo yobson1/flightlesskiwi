@@ -68,8 +68,11 @@ export interface Game {
 export interface GameSearchResult {
 	id: number;
 	name: string;
-	first_release_date: number;
-	cover: Cover;
-	parent_game?: number;
-	version_parent?: number;
+	release_date?: number;
+	cover_img_id?: string;
+	parent_game_id?: number;
+	version_parent_id?: number;
+	matched_name: string;
+	matched_is_primary: boolean;
+	relevancy: number;
 }
