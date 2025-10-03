@@ -1,12 +1,13 @@
 import { json } from '@sveltejs/kit';
-import { igdb } from '$lib/server/igdb';
 import { debug, error } from '$lib/logger';
+import { db } from '$lib/server/db';
 import LRUCache from '$lib/lrucache';
 import type { RequestHandler } from './$types';
-import type { Game } from '$lib/types/igdb';
+import { game, type FullGame } from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
 
-// each game is about 0.5-1KB in size
-let gameCache: LRUCache<number, Game> = new LRUCache(1000);
+// each game is about 0.5-2KB in size
+let gameCache: LRUCache<number, FullGame> = new LRUCache(1000);
 
 export const GET: RequestHandler = async ({ params }) => {
 	const gameID = Number(params.id);
@@ -23,28 +24,42 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 		debug(`Cache miss for game ID ${gameID}`);
 
-		const games: Game[] = (
-			await (await igdb())
-				.fields(
-					'name, first_release_date, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url'
-				)
-				.where(`id = ${gameID}`)
-				.limit(1)
-				.request('/games')
-		).data;
+		const gameResult = (await db.query.game.findFirst({
+			where: eq(game.id, gameID),
+			with: {
+				storeLinks: {
+					with: {
+						store: true
+					}
+				},
+				involvedCompanies: {
+					with: {
+						company: true
+					}
+				},
+				usedEngines: {
+					with: {
+						engine: true
+					}
+				},
+				names: {
+					where: (gameName, { eq }) => eq(gameName.isPrimary, true),
+					limit: 1
+				}
+			}
+		})) as FullGame;
 
-		if (games.length === 0) {
+		if (!gameResult) {
 			return json({ error: 'Game not found' }, { status: 404 });
 		}
 
-		const game = games[0];
-		const sizeInBytes = new Blob([JSON.stringify(game)]).size;
+		const sizeInBytes = new Blob([JSON.stringify(gameResult)]).size;
 		const sizeInKB = (sizeInBytes / 1024).toFixed(2);
-		debug(`Game data for ID ${gameID}: ${JSON.stringify(game)}`);
+		debug(`Game data for ID ${gameID}: ${JSON.stringify(gameResult)}`);
 		debug(`Size of game data for ID ${gameID}: ${sizeInKB}KB`);
 
-		gameCache.set(gameID, game);
-		return json(game);
+		gameCache.set(gameID, gameResult);
+		return json(gameResult);
 	} catch (err) {
 		error(`Failed to fetch game ID ${gameID}:`, err);
 		return json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });

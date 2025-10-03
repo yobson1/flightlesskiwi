@@ -205,4 +205,5 @@ export type FullGame = Game & {
 	usedEngines: (UsedEngine & {
 		engine: GameEngine;
 	})[];
+	names: GameName[];
 };
