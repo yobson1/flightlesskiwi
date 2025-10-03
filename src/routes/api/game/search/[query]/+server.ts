@@ -7,8 +7,10 @@ import type { GameSearchResult } from '$lib/types/igdb';
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {
-		const sanitizedQuery = params.query.replace(/"/g, '""');
-		const searchTerm = `"${sanitizedQuery}"*`;
+		const words = params.query.trim().split(/\s+/);
+		// treat each word as a separate prefix phrase
+		// `kingdom come deliverance` becomes `"kingdom"* "come"* "deliverance"*`
+		const searchTerm = words.map((word) => `"${word.replace(/"/g, '""')}"*`).join(' ');
 
 		const results: GameSearchResult[] = db.all(sql`
 		WITH best_matches AS (
