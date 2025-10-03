@@ -25,6 +25,8 @@
 	let errorMessage = $state<string | null>(null);
 	let imageLoadingStates = $state<Record<number, boolean>>({});
 	let isMouseOverResults = false;
+	let selectedIndex = $state(-1);
+	let resultButtons: HTMLButtonElement[] = [];
 
 	// Derived state
 
@@ -107,6 +109,44 @@
 		}, 350);
 	}
 
+	function handleKeydown(event: KeyboardEvent) {
+		if (!shouldShowDropdown || !hasResults) return;
+
+		switch (event.key) {
+			case 'ArrowDown':
+				event.preventDefault();
+				selectedIndex = selectedIndex < results.length - 1 ? selectedIndex + 1 : 0;
+				scrollToSelected();
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				selectedIndex = selectedIndex > 0 ? selectedIndex - 1 : results.length - 1;
+				scrollToSelected();
+				break;
+			case 'Enter':
+				event.preventDefault();
+				if (selectedIndex >= 0 && selectedIndex < results.length) {
+					selectGame(results[selectedIndex]);
+				}
+				break;
+			case 'Escape':
+				event.preventDefault();
+				open = false;
+				selectedIndex = -1;
+				break;
+		}
+	}
+
+	function scrollToSelected() {
+		const selectedButton = resultButtons[selectedIndex];
+		if (selectedButton) {
+			selectedButton.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest'
+			});
+		}
+	}
+
 	function handleBlur() {
 		if (!isMouseOverResults) {
 			open = false;
@@ -124,6 +164,7 @@
 		console.log(`Selected game: ${game.name}[${game.id}]`);
 		open = false;
 		isMouseOverResults = false;
+		selectedIndex = -1;
 
 		onSelected?.(noParent ? game.id : (game.parent_game_id ?? game.version_parent_id ?? game.id));
 	}
@@ -149,6 +190,7 @@
 		imageLoadingStates = {};
 		open = isSearching;
 		loading = isSearching;
+		selectedIndex = -1;
 	}
 </script>
 
@@ -167,6 +209,7 @@
 		oninput={handleInput}
 		onblur={handleBlur}
 		onfocus={handleFocus}
+		onkeydown={handleKeydown}
 		class="pl-10"
 	/>
 	{#if shouldShowDropdown}
@@ -186,11 +229,14 @@
 				<div class="p-4 text-center text-sm text-muted-foreground">No games found</div>
 			{:else}
 				<div class="max-h-[400px] overflow-y-auto [&>button:not(:last-child)]:border-b">
-					{#each results as game (game.id)}
+					{#each results as game, index (game.id)}
 						<button
+							bind:this={resultButtons[index]}
 							type="button"
-							class="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent"
+							class="flex w-full items-center gap-3 p-3 text-left transition-colors active:bg-accent"
+							class:bg-accent={index === selectedIndex}
 							onclick={() => selectGame(game)}
+							onmouseenter={() => (selectedIndex = index)}
 						>
 							<div class="relative flex h-16 w-12 items-center">
 								{#if game.cover_img_id}
