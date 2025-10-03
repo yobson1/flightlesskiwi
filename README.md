@@ -11,6 +11,7 @@ This project uses [Bun](https://bun.sh/):
 
 ```sh
 bun install
+bun run db:push
 bun --bun run dev -- --open
 ```
 
