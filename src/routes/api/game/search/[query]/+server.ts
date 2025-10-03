@@ -2,15 +2,15 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { error } from '$lib/logger';
-import { info } from '$lib/logger';
 import type { RequestHandler } from './$types';
+import type { GameSearchResult } from '$lib/types/igdb';
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const sanitizedQuery = params.query.replace(/"/g, '""');
 		const searchTerm = `"${sanitizedQuery}"*`;
 
-		const results = db.all(sql`
+		const results: GameSearchResult[] = db.all(sql`
 		WITH best_matches AS (
 			SELECT
 				gn.id,
