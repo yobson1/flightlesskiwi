@@ -41,7 +41,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		LEFT JOIN game_name primary_gn ON primary_gn.game_id = g.id AND primary_gn.is_primary = 1
 		WHERE bm.rn = 1
 		ORDER BY bm.rank
-		LIMIT 6`);
+		LIMIT 15`);
 
 		return json(results);
 	} catch (err) {
