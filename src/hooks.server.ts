@@ -275,7 +275,11 @@ class IgdbRateLimiter {
 			);
 
 			if (this.requestStarts.length >= IGDB_REQUESTS_PER_BATCH) {
-				await sleep(IGDB_REQUEST_INTERVAL_MS - (now - this.requestStarts[0]));
+				const oldestRequestStart = this.requestStarts[0];
+				if (oldestRequestStart === undefined) {
+					throw new Error('IGDB rate limiter queue is unexpectedly empty');
+				}
+				await sleep(IGDB_REQUEST_INTERVAL_MS - (now - oldestRequestStart));
 				now = Date.now();
 				this.requestStarts = this.requestStarts.filter(
 					(startedAt) => now - startedAt < IGDB_REQUEST_INTERVAL_MS

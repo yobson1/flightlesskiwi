@@ -126,7 +126,8 @@
 			case 'Enter':
 				event.preventDefault();
 				if (selectedIndex >= 0 && selectedIndex < results.length) {
-					selectGame(results[selectedIndex]);
+					const selectedResult = results[selectedIndex];
+					if (selectedResult) selectGame(selectedResult);
 				}
 				break;
 			case 'Escape':

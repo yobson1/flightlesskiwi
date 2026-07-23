@@ -17,10 +17,11 @@ const addCallerInfo = winston.format((info) => {
 		const match =
 			callerLine.match(/\((.+):(\d+):(\d+)\)/) || callerLine.match(/at (.+):(\d+):(\d+)/);
 		if (match) {
-			const filePath = match[1];
-			const fileName = path.basename(filePath);
-			const lineNumber = match[2];
-			info.caller = `${fileName}:${lineNumber}`;
+			const [, filePath, lineNumber] = match;
+			if (filePath && lineNumber) {
+				const fileName = path.basename(filePath);
+				info.caller = `${fileName}:${lineNumber}`;
+			}
 		}
 	}
 
