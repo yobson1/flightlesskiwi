@@ -14,7 +14,7 @@
 
 <div class="flex min-h-screen flex-col">
 	<header class="flex w-full justify-center">
-		<nav class="flex w-4/5 max-w-screen-xl min-w-80 justify-between rounded-md py-1">
+		<nav class="flex w-4/5 max-w-7xl min-w-80 justify-between rounded-md py-1">
 			<a href="/" class="flex items-center gap-2">
 				<img src={favicon} alt="Home" class="h-8 w-8" />
 				<span class="font-semibold">flightlesskiwi</span>
@@ -23,7 +23,7 @@
 		</nav>
 	</header>
 	<main class="flex flex-1 justify-center px-4 py-8">
-		<div class="w-4/5 max-w-screen-xl min-w-80">
+		<div class="w-4/5 max-w-7xl min-w-80">
 			{@render children?.()}
 		</div>
 	</main>

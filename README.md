@@ -28,12 +28,13 @@ You can preview the production build with `bun --bun run preview`.
 For SSL in production use a reverse proxy, I use [nginx](https://nginx.org/en/)
 
 ## Usage
+
 Configure [MangoHud](https://github.com/flightlessmango/mangohud)/[PresentMon](https://github.com/GameTechDev/PresentMon) to use a log interval of 25ms and a hardware polling frequency of 40Hz  
 This is the default hardware polling period for [MangoHud](https://github.com/flightlessmango/MangoHud/blob/ff6e5954ea7e340d9bb4509754babf0db1b7c431/src/gpu_metrics_util.h#L36)  
 For PresentMon navigate to settings > data and set polling rate to 40Hz and telemetry period 25ms  
-For MangoHud edit `~/.config/MangoHud/MangoHud.conf` and set `log_interval=25`  
+For MangoHud edit `~/.config/MangoHud/MangoHud.conf` and set `log_interval=25`
 <details>
-	<summary>Example MangoHud configuration file</summary> 
+	<summary>Example MangoHud configuration file</summary>
 
 ```conf
 ### MangoHud configuration file

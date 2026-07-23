@@ -73,7 +73,7 @@
 <!-- <div class="w-1/2 min-w-0 max-md:w-full"> -->
 {#if loading}
 	<div class="flex items-start gap-8 max-md:flex-col max-md:items-center">
-		<Skeleton class="h-[352px] w-[264px] rounded-lg" />
+		<Skeleton class="h-88 w-66 rounded-lg" />
 		<div class="flex flex-1 flex-col gap-4">
 			<div class="flex flex-col">
 				<Skeleton class="mb-2 h-8 w-80" />

@@ -237,7 +237,7 @@
 			{:else if !hasResults}
 				<div class="p-4 text-center text-sm text-muted-foreground">No games found</div>
 			{:else}
-				<div class="max-h-[400px] overflow-y-auto [&>button:not(:last-child)]:border-b">
+				<div class="max-h-100 overflow-y-auto [&>button:not(:last-child)]:border-b">
 					{#each results as game, index (game.id)}
 						<button
 							bind:this={resultButtons[index]}
