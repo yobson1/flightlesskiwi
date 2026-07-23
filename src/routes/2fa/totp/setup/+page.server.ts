@@ -65,7 +65,7 @@ async function setupTOTP(event: RequestEvent) {
 	updateUserTOTPKey(event.locals.user.id, key);
 	setSessionAs2FAVerified(event.locals.session.id);
 	deleteTOTPSetupCookie(event);
-	if (!event.locals.user.registered2FA) {
+	if (!event.locals.user.registeredTOTP) {
 		redirect(302, '/recovery-code');
 	}
 	redirect(302, '/');

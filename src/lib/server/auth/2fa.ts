@@ -41,21 +41,21 @@ export function resetUser2FAWithRecoveryCode(userId: string, recoveryCode: strin
 }
 
 export function get2FARedirect(user: AuthUser): string {
-	if (user.registeredPasskey) {
-		return '/2fa/passkey';
-	}
 	if (user.registeredTOTP) {
 		return '/2fa/totp';
+	}
+	if (user.registeredPasskey) {
+		return '/2fa/passkey';
 	}
 	return '/2fa/setup';
 }
 
 export function getPasswordReset2FARedirect(user: AuthUser): string {
-	if (user.registeredPasskey) {
-		return '/reset-password/2fa/passkey';
-	}
 	if (user.registeredTOTP) {
 		return '/reset-password/2fa/totp';
+	}
+	if (user.registeredPasskey) {
+		return '/reset-password/2fa/passkey';
 	}
 	return '/reset-password';
 }

@@ -91,8 +91,8 @@ async function registerPasskey(event: RequestEvent) {
 	if (!event.locals.session.twoFactorVerified) {
 		setSessionAs2FAVerified(event.locals.session.id);
 	}
-	if (!event.locals.user.registered2FA) {
-		redirect(302, '/recovery-code');
+	if (!event.locals.user.registeredTOTP) {
+		redirect(302, '/2fa/setup');
 	}
 	redirect(302, '/');
 }

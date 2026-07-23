@@ -85,18 +85,20 @@ function getUser(predicate: ReturnType<typeof eq>): AuthUser | null {
 			email: userTable.email,
 			username: userTable.username,
 			emailVerified: userTable.emailVerified,
-			registeredTOTP: sql<number>`exists(select 1 from ${totpCredential} where ${totpCredential.userId} = ${userTable.id})`,
-			registeredPasskey: sql<number>`exists(select 1 from ${passkeyCredential} where ${passkeyCredential.userId} = ${userTable.id})`
+			totpUserId: totpCredential.userId,
+			passkeyId: passkeyCredential.id
 		})
 		.from(userTable)
+		.leftJoin(totpCredential, eq(totpCredential.userId, userTable.id))
+		.leftJoin(passkeyCredential, eq(passkeyCredential.userId, userTable.id))
 		.where(predicate)
 		.get();
 	if (!row) {
 		return null;
 	}
 
-	const registeredTOTP = Boolean(row.registeredTOTP);
-	const registeredPasskey = Boolean(row.registeredPasskey);
+	const registeredTOTP = row.totpUserId !== null;
+	const registeredPasskey = row.passkeyId !== null;
 	return {
 		id: row.id,
 		email: row.email,
