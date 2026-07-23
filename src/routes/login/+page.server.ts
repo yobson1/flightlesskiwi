@@ -1,4 +1,3 @@
-import { verifyTOTP } from '@oslojs/otp';
 import { fail, redirect } from '@sveltejs/kit';
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
 import {
@@ -10,7 +9,7 @@ import {
 import { hashPassword, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { getAuthenticatedRedirect, getClientIP } from '$lib/server/auth/routes';
-import { getUserTOTPKey, totpBucket } from '$lib/server/auth/totp';
+import { totpBucket, verifyAndConsumeUserTOTP } from '$lib/server/auth/totp';
 import {
 	getUserFromEmail,
 	getUserPasswordHash,
@@ -109,15 +108,14 @@ async function loginWithTOTP(event: RequestEvent) {
 	if (attempt === null) {
 		return fail(401, { message: 'Sign-in attempt expired. Enter your password again.' });
 	}
-	const key = getUserTOTPKey(user.id);
-	if (!user.registeredTOTP || key === null) {
+	if (!user.registeredTOTP) {
 		invalidateLoginAttemptRequest(event);
 		return fail(400, { message: 'Authenticator is no longer available. Sign in again.' });
 	}
 	if (!totpBucket.consume(user.id, 1)) {
 		return fail(429, { message: 'Too many requests' });
 	}
-	if (!verifyTOTP(key, 30, 6, code)) {
+	if (!verifyAndConsumeUserTOTP(user.id, code)) {
 		return fail(400, { message: 'Invalid authenticator code' });
 	}
 	if (!consumeLoginAttemptRequest(event, attempt.id)) {

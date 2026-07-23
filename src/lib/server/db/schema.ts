@@ -90,7 +90,8 @@ export const totpCredential = sqliteTable('totp_credential', {
 	userId: text('user_id')
 		.primaryKey()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	encryptedKey: blob('encrypted_key', { mode: 'buffer' }).notNull()
+	encryptedKey: blob('encrypted_key', { mode: 'buffer' }).notNull(),
+	lastUsedCounter: integer('last_used_counter')
 });
 
 export const passkeyCredential = sqliteTable(

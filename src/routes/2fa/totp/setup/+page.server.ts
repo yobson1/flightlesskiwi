@@ -1,5 +1,5 @@
 import { WEBAUTHN_RP_NAME } from '$env/static/private';
-import { createTOTPKeyURI, verifyTOTP } from '@oslojs/otp';
+import { createTOTPKeyURI } from '@oslojs/otp';
 import { encodeBase64 } from '@oslojs/encoding';
 import { fail, redirect } from '@sveltejs/kit';
 import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
@@ -10,7 +10,8 @@ import {
 	getTOTPSetupKey,
 	setTOTPSetupCookie,
 	totpUpdateBucket,
-	updateUserTOTPKey
+	updateUserTOTPKey,
+	verifyTOTPKey
 } from '$lib/server/auth/totp';
 import type { Actions, RequestEvent } from './$types';
 
@@ -58,11 +59,15 @@ async function setupTOTP(event: RequestEvent) {
 	if (key === null) {
 		return fail(400, { message: 'TOTP setup expired; reload and try again' });
 	}
-	if (!totpUpdateBucket.consume(event.locals.user.id, 1) || !verifyTOTP(key, 30, 6, code)) {
+	if (!totpUpdateBucket.consume(event.locals.user.id, 1)) {
+		return fail(429, { message: 'Too many requests' });
+	}
+	const counter = verifyTOTPKey(key, code);
+	if (counter === null) {
 		return fail(400, { message: 'Invalid code' });
 	}
 	totpUpdateBucket.reset(event.locals.user.id);
-	updateUserTOTPKey(event.locals.user.id, key);
+	updateUserTOTPKey(event.locals.user.id, key, counter);
 	if (!event.locals.user.registered2FA) {
 		rotateSessionAfter2FAEnrollment(event, event.locals.session);
 	}

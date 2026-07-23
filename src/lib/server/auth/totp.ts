@@ -1,7 +1,8 @@
 import { dev } from '$app/environment';
 import type { RequestEvent } from '@sveltejs/kit';
 import { decodeBase64url, encodeBase64url } from '@oslojs/encoding';
-import { eq } from 'drizzle-orm';
+import { verifyHOTP } from '@oslojs/otp';
+import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { totpCredential } from '$lib/server/db/schema';
 import { decrypt, encrypt } from '$lib/server/auth/encryption';
@@ -10,28 +11,60 @@ import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate
 export const totpBucket = new ExpiringTokenBucket<string>('totp-verify', 5, 30 * 60);
 export const totpUpdateBucket = new RefillingTokenBucket<string>('totp-update', 3, 10 * 60);
 
+const TOTP_INTERVAL_SECONDS = 30;
+const TOTP_DIGITS = 6;
+
 export function generateTOTPKey(): Uint8Array {
 	const key = new Uint8Array(20);
 	crypto.getRandomValues(key);
 	return key;
 }
 
-export function getUserTOTPKey(userId: string): Uint8Array | null {
+export function verifyAndConsumeUserTOTP(userId: string, code: string): boolean {
 	const row = db
-		.select({ encryptedKey: totpCredential.encryptedKey })
+		.select({
+			encryptedKey: totpCredential.encryptedKey,
+			lastUsedCounter: totpCredential.lastUsedCounter
+		})
 		.from(totpCredential)
 		.where(eq(totpCredential.userId, userId))
 		.get();
-	return row ? decrypt(row.encryptedKey) : null;
+	if (!row) {
+		return false;
+	}
+
+	const counter = verifyTOTPKey(decrypt(row.encryptedKey), code);
+	if (counter === null) {
+		return false;
+	}
+
+	const consumed = db
+		.update(totpCredential)
+		.set({ lastUsedCounter: counter })
+		.where(
+			and(
+				eq(totpCredential.userId, userId),
+				eq(totpCredential.encryptedKey, row.encryptedKey),
+				or(isNull(totpCredential.lastUsedCounter), lt(totpCredential.lastUsedCounter, counter))
+			)
+		)
+		.returning({ userId: totpCredential.userId })
+		.get();
+	return consumed !== undefined;
 }
 
-export function updateUserTOTPKey(userId: string, key: Uint8Array): void {
+export function verifyTOTPKey(key: Uint8Array, code: string): number | null {
+	const counter = Math.floor(Date.now() / (TOTP_INTERVAL_SECONDS * 1000));
+	return verifyHOTP(key, BigInt(counter), TOTP_DIGITS, code) ? counter : null;
+}
+
+export function updateUserTOTPKey(userId: string, key: Uint8Array, lastUsedCounter: number): void {
 	const encryptedKey = encrypt(key);
 	db.insert(totpCredential)
-		.values({ userId, encryptedKey })
+		.values({ userId, encryptedKey, lastUsedCounter })
 		.onConflictDoUpdate({
 			target: totpCredential.userId,
-			set: { encryptedKey }
+			set: { encryptedKey, lastUsedCounter }
 		})
 		.run();
 }
