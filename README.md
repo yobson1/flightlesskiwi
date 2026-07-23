@@ -33,6 +33,7 @@ Configure [MangoHud](https://github.com/flightlessmango/mangohud)/[PresentMon](h
 This is the default hardware polling period for [MangoHud](https://github.com/flightlessmango/MangoHud/blob/ff6e5954ea7e340d9bb4509754babf0db1b7c431/src/gpu_metrics_util.h#L36)  
 For PresentMon navigate to settings > data and set polling rate to 40Hz and telemetry period 25ms  
 For MangoHud edit `~/.config/MangoHud/MangoHud.conf` and set `log_interval=25`
+
 <details>
 	<summary>Example MangoHud configuration file</summary>
 
