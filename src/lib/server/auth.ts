@@ -1,6 +1,6 @@
 import { dev } from '$app/environment';
 import type { RequestEvent } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { session as sessionTable } from '$lib/server/db/schema';
 import { getUserById, type AuthUser } from '$lib/server/auth/user';
@@ -114,6 +114,63 @@ export function setSessionAs2FAVerified(sessionId: string): void {
 		.set({ twoFactorVerified: true })
 		.where(eq(sessionTable.id, sessionId))
 		.run();
+}
+
+export function rotateSessionAfter2FAEnrollment(
+	event: RequestEvent,
+	currentSession: Session
+): Session {
+	const currentToken = event.cookies.get(sessionCookieName);
+	const currentTokenParts = currentToken ? parseSessionToken(currentToken) : null;
+	if (currentTokenParts === null || currentTokenParts.id !== currentSession.id) {
+		throw new Error('Current session token is unavailable');
+	}
+
+	const now = new Date();
+	const newSecret = generateSecureRandomString();
+	const newSecretHash = hashSecret(newSecret);
+	const currentSecretHash = hashSecret(currentTokenParts.secret);
+
+	db.transaction((tx) => {
+		const rotated = tx
+			.update(sessionTable)
+			.set({
+				secretHash: newSecretHash,
+				lastVerifiedAt: now,
+				twoFactorVerified: true
+			})
+			.where(
+				and(
+					eq(sessionTable.id, currentSession.id),
+					eq(sessionTable.userId, currentSession.userId),
+					eq(sessionTable.secretHash, currentSecretHash)
+				)
+			)
+			.returning({ id: sessionTable.id })
+			.get();
+		if (!rotated) {
+			throw new Error('Current session could not be rotated');
+		}
+
+		tx.delete(sessionTable)
+			.where(
+				and(eq(sessionTable.userId, currentSession.userId), ne(sessionTable.id, currentSession.id))
+			)
+			.run();
+	});
+
+	const absoluteExpiresAt = new Date(currentSession.createdAt.getTime() + ABSOLUTE_TIMEOUT_MS);
+	const expiresAt = new Date(
+		Math.min(now.getTime() + INACTIVITY_TIMEOUT_MS, absoluteExpiresAt.getTime())
+	);
+	setSessionTokenCookie(event, `${currentSession.id}.${newSecret}`, expiresAt);
+
+	return {
+		...currentSession,
+		lastVerifiedAt: now,
+		expiresAt,
+		twoFactorVerified: true
+	};
 }
 
 export function setSessionTokenCookie(event: RequestEvent, token: string, expiresAt: Date): void {

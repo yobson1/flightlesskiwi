@@ -1,7 +1,7 @@
 import { decodeBase64 } from '@oslojs/encoding';
 import { fail, redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
-import { setSessionAs2FAVerified } from '$lib/server/auth';
+import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
 import { get2FARedirect } from '$lib/server/auth/2fa';
 import { hashSecret } from '$lib/server/auth/utils';
 import { createPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
@@ -88,8 +88,8 @@ async function registerPasskey(event: RequestEvent) {
 		logError('Unexpected passkey registration failure', cause);
 		return fail(500, { message: 'Unable to register passkey' });
 	}
-	if (!event.locals.session.twoFactorVerified) {
-		setSessionAs2FAVerified(event.locals.session.id);
+	if (!event.locals.user.registered2FA) {
+		rotateSessionAfter2FAEnrollment(event, event.locals.session);
 	}
 	if (!event.locals.user.registeredTOTP) {
 		redirect(302, '/2fa/setup');

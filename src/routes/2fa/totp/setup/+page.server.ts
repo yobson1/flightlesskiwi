@@ -2,7 +2,7 @@ import { WEBAUTHN_RP_NAME } from '$env/static/private';
 import { createTOTPKeyURI, verifyTOTP } from '@oslojs/otp';
 import { encodeBase64 } from '@oslojs/encoding';
 import { fail, redirect } from '@sveltejs/kit';
-import { setSessionAs2FAVerified } from '$lib/server/auth';
+import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
 import { get2FARedirect } from '$lib/server/auth/2fa';
 import {
 	deleteTOTPSetupCookie,
@@ -63,7 +63,9 @@ async function setupTOTP(event: RequestEvent) {
 	}
 	totpUpdateBucket.reset(event.locals.user.id);
 	updateUserTOTPKey(event.locals.user.id, key);
-	setSessionAs2FAVerified(event.locals.session.id);
+	if (!event.locals.user.registered2FA) {
+		rotateSessionAfter2FAEnrollment(event, event.locals.session);
+	}
 	deleteTOTPSetupCookie(event);
 	if (!event.locals.user.registeredTOTP) {
 		redirect(302, '/recovery-code');
