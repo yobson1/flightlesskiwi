@@ -1,6 +1,7 @@
+import { building } from '$app/environment';
 import type { Handle } from '@sveltejs/kit';
-import { info } from '$lib/logger';
-import { igdb } from '$lib/server/igdb';
+import { error, info, warn } from '$lib/logger';
+import { igdb, invalidateIgdbAccessToken } from '$lib/server/igdb';
 import type { Game as IGDBGame } from '$lib/types/igdb';
 import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
 import { db } from '$lib/server/db';
@@ -18,7 +19,29 @@ import {
 } from '$lib/server/db/schema';
 import * as auth from '$lib/server/auth';
 import { sleep } from 'bun';
-import { and, eq } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
+
+const IGDB_FIELDS =
+	'name, first_release_date, parent_game, version_parent, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url, alternative_names.name';
+const IGDB_PAGE_SIZE = 500;
+const IGDB_REQUESTS_PER_BATCH = 4;
+const IGDB_REQUEST_INTERVAL_MS = 1000;
+const MAX_REQUEST_ATTEMPTS = 4;
+const DB_WRITE_BATCH_SIZE = 200;
+
+const SOURCE_TO_STORE: Record<number, number> = {
+	[GameSource.steam]: STORES.STEAM.id,
+	[GameSource.gog]: STORES.GOG.id,
+	[GameSource.itch_io]: STORES.ITCH.id,
+	[GameSource.epic_game_store]: STORES.EPIC.id
+};
+
+const WEBSITE_TO_STORE: Record<number, number> = {
+	[WebsiteCategory.steam]: STORES.STEAM.id,
+	[WebsiteCategory.gog]: STORES.GOG.id,
+	[WebsiteCategory.itch]: STORES.ITCH.id,
+	[WebsiteCategory.epicgames]: STORES.EPIC.id
+};
 
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const sessionToken = event.cookies.get(auth.sessionCookieName);
@@ -45,292 +68,362 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 export const handle: Handle = handleAuth;
 
 function seedStores() {
-	db.insert(store).values(Object.values(STORES)).onConflictDoNothing().run();
+	db.insert(store)
+		.values(Object.values(STORES))
+		.onConflictDoUpdate({
+			target: store.id,
+			set: { name: sql`excluded.name` }
+		})
+		.run();
 }
 
 function extractStoreLinks(igdbGame: IGDBGame) {
 	const links: Array<{ storeId: number; url: string }> = [];
 	const seen = new Set<number>();
 
-	// Map IGDB enums to our store IDs
-	const sourceToStore: Record<number, number> = {
-		[GameSource.steam]: STORES.STEAM.id,
-		[GameSource.gog]: STORES.GOG.id,
-		[GameSource.itch_io]: STORES.ITCH.id,
-		[GameSource.epic_game_store]: STORES.EPIC.id
-	};
-	const websiteToStore: Record<number, number> = {
-		[WebsiteCategory.steam]: STORES.STEAM.id,
-		[WebsiteCategory.gog]: STORES.GOG.id,
-		[WebsiteCategory.itch]: STORES.ITCH.id,
-		[WebsiteCategory.epicgames]: STORES.EPIC.id
-	};
-
-	// Store links can be in either external_games or websites
-	if (igdbGame.external_games) {
-		for (const externalGame of igdbGame.external_games) {
-			const storeId = sourceToStore[externalGame.external_game_source];
-			if (storeId !== undefined && !seen.has(storeId) && externalGame.url) {
-				links.push({ storeId, url: externalGame.url });
-				seen.add(storeId);
-			}
+	for (const externalGame of igdbGame.external_games ?? []) {
+		const storeId = SOURCE_TO_STORE[externalGame.external_game_source];
+		if (storeId !== undefined && !seen.has(storeId) && externalGame.url) {
+			links.push({ storeId, url: externalGame.url });
+			seen.add(storeId);
 		}
 	}
 
-	if (igdbGame.websites) {
-		for (const website of igdbGame.websites) {
-			const storeId = websiteToStore[website.type];
-			if (storeId !== undefined && !seen.has(storeId) && website.url) {
-				links.push({ storeId, url: website.url });
-				seen.add(storeId);
-			}
+	for (const website of igdbGame.websites ?? []) {
+		const storeId = WEBSITE_TO_STORE[website.type];
+		if (storeId !== undefined && !seen.has(storeId) && website.url) {
+			links.push({ storeId, url: website.url });
+			seen.add(storeId);
 		}
 	}
 
 	return links;
 }
 
+function* chunks<T>(items: T[]) {
+	for (let index = 0; index < items.length; index += DB_WRITE_BATCH_SIZE) {
+		yield items.slice(index, index + DB_WRITE_BATCH_SIZE);
+	}
+}
+
 function syncGames(igdbGames: IGDBGame[]) {
+	const games = new Map<number, typeof game.$inferInsert>();
+	const companies = new Map<number, typeof company.$inferInsert>();
+	const engines = new Map<number, typeof gameEngine.$inferInsert>();
+	const names = new Map<string, typeof gameName.$inferInsert>();
+	const storeLinks = new Map<string, typeof storeLink.$inferInsert>();
+	const involvedCompanies = new Map<string, typeof involvedCompany.$inferInsert>();
+	const usedEngines = new Map<string, typeof usedEngine.$inferInsert>();
+
 	for (const igdbGame of igdbGames) {
-		db.insert(game)
-			.values({
-				id: igdbGame.id,
-				releaseDate: igdbGame.first_release_date
-					? new Date(igdbGame.first_release_date * 1000)
-					: null,
-				coverImgId: igdbGame.cover?.image_id || null,
-				parentGame: igdbGame.parent_game || null,
-				versionParent: igdbGame.version_parent || null
-			})
-			.onConflictDoUpdate({
-				target: game.id,
-				set: {
-					releaseDate: igdbGame.first_release_date
-						? new Date(igdbGame.first_release_date * 1000)
-						: null,
-					coverImgId: igdbGame.cover?.image_id || null,
-					parentGame: igdbGame.parent_game || null,
-					versionParent: igdbGame.version_parent || null
-				}
-			})
-			.run();
+		games.set(igdbGame.id, {
+			id: igdbGame.id,
+			releaseDate: igdbGame.first_release_date
+				? new Date(igdbGame.first_release_date * 1000)
+				: null,
+			coverImgId: igdbGame.cover?.image_id ?? null,
+			parentGame: igdbGame.parent_game ?? null,
+			versionParent: igdbGame.version_parent ?? null
+		});
 
-		// update existing primary if exists
-		const updated = db
-			.update(gameName)
-			.set({ name: igdbGame.name })
-			.where(and(eq(gameName.gameId, igdbGame.id), eq(gameName.isPrimary, true)))
-			.returning()
-			.all();
+		names.set(`${igdbGame.id}:${igdbGame.name}`, {
+			gameId: igdbGame.id,
+			name: igdbGame.name,
+			isPrimary: true
+		});
 
-		if (updated.length === 0) {
-			db.insert(gameName)
-				.values({
-					gameId: igdbGame.id,
-					name: igdbGame.name,
-					isPrimary: true
-				})
-				.onConflictDoNothing()
-				.run();
+		for (const alternativeName of igdbGame.alternative_names ?? []) {
+			if (!alternativeName.name || alternativeName.name === igdbGame.name) continue;
+			names.set(`${igdbGame.id}:${alternativeName.name}`, {
+				gameId: igdbGame.id,
+				name: alternativeName.name,
+				isPrimary: false
+			});
 		}
 
-		const storeLinks = extractStoreLinks(igdbGame);
-		if (storeLinks.length > 0) {
-			for (const link of storeLinks) {
-				db.insert(storeLink)
-					.values({
-						gameId: igdbGame.id,
-						storeId: link.storeId,
-						url: link.url
-					})
-					.onConflictDoUpdate({
-						target: [storeLink.gameId, storeLink.storeId],
-						set: {
-							url: link.url
-						}
-					})
-					.run();
-			}
+		for (const link of extractStoreLinks(igdbGame)) {
+			storeLinks.set(`${igdbGame.id}:${link.storeId}`, {
+				gameId: igdbGame.id,
+				storeId: link.storeId,
+				url: link.url
+			});
 		}
 
-		if (igdbGame.involved_companies) {
-			for (const ic of igdbGame.involved_companies) {
-				if (!ic.company) continue;
+		for (const involvement of igdbGame.involved_companies ?? []) {
+			if (!involvement.company) continue;
 
-				db.insert(company)
-					.values({
-						id: ic.company.id,
-						name: ic.company.name,
-						url: ic.company.websites?.[0]?.url || null
-					})
-					.onConflictDoUpdate({
-						target: company.id,
-						set: {
-							name: ic.company.name,
-							url: ic.company.websites?.[0]?.url || null
-						}
-					})
-					.run();
-			}
-
-			for (const ic of igdbGame.involved_companies) {
-				db.insert(involvedCompany)
-					.values({
-						gameId: igdbGame.id,
-						companyId: ic.company.id,
-						developer: ic.developer,
-						publisher: ic.publisher
-					})
-					.onConflictDoUpdate({
-						target: [involvedCompany.gameId, involvedCompany.companyId],
-						set: {
-							developer: ic.developer,
-							publisher: ic.publisher
-						}
-					})
-					.run();
-			}
+			companies.set(involvement.company.id, {
+				id: involvement.company.id,
+				name: involvement.company.name,
+				url: involvement.company.websites?.[0]?.url ?? null
+			});
+			involvedCompanies.set(`${igdbGame.id}:${involvement.company.id}`, {
+				gameId: igdbGame.id,
+				companyId: involvement.company.id,
+				developer: involvement.developer,
+				publisher: involvement.publisher
+			});
 		}
 
-		if (igdbGame.game_engines) {
-			for (const engine of igdbGame.game_engines) {
-				db.insert(gameEngine)
-					.values({
-						id: engine.id,
-						name: engine.name,
-						url: engine.url || null
-					})
-					.onConflictDoUpdate({
-						target: gameEngine.id,
-						set: {
-							name: engine.name,
-							url: engine.url || null
-						}
-					})
-					.run();
-			}
-
-			db.insert(usedEngine)
-				.values(
-					igdbGame.game_engines.map((engine) => ({
-						gameId: igdbGame.id,
-						engineId: engine.id
-					}))
-				)
-				.onConflictDoNothing()
-				.run();
-		}
-
-		if (igdbGame.alternative_names) {
-			db.insert(gameName)
-				.values(
-					igdbGame.alternative_names.map((name) => ({
-						gameId: igdbGame.id,
-						name: name.name
-					}))
-				)
-				.onConflictDoNothing()
-				.run();
+		for (const engine of igdbGame.game_engines ?? []) {
+			engines.set(engine.id, {
+				id: engine.id,
+				name: engine.name,
+				url: engine.url ?? null
+			});
+			usedEngines.set(`${igdbGame.id}:${engine.id}`, {
+				gameId: igdbGame.id,
+				engineId: engine.id
+			});
 		}
 	}
+
+	const gameRows = [...games.values()];
+	const companyRows = [...companies.values()];
+	const engineRows = [...engines.values()];
+	const gameIds = [...games.keys()];
+
+	db.transaction((tx) => {
+		for (const rows of chunks(gameRows)) {
+			tx.insert(game)
+				.values(rows)
+				.onConflictDoUpdate({
+					target: game.id,
+					set: {
+						releaseDate: sql`excluded.release_date`,
+						coverImgId: sql`excluded.cover_img_id`,
+						parentGame: sql`excluded.parent_game_id`,
+						versionParent: sql`excluded.version_parent_id`
+					}
+				})
+				.run();
+		}
+
+		for (const rows of chunks(companyRows)) {
+			tx.insert(company)
+				.values(rows)
+				.onConflictDoUpdate({
+					target: company.id,
+					set: {
+						name: sql`excluded.name`,
+						url: sql`excluded.url`
+					}
+				})
+				.run();
+		}
+
+		for (const rows of chunks(engineRows)) {
+			tx.insert(gameEngine)
+				.values(rows)
+				.onConflictDoUpdate({
+					target: gameEngine.id,
+					set: {
+						name: sql`excluded.name`,
+						url: sql`excluded.url`
+					}
+				})
+				.run();
+		}
+
+		for (const ids of chunks(gameIds)) {
+			tx.delete(gameName).where(inArray(gameName.gameId, ids)).run();
+			tx.delete(storeLink).where(inArray(storeLink.gameId, ids)).run();
+			tx.delete(involvedCompany).where(inArray(involvedCompany.gameId, ids)).run();
+			tx.delete(usedEngine).where(inArray(usedEngine.gameId, ids)).run();
+		}
+
+		for (const rows of chunks([...names.values()])) {
+			tx.insert(gameName).values(rows).onConflictDoNothing().run();
+		}
+		for (const rows of chunks([...storeLinks.values()])) {
+			tx.insert(storeLink).values(rows).onConflictDoNothing().run();
+		}
+		for (const rows of chunks([...involvedCompanies.values()])) {
+			tx.insert(involvedCompany).values(rows).onConflictDoNothing().run();
+		}
+		for (const rows of chunks([...usedEngines.values()])) {
+			tx.insert(usedEngine).values(rows).onConflictDoNothing().run();
+		}
+	});
+}
+
+class IgdbRateLimiter {
+	private requestStarts: number[] = [];
+	private queue = Promise.resolve();
+
+	async run<T>(request: () => Promise<T>) {
+		const previous = this.queue;
+		let release!: () => void;
+		this.queue = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+
+		await previous;
+
+		try {
+			let now = Date.now();
+			this.requestStarts = this.requestStarts.filter(
+				(startedAt) => now - startedAt < IGDB_REQUEST_INTERVAL_MS
+			);
+
+			if (this.requestStarts.length >= IGDB_REQUESTS_PER_BATCH) {
+				await sleep(IGDB_REQUEST_INTERVAL_MS - (now - this.requestStarts[0]));
+				now = Date.now();
+				this.requestStarts = this.requestStarts.filter(
+					(startedAt) => now - startedAt < IGDB_REQUEST_INTERVAL_MS
+				);
+			}
+
+			this.requestStarts.push(Date.now());
+		} finally {
+			release();
+		}
+
+		return request();
+	}
+}
+
+function getHttpStatus(cause: unknown) {
+	if (!cause || typeof cause !== 'object' || !('response' in cause)) return;
+	const response = cause.response;
+	if (!response || typeof response !== 'object' || !('status' in response)) return;
+	return typeof response.status === 'number' ? response.status : undefined;
+}
+
+function isRetryable(cause: unknown) {
+	const status = getHttpStatus(cause);
+	return (
+		status === undefined ||
+		status === 401 ||
+		status === 408 ||
+		status === 425 ||
+		status === 429 ||
+		status >= 500
+	);
+}
+
+async function requestWithRetry<T>(
+	rateLimiter: IgdbRateLimiter,
+	description: string,
+	request: () => Promise<T>
+) {
+	for (let attempt = 1; attempt <= MAX_REQUEST_ATTEMPTS; attempt++) {
+		try {
+			return await rateLimiter.run(request);
+		} catch (cause) {
+			if (attempt === MAX_REQUEST_ATTEMPTS || !isRetryable(cause)) throw cause;
+
+			if (getHttpStatus(cause) === 401) invalidateIgdbAccessToken();
+			const retryDelay = IGDB_REQUEST_INTERVAL_MS * 2 ** (attempt - 1);
+			warn(
+				`${description} failed${getHttpStatus(cause) ? ` (${getHttpStatus(cause)})` : ''}; retrying in ${retryDelay}ms`
+			);
+			await sleep(retryDelay);
+		}
+	}
+
+	throw new Error(`${description} failed`);
+}
+
+async function fetchGames(
+	rateLimiter: IgdbRateLimiter,
+	filter: string,
+	offset: number,
+	totalGames: number
+) {
+	const remainingGames = totalGames - offset;
+	const requestCount = Math.min(
+		IGDB_REQUESTS_PER_BATCH,
+		Math.ceil(remainingGames / IGDB_PAGE_SIZE)
+	);
+
+	const responses = await Promise.all(
+		Array.from({ length: requestCount }, async (_, index) => {
+			const pageOffset = offset + index * IGDB_PAGE_SIZE;
+			const pageSize = Math.min(IGDB_PAGE_SIZE, totalGames - pageOffset);
+
+			return requestWithRetry(
+				rateLimiter,
+				`IGDB games request at offset ${pageOffset}`,
+				async () => {
+					const response = await (
+						await igdb()
+					)
+						.fields(IGDB_FIELDS)
+						.limit(pageSize)
+						.offset(pageOffset)
+						.sort('id', 'asc')
+						.where(filter)
+						.request('/games');
+
+					if (!Array.isArray(response.data) || response.data.length !== pageSize) {
+						throw new Error(
+							`IGDB returned ${Array.isArray(response.data) ? response.data.length : 'invalid'} rows at offset ${pageOffset}; expected ${pageSize}`
+						);
+					}
+
+					return response;
+				}
+			);
+		})
+	);
+
+	return responses.flatMap((response) => response.data as IGDBGame[]);
 }
 
 async function igdbSync(lastSyncTimestamp: number) {
+	// Leave the current second open so records created while this sync starts are picked up next time.
+	const syncUpperBound = Math.floor(Date.now() / 1000) - 1;
+	if (syncUpperBound <= lastSyncTimestamp) return;
+
+	const filter = `updated_at > ${lastSyncTimestamp} & updated_at <= ${syncUpperBound}`;
+	const rateLimiter = new IgdbRateLimiter();
+	const startedAt = Date.now();
+
 	info(
-		`Syncing games since ${new Date(lastSyncTimestamp * 1000).toISOString()}(${lastSyncTimestamp})`
+		`Syncing games updated between ${new Date(lastSyncTimestamp * 1000).toISOString()} and ${new Date(syncUpperBound * 1000).toISOString()}`
 	);
 
-	const REQUESTS_PER_BATCH = 4;
-	const GAMES_PER_REQUEST = 500;
-	const GAMES_PER_BATCH = REQUESTS_PER_BATCH * GAMES_PER_REQUEST;
-	const BATCH_DELAY = 1000;
-	const FIELDS =
-		'name, first_release_date, parent_game, version_parent, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url, alternative_names.name';
+	const countResponse = await requestWithRetry(rateLimiter, 'IGDB game count request', async () =>
+		(await igdb()).where(filter).request('/games/count')
+	);
+	const totalGames = Number(countResponse.data.count);
 
-	const totalGames = (
-		await (
-			await igdb()
-		)
-			.fields('id')
-			.where(`updated_at > ${lastSyncTimestamp}`)
-			.request('/games/count')
-	).data.count;
-
-	if (totalGames === 0) {
-		info('No new games to sync');
-		return;
+	if (!Number.isSafeInteger(totalGames) || totalGames < 0) {
+		throw new Error(`IGDB returned an invalid game count: ${countResponse.data.count}`);
 	}
 
-	info(`Syncing ${totalGames} games`);
-	await sleep(BATCH_DELAY);
+	let importedGames = 0;
 
-	// Helper function to fetch a batch of 4 requests
-	async function fetchBatch(startOffset: number): Promise<IGDBGame[]> {
-		const promises: Promise<{ data: IGDBGame[] }>[] = [];
+	while (importedGames < totalGames) {
+		const games = await fetchGames(rateLimiter, filter, importedGames, totalGames);
+		const expectedGames = Math.min(
+			IGDB_PAGE_SIZE * IGDB_REQUESTS_PER_BATCH,
+			totalGames - importedGames
+		);
 
-		for (let i = 0; i < REQUESTS_PER_BATCH; i++) {
-			const offset = startOffset + i * GAMES_PER_REQUEST;
-
-			promises.push(
-				(await igdb())
-					.fields(FIELDS)
-					.limit(GAMES_PER_REQUEST)
-					.offset(offset)
-					.sort('created_at', 'asc')
-					.where(`updated_at > ${lastSyncTimestamp}`)
-					.request('/games')
-			);
+		if (games.length !== expectedGames) {
+			throw new Error(`IGDB returned ${games.length} games; expected ${expectedGames}`);
 		}
 
-		const results = await Promise.all(promises);
-		return results.flatMap((result) => result.data);
+		syncGames(games);
+		importedGames += games.length;
+		info(`Imported ${importedGames}/${totalGames} games`);
 	}
 
-	let offset = 0;
-
-	// Fetch the initial batch and wait
-	info(`Fetching initial batch (games 0 to ${Math.min(GAMES_PER_BATCH, totalGames)})...`);
-	let currentGames = await fetchBatch(offset);
-	await sleep(BATCH_DELAY);
-
-	while (currentGames.length > 0) {
-		const iterationStart = Date.now();
-		const currentOffset = offset;
-		offset += GAMES_PER_BATCH;
-
-		// Kick off the next batch fetch immediately (don't await yet)
-		info(`Processing games ${currentOffset} to ${currentOffset + currentGames.length}...`);
-		const nextBatchPromise = fetchBatch(offset);
-
-		// Process the current batch
-		db.transaction(() => syncGames(currentGames));
-
-		if (currentGames.length < GAMES_PER_BATCH) break;
-
-		// Await the next batch and ensure we respect rate limits
-		const iterationTime = Date.now() - iterationStart;
-		const remainingDelay = BATCH_DELAY - iterationTime;
-
-		if (remainingDelay > 0) {
-			info(`Waiting ${remainingDelay}ms before fetching next batch...`);
-			await sleep(remainingDelay);
-		}
-
-		currentGames = await nextBatchPromise;
-	}
-
-	info('Sync complete!');
-	setLastSyncTime();
+	setLastSyncTime(syncUpperBound);
+	info(
+		`IGDB sync complete: ${importedGames} games in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`
+	);
 }
 
-function setLastSyncTime() {
-	const state = db.select().from(syncState).get();
-
-	if (state) {
-		db.update(syncState).set({ lastSync: new Date() }).run();
-	} else {
-		db.insert(syncState).values({ lastSync: new Date() }).run();
-	}
+function setLastSyncTime(timestamp: number) {
+	db.transaction((tx) => {
+		tx.delete(syncState).run();
+		tx.insert(syncState)
+			.values({ lastSync: new Date(timestamp * 1000) })
+			.run();
+	});
 }
 
 function getLastSyncTime() {
@@ -338,5 +431,28 @@ function getLastSyncTime() {
 	return state ? Math.floor(state.lastSync.getTime() / 1000) : 0;
 }
 
-seedStores();
-igdbSync(getLastSyncTime());
+const syncGlobal = globalThis as typeof globalThis & {
+	flightlesskiwiIgdbSync?: Promise<void>;
+};
+
+function startIgdbSync() {
+	if (syncGlobal.flightlesskiwiIgdbSync) return;
+
+	const sync = Promise.resolve()
+		.then(() => igdbSync(getLastSyncTime()))
+		.catch((cause) => {
+			error('IGDB sync failed; it will resume from the previous checkpoint on restart', cause);
+		})
+		.finally(() => {
+			if (syncGlobal.flightlesskiwiIgdbSync === sync) {
+				delete syncGlobal.flightlesskiwiIgdbSync;
+			}
+		});
+
+	syncGlobal.flightlesskiwiIgdbSync = sync;
+}
+
+if (!building) {
+	seedStores();
+	startIgdbSync();
+}

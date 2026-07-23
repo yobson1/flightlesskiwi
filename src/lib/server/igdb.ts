@@ -8,40 +8,57 @@ if (!IGDB_CLIENT_ID || !IGDB_CLIENT_SECRET) {
 	throw new Error('IGDB_CLIENT_ID or IGDB_CLIENT_SECRET is not set');
 }
 
-/* eslint-disable prefer-const */
-let tokenCache: { token: string | null; expiry: number | null } = {
+const REQUEST_TIMEOUT_MS = 15_000;
+const tokenCache: { token: string | null; expiry: number } = {
 	token: null,
-	expiry: null
+	expiry: 0
 };
+let tokenRefresh: Promise<string> | undefined;
 
-async function getAccessToken(): Promise<string> {
-	if (!tokenCache.token || (tokenCache.expiry ?? 0) < Date.now()) {
-		info('Refreshing IGDB access token');
-		const response = await fetch('https://id.twitch.tv/oauth2/token', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
-			},
-			body: new URLSearchParams({
-				client_id: IGDB_CLIENT_ID,
-				client_secret: IGDB_CLIENT_SECRET,
-				grant_type: 'client_credentials'
-			})
-		});
+export function invalidateIgdbAccessToken() {
+	tokenCache.token = null;
+	tokenCache.expiry = 0;
+}
 
-		if (!response.ok) {
-			throw new Error(`Failed to get access token: ${response.statusText}`);
-		}
+async function refreshAccessToken() {
+	info('Refreshing IGDB access token');
+	const response = await fetch('https://id.twitch.tv/oauth2/token', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		body: new URLSearchParams({
+			client_id: IGDB_CLIENT_ID,
+			client_secret: IGDB_CLIENT_SECRET,
+			grant_type: 'client_credentials'
+		}),
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+	});
 
-		const data = await response.json();
-		tokenCache.token = data.access_token;
-		tokenCache.expiry = Date.now() + data.expires_in * 1000 - 60000; // 1 min buffer
-		info(
-			`Token (${tokenCache.token}) expires in ${Math.floor(data.expires_in / 60 / 60 / 24)} days`
-		);
+	if (!response.ok) {
+		throw new Error(`Failed to get IGDB access token (${response.status} ${response.statusText})`);
 	}
 
-	return tokenCache.token!;
+	const data = (await response.json()) as { access_token?: unknown; expires_in?: unknown };
+	if (typeof data.access_token !== 'string' || typeof data.expires_in !== 'number') {
+		throw new Error('IGDB returned an invalid access token response');
+	}
+
+	tokenCache.token = data.access_token;
+	tokenCache.expiry = Date.now() + data.expires_in * 1000 - 60_000;
+	info(`IGDB access token refreshed; expires in ${Math.floor(data.expires_in / 86_400)} days`);
+
+	return data.access_token;
+}
+
+async function getAccessToken() {
+	if (tokenCache.token && tokenCache.expiry > Date.now()) return tokenCache.token;
+
+	tokenRefresh ??= refreshAccessToken().finally(() => {
+		tokenRefresh = undefined;
+	});
+
+	return tokenRefresh;
 }
 
 export async function igdb() {
@@ -56,7 +73,8 @@ export async function igdb() {
 			'X-User-Agent': `flightlesskiwi v${version}`,
 			Accept: 'application/json'
 		},
-		responseType: 'json'
+		responseType: 'json',
+		timeout: REQUEST_TIMEOUT_MS
 	};
 
 	return apicalypse(igdbOptions);
