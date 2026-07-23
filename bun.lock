@@ -30,6 +30,7 @@
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-svelte": "^3.22.0",
         "globals": "^16.5.0",
+        "meilisearch": "^0.60.0",
         "mode-watcher": "^1.1.0",
         "prettier": "^3.9.6",
         "prettier-plugin-svelte": "^4.1.1",
@@ -667,6 +668,8 @@
     "marked": ["marked@17.0.6", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-gB0gkNafnonOw0obSTEGZTT86IuhILt2Wfx0mWH/1Au83kybTayroZ/V6nS25mN7u8ASy+5fMhgB3XPNrOZdmA=="],
 
     "math-intrinsics": ["math-intrinsics@1.1.0", "", {}, "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="],
+
+    "meilisearch": ["meilisearch@0.60.0", "", {}, "sha512-z32KgxE6/7hRzbVfzUgzlmNl2OS7TwGE6wSWs2tVEuAY9DWrX6zAmt0s7wTyelH36orIaZ3/t1mQsCsExGtVDQ=="],
 
     "mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
 

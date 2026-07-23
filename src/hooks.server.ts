@@ -15,8 +15,10 @@ import {
 	store,
 	syncState,
 	gameName,
+	gameSearchQueue,
 	STORES
 } from '$lib/server/db/schema';
+import { flushGameSearchQueue, prepareGameSearch } from '$lib/server/game-search';
 import * as auth from '$lib/server/auth';
 import { sleep } from 'bun';
 import { inArray, sql } from 'drizzle-orm';
@@ -244,6 +246,12 @@ function syncGames(igdbGames: IGDBGame[]) {
 		for (const rows of chunks([...usedEngines.values()])) {
 			tx.insert(usedEngine).values(rows).onConflictDoNothing().run();
 		}
+		for (const ids of chunks(gameIds)) {
+			tx.insert(gameSearchQueue)
+				.values(ids.map((gameId) => ({ gameId })))
+				.onConflictDoNothing()
+				.run();
+		}
 	});
 }
 
@@ -371,7 +379,7 @@ async function fetchGames(
 	return responses.flatMap((response) => response.data as IGDBGame[]);
 }
 
-async function igdbSync(lastSyncTimestamp: number) {
+async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 	// Leave the current second open so records created while this sync starts are picked up next time.
 	const syncUpperBound = Math.floor(Date.now() / 1000) - 1;
 	if (syncUpperBound <= lastSyncTimestamp) return;
@@ -393,6 +401,8 @@ async function igdbSync(lastSyncTimestamp: number) {
 		throw new Error(`IGDB returned an invalid game count: ${countResponse.data.count}`);
 	}
 
+	info(`Found ${totalGames} games to sync`);
+
 	let importedGames = 0;
 
 	while (importedGames < totalGames) {
@@ -409,6 +419,15 @@ async function igdbSync(lastSyncTimestamp: number) {
 		syncGames(games);
 		importedGames += games.length;
 		info(`Imported ${importedGames}/${totalGames} games`);
+
+		if (gameSearchReady) {
+			try {
+				await flushGameSearchQueue();
+			} catch (cause) {
+				gameSearchReady = false;
+				warn('Game search indexing failed; queued games will be retried on restart', cause);
+			}
+		}
 	}
 
 	setLastSyncTime(syncUpperBound);
@@ -435,11 +454,26 @@ const syncGlobal = globalThis as typeof globalThis & {
 	flightlesskiwiIgdbSync?: Promise<void>;
 };
 
+async function syncGameSearch() {
+	try {
+		await prepareGameSearch();
+		const indexedGames = await flushGameSearchQueue();
+		if (indexedGames > 0) info(`Indexed ${indexedGames} games in Meilisearch`);
+		return true;
+	} catch (cause) {
+		warn('Meilisearch is unavailable; game imports will continue and queue search updates', cause);
+		return false;
+	}
+}
+
 function startIgdbSync() {
 	if (syncGlobal.flightlesskiwiIgdbSync) return;
 
 	const sync = Promise.resolve()
-		.then(() => igdbSync(getLastSyncTime()))
+		.then(async () => {
+			const gameSearchReady = await syncGameSearch();
+			await igdbSync(getLastSyncTime(), gameSearchReady);
+		})
 		.catch((cause) => {
 			error('IGDB sync failed; it will resume from the previous checkpoint on restart', cause);
 		})

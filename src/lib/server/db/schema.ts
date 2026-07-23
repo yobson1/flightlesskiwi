@@ -102,6 +102,12 @@ export const game = sqliteTable('game', {
 	versionParent: integer('version_parent_id').references((): AnySQLiteColumn => game.id)
 });
 
+export const gameSearchQueue = sqliteTable('game_search_queue', {
+	gameId: integer('game_id')
+		.primaryKey()
+		.references(() => game.id)
+});
+
 export const syncState = sqliteTable('sync_state', {
 	lastSync: integer('last_sync', { mode: 'timestamp' }).notNull()
 });
@@ -195,11 +201,6 @@ export type Company = typeof company.$inferSelect;
 export type InvolvedCompany = typeof involvedCompany.$inferSelect;
 export type Game = typeof game.$inferSelect;
 export type GameName = typeof gameName.$inferSelect;
-export type GameSearchResult = Pick<
-	Game,
-	'id' | 'releaseDate' | 'coverImgId' | 'parentGame' | 'versionParent'
-> &
-	Pick<GameName, 'name'>;
 
 export type FullGame = Game & {
 	storeLinks: (StoreLink & {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input';
 	import { constructImageUrl } from '$lib/igdb';
-	import type { GameSearchResult } from '$lib/server/db/schema';
+	import type { GameSearchResult } from '$lib/types/game';
 	import { fly } from 'svelte/transition';
 	import LineMdSearchTwotone from '$lib/components/icons/LineMdSearchTwotone.svelte';
 	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';

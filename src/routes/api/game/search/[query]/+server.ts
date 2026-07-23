@@ -1,30 +1,16 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { and, asc, eq, getTableColumns, like } from 'drizzle-orm';
 import { error } from '$lib/logger';
+import { searchGames } from '$lib/server/game-search';
 import type { RequestHandler } from './$types';
-import { game, gameName } from '$lib/server/db/schema';
 
-export const GET: RequestHandler = ({ params }) => {
+export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const query = params.query.trim();
 		if (!query) return json([]);
 
-		const results = db
-			.select({
-				...getTableColumns(game),
-				name: gameName.name
-			})
-			.from(gameName)
-			.innerJoin(game, eq(gameName.gameId, game.id))
-			.where(and(eq(gameName.isPrimary, true), like(gameName.name, `%${query}%`)))
-			.orderBy(asc(gameName.name))
-			.limit(15)
-			.all();
-
-		return json(results);
+		return json(await searchGames(query));
 	} catch (err) {
-		error(`Failed to search games for query "${params.query}": ${err}`);
-		return json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+		error(`Failed to search games for query "${params.query}"`, err);
+		return json({ error: 'Game search is temporarily unavailable' }, { status: 503 });
 	}
 };
