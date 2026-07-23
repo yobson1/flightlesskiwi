@@ -10,6 +10,7 @@ const DAY_IN_MS = 1000 * 60 * 60 * 24;
 const INACTIVITY_TIMEOUT_MS = DAY_IN_MS * 30;
 const ABSOLUTE_TIMEOUT_MS = DAY_IN_MS * 90;
 const ACTIVITY_CHECK_INTERVAL_MS = 1000 * 60 * 60;
+const REAUTHENTICATION_TTL_MS = 1000 * 60 * 5;
 
 export const sessionCookieName = 'session';
 
@@ -29,6 +30,7 @@ export function createSession(token: string, userId: string, flags: SessionFlags
 		userId,
 		createdAt: now,
 		lastVerifiedAt: now,
+		lastReauthenticatedAt: now,
 		expiresAt: new Date(now.getTime() + INACTIVITY_TIMEOUT_MS),
 		twoFactorVerified: flags.twoFactorVerified
 	};
@@ -40,6 +42,7 @@ export function createSession(token: string, userId: string, flags: SessionFlags
 			secretHash: hashSecret(tokenParts.secret),
 			createdAt: now,
 			lastVerifiedAt: now,
+			lastReauthenticatedAt: now,
 			twoFactorVerified: flags.twoFactorVerified
 		})
 		.run();
@@ -94,6 +97,7 @@ export function validateSessionToken(token: string): SessionValidationResult {
 			userId: row.userId,
 			createdAt: row.createdAt,
 			lastVerifiedAt,
+			lastReauthenticatedAt: row.lastReauthenticatedAt,
 			expiresAt,
 			twoFactorVerified: row.twoFactorVerified
 		},
@@ -111,9 +115,62 @@ export function invalidateUserSessions(userId: string): void {
 
 export function setSessionAs2FAVerified(sessionId: string): void {
 	db.update(sessionTable)
-		.set({ twoFactorVerified: true })
+		.set({ twoFactorVerified: true, lastReauthenticatedAt: new Date() })
 		.where(eq(sessionTable.id, sessionId))
 		.run();
+}
+
+export function isSessionRecentlyReauthenticated(session: Session): boolean {
+	return (
+		session.lastReauthenticatedAt !== null &&
+		Date.now() - session.lastReauthenticatedAt.getTime() <= REAUTHENTICATION_TTL_MS
+	);
+}
+
+export function rotateSessionAfterReauthentication(
+	event: RequestEvent,
+	currentSession: Session
+): Session {
+	const currentToken = event.cookies.get(sessionCookieName);
+	const currentTokenParts = currentToken ? parseSessionToken(currentToken) : null;
+	if (currentTokenParts === null || currentTokenParts.id !== currentSession.id) {
+		throw new Error('Current session token is unavailable');
+	}
+
+	const now = new Date();
+	const newSecret = generateSecureRandomString();
+	const rotated = db
+		.update(sessionTable)
+		.set({
+			secretHash: hashSecret(newSecret),
+			lastVerifiedAt: now,
+			lastReauthenticatedAt: now
+		})
+		.where(
+			and(
+				eq(sessionTable.id, currentSession.id),
+				eq(sessionTable.userId, currentSession.userId),
+				eq(sessionTable.secretHash, hashSecret(currentTokenParts.secret))
+			)
+		)
+		.returning({ id: sessionTable.id })
+		.get();
+	if (!rotated) {
+		throw new Error('Current session could not be rotated');
+	}
+
+	const absoluteExpiresAt = new Date(currentSession.createdAt.getTime() + ABSOLUTE_TIMEOUT_MS);
+	const expiresAt = new Date(
+		Math.min(now.getTime() + INACTIVITY_TIMEOUT_MS, absoluteExpiresAt.getTime())
+	);
+	setSessionTokenCookie(event, `${currentSession.id}.${newSecret}`, expiresAt);
+
+	return {
+		...currentSession,
+		lastVerifiedAt: now,
+		lastReauthenticatedAt: now,
+		expiresAt
+	};
 }
 
 export function rotateSessionAfter2FAEnrollment(
@@ -137,6 +194,7 @@ export function rotateSessionAfter2FAEnrollment(
 			.set({
 				secretHash: newSecretHash,
 				lastVerifiedAt: now,
+				lastReauthenticatedAt: now,
 				twoFactorVerified: true
 			})
 			.where(
@@ -168,6 +226,7 @@ export function rotateSessionAfter2FAEnrollment(
 	return {
 		...currentSession,
 		lastVerifiedAt: now,
+		lastReauthenticatedAt: now,
 		expiresAt,
 		twoFactorVerified: true
 	};
@@ -209,6 +268,7 @@ export interface Session extends SessionFlags {
 	userId: string;
 	createdAt: Date;
 	lastVerifiedAt: Date;
+	lastReauthenticatedAt: Date | null;
 	expiresAt: Date;
 }
 

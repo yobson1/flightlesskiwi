@@ -25,7 +25,7 @@ export async function createWebAuthnChallenge(
 }
 
 export async function createWebAuthnAssertion(
-	purpose: 'passkey-login' | 'passkey-2fa'
+	purpose: 'passkey-login' | 'passkey-2fa' | 'settings-reauth'
 ): Promise<WebAuthnAssertion> {
 	verifyWebAuthnSupport();
 

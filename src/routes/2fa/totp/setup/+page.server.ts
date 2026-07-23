@@ -2,7 +2,10 @@ import { WEBAUTHN_RP_NAME } from '$env/static/private';
 import { createTOTPKeyURI } from '@oslojs/otp';
 import { encodeBase64 } from '@oslojs/encoding';
 import { fail, redirect } from '@sveltejs/kit';
-import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
+import {
+	isSessionRecentlyReauthenticated,
+	rotateSessionAfter2FAEnrollment
+} from '$lib/server/auth';
 import { get2FARedirect } from '$lib/server/auth/2fa';
 import {
 	deleteTOTPSetupCookie,
@@ -25,6 +28,9 @@ export function load(event: RequestEvent) {
 	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
 		redirect(302, get2FARedirect(event.locals.user));
 	}
+	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+		redirect(302, '/settings?next=/2fa/totp/setup');
+	}
 	const key = generateTOTPKey();
 	setTOTPSetupCookie(event, event.locals.user.id, key);
 	return {
@@ -46,6 +52,9 @@ async function setupTOTP(event: RequestEvent) {
 		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
 	) {
 		return fail(403, { message: 'Forbidden' });
+	}
+	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+		return fail(428, { message: 'Confirm your identity before adding an authenticator' });
 	}
 	if (!totpUpdateBucket.check(event.locals.user.id, 1)) {
 		return fail(429, { message: 'Too many requests' });

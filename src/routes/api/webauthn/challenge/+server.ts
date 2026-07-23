@@ -1,5 +1,6 @@
 import { encodeBase64 } from '@oslojs/encoding';
 import { json } from '@sveltejs/kit';
+import { isSessionRecentlyReauthenticated } from '$lib/server/auth';
 import { validatePasswordResetSessionRequest } from '$lib/server/auth/password-reset';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 import { getClientIP } from '$lib/server/auth/routes';
@@ -12,7 +13,8 @@ const purposes = new Set<WebAuthnChallengePurpose>([
 	'passkey-login',
 	'passkey-register',
 	'passkey-2fa',
-	'password-reset-2fa'
+	'password-reset-2fa',
+	'settings-reauth'
 ]);
 
 export async function POST(event: RequestEvent) {
@@ -59,14 +61,20 @@ export async function POST(event: RequestEvent) {
 		}
 		if (
 			purpose === 'passkey-register' &&
-			event.locals.user.registered2FA &&
-			!event.locals.session.twoFactorVerified
+			((event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) ||
+				!isSessionRecentlyReauthenticated(event.locals.session))
 		) {
 			return new Response('Forbidden', { status: 403 });
 		}
 		if (
 			purpose === 'passkey-2fa' &&
 			(!event.locals.user.registeredPasskey || event.locals.session.twoFactorVerified)
+		) {
+			return new Response('Forbidden', { status: 403 });
+		}
+		if (
+			purpose === 'settings-reauth' &&
+			(!event.locals.user.registeredPasskey || !event.locals.session.twoFactorVerified)
 		) {
 			return new Response('Forbidden', { status: 403 });
 		}

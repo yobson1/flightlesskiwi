@@ -34,6 +34,7 @@ export const session = sqliteTable(
 		secretHash: blob('secret_hash', { mode: 'buffer' }).notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 		lastVerifiedAt: integer('last_verified_at', { mode: 'timestamp_ms' }).notNull(),
+		lastReauthenticatedAt: integer('last_reauthenticated_at', { mode: 'timestamp_ms' }),
 		twoFactorVerified: integer('two_factor_verified', { mode: 'boolean' }).notNull().default(false)
 	},
 	(table) => [index('session_user_id_idx').on(table.userId)]
@@ -116,7 +117,13 @@ export const webAuthnChallenge = sqliteTable(
 		id: text('id').primaryKey(),
 		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
 		purpose: text('purpose', {
-			enum: ['passkey-login', 'passkey-register', 'passkey-2fa', 'password-reset-2fa']
+			enum: [
+				'passkey-login',
+				'passkey-register',
+				'passkey-2fa',
+				'password-reset-2fa',
+				'settings-reauth'
+			]
 		}).notNull(),
 		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
 	},

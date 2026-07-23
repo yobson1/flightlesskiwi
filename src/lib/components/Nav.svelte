@@ -1,6 +1,7 @@
 <script lang="ts">
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
 	import MoonIcon from '@lucide/svelte/icons/moon';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import UserKeyIcon from '@lucide/svelte/icons/user-key';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
@@ -22,6 +23,9 @@
 		<span class="hidden max-w-36 truncate px-2 text-sm text-muted-foreground md:inline">
 			{auth.user.username}
 		</span>
+		<Button href="/settings" variant="ghost" size="icon" aria-label="Settings">
+			<SettingsIcon />
+		</Button>
 		<form method="POST" action="/logout">
 			<Button type="submit" variant="outline">
 				<LogOutIcon />

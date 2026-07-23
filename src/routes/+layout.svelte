@@ -6,6 +6,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import AuthModal from '$lib/components/AuthModal.svelte';
 	import Nav from '$lib/components/Nav.svelte';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import type { AuthModalView } from '$lib/types/auth';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutProps } from './$types';
@@ -116,6 +117,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 <ModeWatcher />
+<Toaster richColors position="top-right" />
 
 <div class="flex min-h-screen flex-col">
 	<header class="flex w-full justify-center border-b bg-background/90 backdrop-blur">

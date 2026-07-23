@@ -1,7 +1,10 @@
 import { decodeBase64 } from '@oslojs/encoding';
 import { fail, redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
-import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
+import {
+	isSessionRecentlyReauthenticated,
+	rotateSessionAfter2FAEnrollment
+} from '$lib/server/auth';
 import { get2FARedirect } from '$lib/server/auth/2fa';
 import { hashSecret } from '$lib/server/auth/utils';
 import { createPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
@@ -23,6 +26,9 @@ export function load(event: RequestEvent) {
 	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
 		redirect(302, get2FARedirect(event.locals.user));
 	}
+	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+		redirect(302, '/settings?next=/2fa/passkey/register');
+	}
 	return {
 		user: event.locals.user,
 		credentials: getUserPasskeyCredentials(event.locals.user.id),
@@ -43,6 +49,9 @@ async function registerPasskey(event: RequestEvent) {
 		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
 	) {
 		return fail(403, { message: 'Forbidden' });
+	}
+	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+		return fail(428, { message: 'Confirm your identity before adding a passkey' });
 	}
 	const formData = await event.request.formData();
 	const name = formData.get('name');

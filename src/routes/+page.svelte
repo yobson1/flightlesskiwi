@@ -9,6 +9,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Home · flightlesskiwi</title>
+</svelte:head>
+
 <GameSearch onSelected={handleGameSelected} />
 {#if selectedGameId}
 	{#key selectedGameId}
