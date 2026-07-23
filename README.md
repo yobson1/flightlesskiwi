@@ -12,7 +12,7 @@ This project uses [Bun](https://bun.sh/):
 ```sh
 bun install
 bun run db:push
-bun --bun run dev -- --open
+bun dev
 ```
 
 ## Building
@@ -20,10 +20,10 @@ bun --bun run dev -- --open
 To create a production version of the app:
 
 ```sh
-bun --bun run build
+bun build
 ```
 
-You can preview the production build with `bun --bun run preview`.
+You can preview the production build with `bun preview`.
 
 For SSL in production use a reverse proxy, I use [nginx](https://nginx.org/en/)
 
