@@ -18,7 +18,7 @@ import {
 } from '$lib/server/db/schema';
 import * as auth from '$lib/server/auth';
 import { sleep } from 'bun';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const sessionToken = event.cookies.get(auth.sessionCookieName);
@@ -44,67 +44,8 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 export const handle: Handle = handleAuth;
 
-async function seedStores() {
-	await db
-		.insert(store)
-		.values([
-			{ id: STORES.STEAM.id, name: STORES.STEAM.name },
-			{ id: STORES.GOG.id, name: STORES.GOG.name },
-			{ id: STORES.ITCH.id, name: STORES.ITCH.name },
-			{ id: STORES.EPIC.id, name: STORES.EPIC.name }
-		])
-		.onConflictDoNothing();
-}
-
-function getCommonPunctuation() {
-	const punctuation = [];
-	for (let i = 0; i <= 0xffff; i++) {
-		const char = String.fromCharCode(i);
-		if (/\p{P}/u.test(char)) {
-			punctuation.push(char);
-		}
-	}
-	return punctuation.join('');
-}
-
-async function createFTSIndex() {
-	const ftsExists = await db.get(sql`
-		SELECT name FROM sqlite_master
-		WHERE type='table' AND name='game_name_fts'
-	`);
-
-	if (!ftsExists) {
-		const punctuation = getCommonPunctuation();
-		const escapedPunctuation = punctuation.replace(/'/g, "''").replace(/"/g, '""');
-		const createQuery = `
-			CREATE VIRTUAL TABLE game_name_fts USING fts5(
-				name,
-				content="game_name",
-				content_rowid="id",
-				tokenize="porter unicode61 remove_diacritics 2 tokenchars '${escapedPunctuation}'"
-			);
-		`;
-		db.run(createQuery);
-
-		db.run(sql`
-			CREATE TRIGGER game_name_fts_insert AFTER INSERT ON game_name BEGIN
-		 		INSERT INTO game_name_fts(rowid, name) VALUES (NEW.id, NEW.name);
-				END;
-		`);
-
-		db.run(sql`
-			CREATE TRIGGER game_name_fts_update AFTER UPDATE ON game_name BEGIN
-				INSERT INTO game_name_fts(game_name_fts, rowid, name) VALUES('delete', OLD.id, OLD.name);
-				INSERT INTO game_name_fts(rowid, name) VALUES (NEW.id, NEW.name);
-			END;
-		`);
-
-		db.run(sql`
-			CREATE TRIGGER game_name_fts_delete AFTER DELETE ON game_name BEGIN
-				INSERT INTO game_name_fts(game_name_fts, rowid, name) VALUES('delete', OLD.id, OLD.name);
-			END;
-		`);
-	}
+function seedStores() {
+	db.insert(store).values(Object.values(STORES)).onConflictDoNothing().run();
 }
 
 function extractStoreLinks(igdbGame: IGDBGame) {
@@ -149,10 +90,9 @@ function extractStoreLinks(igdbGame: IGDBGame) {
 	return links;
 }
 
-async function syncGames(igdbGames: IGDBGame[]) {
+function syncGames(igdbGames: IGDBGame[]) {
 	for (const igdbGame of igdbGames) {
-		await db
-			.insert(game)
+		db.insert(game)
 			.values({
 				id: igdbGame.id,
 				releaseDate: igdbGame.first_release_date
@@ -172,31 +112,32 @@ async function syncGames(igdbGames: IGDBGame[]) {
 					parentGame: igdbGame.parent_game || null,
 					versionParent: igdbGame.version_parent || null
 				}
-			});
+			})
+			.run();
 
 		// update existing primary if exists
-		const updated = await db
+		const updated = db
 			.update(gameName)
 			.set({ name: igdbGame.name })
 			.where(and(eq(gameName.gameId, igdbGame.id), eq(gameName.isPrimary, true)))
-			.returning();
+			.returning()
+			.all();
 
 		if (updated.length === 0) {
-			await db
-				.insert(gameName)
+			db.insert(gameName)
 				.values({
 					gameId: igdbGame.id,
 					name: igdbGame.name,
 					isPrimary: true
 				})
-				.onConflictDoNothing();
+				.onConflictDoNothing()
+				.run();
 		}
 
 		const storeLinks = extractStoreLinks(igdbGame);
 		if (storeLinks.length > 0) {
 			for (const link of storeLinks) {
-				await db
-					.insert(storeLink)
+				db.insert(storeLink)
 					.values({
 						gameId: igdbGame.id,
 						storeId: link.storeId,
@@ -207,20 +148,16 @@ async function syncGames(igdbGames: IGDBGame[]) {
 						set: {
 							url: link.url
 						}
-					});
+					})
+					.run();
 			}
 		}
 
 		if (igdbGame.involved_companies) {
-			const companyIds = new Set<number>();
-
 			for (const ic of igdbGame.involved_companies) {
 				if (!ic.company) continue;
 
-				companyIds.add(ic.company.id);
-
-				await db
-					.insert(company)
+				db.insert(company)
 					.values({
 						id: ic.company.id,
 						name: ic.company.name,
@@ -232,12 +169,12 @@ async function syncGames(igdbGames: IGDBGame[]) {
 							name: ic.company.name,
 							url: ic.company.websites?.[0]?.url || null
 						}
-					});
+					})
+					.run();
 			}
 
 			for (const ic of igdbGame.involved_companies) {
-				await db
-					.insert(involvedCompany)
+				db.insert(involvedCompany)
 					.values({
 						gameId: igdbGame.id,
 						companyId: ic.company.id,
@@ -250,18 +187,14 @@ async function syncGames(igdbGames: IGDBGame[]) {
 							developer: ic.developer,
 							publisher: ic.publisher
 						}
-					});
+					})
+					.run();
 			}
 		}
 
 		if (igdbGame.game_engines) {
-			const engineIds = new Set<number>();
-
 			for (const engine of igdbGame.game_engines) {
-				engineIds.add(engine.id);
-
-				await db
-					.insert(gameEngine)
+				db.insert(gameEngine)
 					.values({
 						id: engine.id,
 						name: engine.name,
@@ -273,30 +206,31 @@ async function syncGames(igdbGames: IGDBGame[]) {
 							name: engine.name,
 							url: engine.url || null
 						}
-					});
+					})
+					.run();
 			}
 
-			await db
-				.insert(usedEngine)
+			db.insert(usedEngine)
 				.values(
-					igdbGame.game_engines.map((engine, index) => ({
+					igdbGame.game_engines.map((engine) => ({
 						gameId: igdbGame.id,
 						engineId: engine.id
 					}))
 				)
-				.onConflictDoNothing();
+				.onConflictDoNothing()
+				.run();
 		}
 
 		if (igdbGame.alternative_names) {
-			await db
-				.insert(gameName)
+			db.insert(gameName)
 				.values(
 					igdbGame.alternative_names.map((name) => ({
 						gameId: igdbGame.id,
 						name: name.name
 					}))
 				)
-				.onConflictDoNothing();
+				.onConflictDoNothing()
+				.run();
 		}
 	}
 }
@@ -314,7 +248,9 @@ async function igdbSync(lastSyncTimestamp: number) {
 		'name, first_release_date, parent_game, version_parent, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url, alternative_names.name';
 
 	const totalGames = (
-		await (await igdb())
+		await (
+			await igdb()
+		)
 			.fields('id')
 			.where(`updated_at > ${lastSyncTimestamp}`)
 			.request('/games/count')
@@ -357,9 +293,6 @@ async function igdbSync(lastSyncTimestamp: number) {
 	let currentGames = await fetchBatch(offset);
 	await sleep(BATCH_DELAY);
 
-	// wrapping it via db.transaction doesn't seem to give any performance benefits
-	// manually like this does.
-	db.run(sql`BEGIN TRANSACTION;`);
 	while (currentGames.length > 0) {
 		const iterationStart = Date.now();
 		const currentOffset = offset;
@@ -370,7 +303,7 @@ async function igdbSync(lastSyncTimestamp: number) {
 		const nextBatchPromise = fetchBatch(offset);
 
 		// Process the current batch
-		await syncGames(currentGames);
+		db.transaction(() => syncGames(currentGames));
 
 		if (currentGames.length < GAMES_PER_BATCH) break;
 
@@ -385,27 +318,25 @@ async function igdbSync(lastSyncTimestamp: number) {
 
 		currentGames = await nextBatchPromise;
 	}
-	db.run(sql`COMMIT;`);
 
 	info('Sync complete!');
-	await setLastSyncTime();
+	setLastSyncTime();
 }
 
-async function setLastSyncTime() {
-	const state = await db.select().from(syncState).limit(1);
+function setLastSyncTime() {
+	const state = db.select().from(syncState).get();
 
-	if (state.length === 0) {
-		await db.insert(syncState).values({ lastSync: new Date() });
+	if (state) {
+		db.update(syncState).set({ lastSync: new Date() }).run();
 	} else {
-		await db.update(syncState).set({ lastSync: new Date() });
+		db.insert(syncState).values({ lastSync: new Date() }).run();
 	}
 }
 
-async function getLastSyncTime() {
-	const state = await db.select().from(syncState).limit(1);
-	return state[0]?.lastSync ? Math.floor(state[0].lastSync.getTime() / 1000) : 0;
+function getLastSyncTime() {
+	const state = db.select().from(syncState).get();
+	return state ? Math.floor(state.lastSync.getTime() / 1000) : 0;
 }
 
-await createFTSIndex();
-await seedStores();
-igdbSync(await getLastSyncTime());
+seedStores();
+igdbSync(getLastSyncTime());

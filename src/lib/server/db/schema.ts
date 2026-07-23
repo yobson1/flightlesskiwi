@@ -1,5 +1,12 @@
 import { relations } from 'drizzle-orm';
-import { sqliteTable, integer, text, primaryKey, unique } from 'drizzle-orm/sqlite-core';
+import {
+	type AnySQLiteColumn,
+	integer,
+	primaryKey,
+	sqliteTable,
+	text,
+	unique
+} from 'drizzle-orm/sqlite-core';
 
 export const user = sqliteTable('user', {
 	id: text('id').primaryKey(),
@@ -31,9 +38,7 @@ export const storeLink = sqliteTable(
 			.references(() => store.id),
 		url: text('url').notNull()
 	},
-	(table) => ({
-		pk: primaryKey({ columns: [table.gameId, table.storeId] })
-	})
+	(table) => [primaryKey({ columns: [table.gameId, table.storeId] })]
 );
 
 export const gameEngine = sqliteTable('game_engine', {
@@ -52,9 +57,7 @@ export const usedEngine = sqliteTable(
 			.notNull()
 			.references(() => gameEngine.id)
 	},
-	(table) => ({
-		pk: primaryKey({ columns: [table.gameId, table.engineId] })
-	})
+	(table) => [primaryKey({ columns: [table.gameId, table.engineId] })]
 );
 
 export const company = sqliteTable('company', {
@@ -75,9 +78,7 @@ export const involvedCompany = sqliteTable(
 		developer: integer('developer', { mode: 'boolean' }).notNull(),
 		publisher: integer('publisher', { mode: 'boolean' }).notNull()
 	},
-	(table) => ({
-		pk: primaryKey({ columns: [table.gameId, table.companyId] })
-	})
+	(table) => [primaryKey({ columns: [table.gameId, table.companyId] })]
 );
 
 export const gameName = sqliteTable(
@@ -97,8 +98,8 @@ export const game = sqliteTable('game', {
 	id: integer('id').primaryKey(),
 	releaseDate: integer('release_date', { mode: 'timestamp' }),
 	coverImgId: text('cover_img_id'),
-	parentGame: integer('parent_game_id').references((): any => game.id),
-	versionParent: integer('version_parent_id').references((): any => game.id)
+	parentGame: integer('parent_game_id').references((): AnySQLiteColumn => game.id),
+	versionParent: integer('version_parent_id').references((): AnySQLiteColumn => game.id)
 });
 
 export const syncState = sqliteTable('sync_state', {
@@ -182,7 +183,7 @@ export const STORES = {
 	GOG: { id: 1, name: 'GOG' },
 	ITCH: { id: 2, name: 'Itch.io' },
 	EPIC: { id: 3, name: 'Epic Games Store' }
-};
+} as const;
 
 export type Session = typeof session.$inferSelect;
 export type User = typeof user.$inferSelect;
@@ -194,6 +195,11 @@ export type Company = typeof company.$inferSelect;
 export type InvolvedCompany = typeof involvedCompany.$inferSelect;
 export type Game = typeof game.$inferSelect;
 export type GameName = typeof gameName.$inferSelect;
+export type GameSearchResult = Pick<
+	Game,
+	'id' | 'releaseDate' | 'coverImgId' | 'parentGame' | 'versionParent'
+> &
+	Pick<GameName, 'name'>;
 
 export type FullGame = Game & {
 	storeLinks: (StoreLink & {

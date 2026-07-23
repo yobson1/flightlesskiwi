@@ -3,13 +3,12 @@ import { debug, error } from '$lib/logger';
 import { db } from '$lib/server/db';
 import LRUCache from '$lib/lrucache';
 import type { RequestHandler } from './$types';
-import { game, type FullGame } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import type { FullGame } from '$lib/server/db/schema';
 
 // each game is about 0.5-2KB in size
-let gameCache: LRUCache<number, FullGame> = new LRUCache(1000);
+const gameCache = new LRUCache<number, FullGame>(1000);
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = ({ params }) => {
 	const gameID = Number(params.id);
 
 	if (!gameID) {
@@ -24,30 +23,32 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 		debug(`Cache miss for game ID ${gameID}`);
 
-		const gameResult = (await db.query.game.findFirst({
-			where: eq(game.id, gameID),
-			with: {
-				storeLinks: {
-					with: {
-						store: true
+		const gameResult = db.query.game
+			.findFirst({
+				where: (game, { eq }) => eq(game.id, gameID),
+				with: {
+					storeLinks: {
+						with: {
+							store: true
+						}
+					},
+					involvedCompanies: {
+						with: {
+							company: true
+						}
+					},
+					usedEngines: {
+						with: {
+							engine: true
+						}
+					},
+					names: {
+						where: (gameName, { eq }) => eq(gameName.isPrimary, true),
+						limit: 1
 					}
-				},
-				involvedCompanies: {
-					with: {
-						company: true
-					}
-				},
-				usedEngines: {
-					with: {
-						engine: true
-					}
-				},
-				names: {
-					where: (gameName, { eq }) => eq(gameName.isPrimary, true),
-					limit: 1
 				}
-			}
-		})) as FullGame;
+			})
+			.sync();
 
 		if (!gameResult) {
 			return json({ error: 'Game not found' }, { status: 404 });

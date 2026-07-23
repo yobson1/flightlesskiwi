@@ -1,47 +1,26 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { sql } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, like } from 'drizzle-orm';
 import { error } from '$lib/logger';
 import type { RequestHandler } from './$types';
-import type { GameSearchResult } from '$lib/types/igdb';
+import { game, gameName } from '$lib/server/db/schema';
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = ({ params }) => {
 	try {
-		const words = params.query.trim().split(/\s+/);
-		// treat each word as a prefix or exact match
-		// `kingdom come deliverance` becomes `"kingdom"* OR "kingdom" "come"* OR "come" "deliverance"* OR "deliverance"`
-		const searchTerm = words
-			.map((word) => {
-				const escaped = word.replace(/"/g, '""');
-				return `"${escaped}"* OR "${escaped}"`;
-			})
-			.join(' ');
+		const query = params.query.trim();
+		if (!query) return json([]);
 
-		const results: GameSearchResult[] = db.all(sql`
-		WITH best_matches AS (
-			SELECT
-				gn.id,
-				gn.game_id,
-				gn.name as matched_name,
-				gn.is_primary as matched_is_primary,
-				fts.rank,
-				ROW_NUMBER() OVER (PARTITION BY gn.game_id ORDER BY fts.rank) as rn
-			FROM game_name_fts fts
-			JOIN game_name gn ON gn.id = fts.rowid
-			WHERE game_name_fts MATCH ${searchTerm}
-		)
-		SELECT
-			g.*,
-			bm.matched_name,
-			bm.matched_is_primary,
-			bm.rank as relevancy,
-			primary_gn.name as name
-		FROM best_matches bm
-		JOIN game g ON g.id = bm.game_id
-		LEFT JOIN game_name primary_gn ON primary_gn.game_id = g.id AND primary_gn.is_primary = 1
-		WHERE bm.rn = 1
-		ORDER BY bm.rank
-		LIMIT 15`);
+		const results = db
+			.select({
+				...getTableColumns(game),
+				name: gameName.name
+			})
+			.from(gameName)
+			.innerJoin(game, eq(gameName.gameId, game.id))
+			.where(and(eq(gameName.isPrimary, true), like(gameName.name, `%${query}%`)))
+			.orderBy(asc(gameName.name))
+			.limit(15)
+			.all();
 
 		return json(results);
 	} catch (err) {
