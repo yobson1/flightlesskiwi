@@ -393,7 +393,7 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 	);
 
 	const countResponse = await requestWithRetry(rateLimiter, 'IGDB game count request', async () =>
-		(await igdb()).where(filter).request('/games/count')
+		(await igdb(`where ${filter};`)).request('/games/count')
 	);
 	const totalGames = Number(countResponse.data.count);
 

@@ -61,7 +61,7 @@ async function getAccessToken() {
 	return tokenRefresh;
 }
 
-export async function igdb() {
+export async function igdb(query?: string) {
 	const token = await getAccessToken();
 	const igdbOptions: ApicalypseConfig = {
 		method: 'POST',
@@ -77,5 +77,5 @@ export async function igdb() {
 		timeout: REQUEST_TIMEOUT_MS
 	};
 
-	return apicalypse(igdbOptions);
+	return query ? apicalypse(query, igdbOptions) : apicalypse(igdbOptions);
 }
