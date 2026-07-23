@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
+import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/server/auth/2fa';
 import {
 	consumeLoginAttemptRequest,
 	createLoginAttempt,
@@ -12,6 +13,7 @@ import { getAuthenticatedRedirect, getClientIP } from '$lib/server/auth/routes';
 import { totpBucket, verifyAndConsumeUserTOTP } from '$lib/server/auth/totp';
 import {
 	getUserFromEmail,
+	getUserById,
 	getUserPasswordHash,
 	normalizeEmail,
 	type AuthUser,
@@ -32,7 +34,8 @@ export function load(event: PageServerLoadEvent) {
 
 export const actions: Actions = {
 	password: login,
-	totp: loginWithTOTP
+	totp: loginWithTOTP,
+	recovery: loginWithRecoveryCode
 };
 
 async function login(event: RequestEvent) {
@@ -123,6 +126,47 @@ async function loginWithTOTP(event: RequestEvent) {
 	}
 	totpBucket.reset(user.id);
 	completeLogin(event, user);
+}
+
+async function loginWithRecoveryCode(event: RequestEvent) {
+	if (event.locals.session !== null) {
+		return fail(409, { message: 'Already authenticated' });
+	}
+	const clientIP = getClientIP(event);
+	if (!ipBucket.check(clientIP, 1)) {
+		return fail(429, { message: 'Too many requests' });
+	}
+
+	const formData = await event.request.formData();
+	const code = formData.get('code');
+	if (typeof code !== 'string' || code.trim().length === 0 || code.length > 64) {
+		return fail(400, { message: 'Invalid or missing fields' });
+	}
+	if (!ipBucket.consume(clientIP, 1)) {
+		return fail(429, { message: 'Too many requests' });
+	}
+
+	const { attempt, user } = validateLoginAttemptRequest(event);
+	if (attempt === null) {
+		return fail(401, { message: 'Sign-in attempt expired. Enter your password again.' });
+	}
+	if (!user.registered2FA || !user.recoveryCodeConfigured) {
+		return fail(400, { message: 'Recovery code is not available. Sign in again.' });
+	}
+	if (!recoveryCodeBucket.consume(user.id, 1)) {
+		return fail(429, { message: 'Too many requests' });
+	}
+	if (!(await resetUser2FAWithRecoveryCode(user.id, code))) {
+		return fail(400, { message: 'Invalid recovery code' });
+	}
+	recoveryCodeBucket.reset(user.id);
+	invalidateLoginAttemptRequest(event);
+
+	const recoveredUser = getUserById(user.id);
+	if (recoveredUser === null) {
+		return fail(401, { message: 'Account is no longer available.' });
+	}
+	completeLogin(event, recoveredUser);
 }
 
 function completeLogin(event: RequestEvent, user: AuthUser): never {
