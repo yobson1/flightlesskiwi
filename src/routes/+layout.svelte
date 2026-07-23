@@ -14,11 +14,23 @@
 	let authView = $derived<AuthModalView | null>(
 		requiredAuthModal(data.auth) ?? routeModal(page.url.pathname)
 	);
-	let visibleAuth = $derived(data.auth);
+	let visibleAuth = $derived(data.auth?.fullyAuthenticated ? data.auth : null);
 
 	function requiredAuthModal(auth: typeof data.auth): AuthModalView | null {
 		if (auth !== null && !auth.user.emailVerified) {
 			return 'verify-email';
+		}
+		if (auth !== null && auth.user.registered2FA && !auth.twoFactorVerified) {
+			if (auth.user.registeredTOTP) return 'totp';
+			if (auth.user.registeredPasskey) return 'passkey';
+		}
+		if (
+			auth !== null &&
+			auth.user.registeredTOTP &&
+			auth.twoFactorVerified &&
+			!auth.user.recoveryCodeConfigured
+		) {
+			return 'recovery-code';
 		}
 		return null;
 	}
@@ -54,6 +66,14 @@
 		const nextView = routeModal(pathname);
 
 		if (pathname === '/') {
+			const requiredView = requiredAuthModal(data.auth);
+			if (requiredView !== null) {
+				authView = requiredView;
+				if (requiredView === 'recovery-code') {
+					await goto(resolve('/recovery-code'), { replaceState: true });
+				}
+				return;
+			}
 			authView = null;
 			if (routeModal(page.url.pathname) !== null) {
 				await goto(resolve('/'), { replaceState: true });
@@ -79,6 +99,16 @@
 			if (pathname === '/recovery-code') {
 				authView = nextView;
 				await goto(resolve('/recovery-code'));
+				return;
+			}
+			if (pathname === '/2fa/totp') {
+				authView = nextView;
+				await goto(resolve('/2fa/totp'));
+				return;
+			}
+			if (pathname === '/2fa/passkey') {
+				authView = nextView;
+				await goto(resolve('/2fa/passkey'));
 				return;
 			}
 			authView = nextView;

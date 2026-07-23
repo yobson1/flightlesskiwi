@@ -112,6 +112,18 @@ export function setSessionAs2FAVerified(sessionId: string): void {
 		.run();
 }
 
+export function isSessionFullyAuthenticated(
+	user: AuthUser | null,
+	session: Session | null
+): boolean {
+	return (
+		user !== null &&
+		session !== null &&
+		user.emailVerified &&
+		(!user.registered2FA || session.twoFactorVerified)
+	);
+}
+
 export function setSessionTokenCookie(event: RequestEvent, token: string, expiresAt: Date): void {
 	event.cookies.set(sessionCookieName, token, {
 		httpOnly: true,

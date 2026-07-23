@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
 import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/server/auth/2fa';
 import type { Actions, RequestEvent } from './$types';
 
@@ -40,10 +41,13 @@ async function reset2FA(event: RequestEvent) {
 	}
 	if (
 		!recoveryCodeBucket.consume(event.locals.user.id, 1) ||
-		!resetUser2FAWithRecoveryCode(event.locals.user.id, code)
+		!(await resetUser2FAWithRecoveryCode(event.locals.user.id, code))
 	) {
 		return fail(400, { message: 'Invalid recovery code' });
 	}
 	recoveryCodeBucket.reset(event.locals.user.id);
+	const sessionToken = generateSessionToken();
+	const session = createSession(sessionToken, event.locals.user.id, { twoFactorVerified: true });
+	setSessionTokenCookie(event, sessionToken, session.expiresAt);
 	redirect(302, '/2fa/setup');
 }

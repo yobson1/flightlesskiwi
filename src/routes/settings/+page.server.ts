@@ -16,7 +16,6 @@ import { deleteUserTOTPKey, totpUpdateBucket } from '$lib/server/auth/totp';
 import {
 	checkEmailAvailability,
 	getUserPasswordHash,
-	getUserRecoveryCode,
 	normalizeEmail,
 	resetUserRecoveryCode,
 	updateUserPassword,
@@ -40,9 +39,7 @@ export function load(event: RequestEvent) {
 	}
 	return {
 		user: event.locals.user,
-		recoveryCode: event.locals.user.registered2FA
-			? getUserRecoveryCode(event.locals.user.id)
-			: null,
+		recoveryCodeConfigured: event.locals.user.recoveryCodeConfigured,
 		passkeyCredentials: getUserPasskeyCredentials(event.locals.user.id)
 	};
 }
@@ -59,7 +56,7 @@ async function updatePassword(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { password: { message: 'Not authenticated' } });
 	}
-	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
+	if (!event.locals.authenticated) {
 		return fail(403, { password: { message: 'Forbidden' } });
 	}
 	if (!passwordUpdateBucket.check(event.locals.session.id, 1)) {
@@ -100,7 +97,7 @@ async function updateEmail(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { email: { message: 'Not authenticated' } });
 	}
-	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
+	if (!event.locals.authenticated) {
 		return fail(403, { email: { message: 'Forbidden' } });
 	}
 	if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
@@ -138,10 +135,7 @@ async function disconnectTOTP(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.authenticated) {
 		return fail(403);
 	}
 	if (!totpUpdateBucket.consume(event.locals.user.id, 1)) {
@@ -155,10 +149,7 @@ async function deletePasskey(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.authenticated) {
 		return fail(403);
 	}
 	const formData = await event.request.formData();
@@ -176,18 +167,18 @@ async function deletePasskey(event: RequestEvent) {
 	return {};
 }
 
-function regenerateRecoveryCode(event: RequestEvent) {
+async function regenerateRecoveryCode(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
 	}
 	if (
-		!event.locals.user.emailVerified ||
+		!event.locals.authenticated ||
 		!event.locals.user.registered2FA ||
-		!event.locals.session.twoFactorVerified
+		!event.locals.user.registeredTOTP
 	) {
 		return fail(403);
 	}
 	return {
-		recoveryCode: resetUserRecoveryCode(event.locals.user.id)
+		recoveryCode: await resetUserRecoveryCode(event.locals.user.id)
 	};
 }

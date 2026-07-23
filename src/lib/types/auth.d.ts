@@ -17,6 +17,8 @@ export interface ClientAuthState {
 		registeredTOTP: boolean;
 		registeredPasskey: boolean;
 		registered2FA: boolean;
+		recoveryCodeConfigured: boolean;
 	};
 	twoFactorVerified: boolean;
+	fullyAuthenticated: boolean;
 }

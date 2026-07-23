@@ -6,8 +6,7 @@ import {
 	totpCredential,
 	user as userTable
 } from '$lib/server/db/schema';
-import { decryptToString, encryptString } from '$lib/server/auth/encryption';
-import { hashPassword } from '$lib/server/auth/password';
+import { hashPassword, hashRecoveryCode } from '$lib/server/auth/password';
 import { generateRandomRecoveryCode, generateSecureRandomString } from '$lib/server/auth/utils';
 
 export function normalizeEmail(email: string): string {
@@ -44,7 +43,6 @@ export async function createUser(
 ): Promise<AuthUser> {
 	const id = generateSecureRandomString();
 	const passwordHash = await hashPassword(password);
-	const recoveryCode = encryptString(generateRandomRecoveryCode());
 	const createdAt = new Date();
 
 	db.insert(userTable)
@@ -53,7 +51,7 @@ export async function createUser(
 			email: normalizeEmail(email),
 			username,
 			passwordHash,
-			recoveryCode,
+			recoveryCodeHash: null,
 			emailVerified: false,
 			createdAt
 		})
@@ -66,7 +64,8 @@ export async function createUser(
 		emailVerified: false,
 		registeredTOTP: false,
 		registeredPasskey: false,
-		registered2FA: false
+		registered2FA: false,
+		recoveryCodeConfigured: false
 	};
 }
 
@@ -85,6 +84,7 @@ function getUser(predicate: ReturnType<typeof eq>): AuthUser | null {
 			email: userTable.email,
 			username: userTable.username,
 			emailVerified: userTable.emailVerified,
+			recoveryCodeHash: userTable.recoveryCodeHash,
 			totpUserId: totpCredential.userId,
 			passkeyId: passkeyCredential.id
 		})
@@ -106,7 +106,8 @@ function getUser(predicate: ReturnType<typeof eq>): AuthUser | null {
 		emailVerified: row.emailVerified,
 		registeredTOTP,
 		registeredPasskey,
-		registered2FA: registeredTOTP || registeredPasskey
+		registered2FA: registeredTOTP || registeredPasskey,
+		recoveryCodeConfigured: row.recoveryCodeHash !== null
 	};
 }
 
@@ -147,25 +148,27 @@ export function setUserAsEmailVerifiedIfEmailMatches(userId: string, email: stri
 	return result !== undefined;
 }
 
-export function getUserRecoveryCode(userId: string): string {
+export function getUserRecoveryCodeHash(userId: string): string | null {
 	const row = db
-		.select({ recoveryCode: userTable.recoveryCode })
+		.select({ recoveryCodeHash: userTable.recoveryCodeHash })
 		.from(userTable)
 		.where(eq(userTable.id, userId))
 		.get();
 	if (!row) {
 		throw new Error('Invalid user ID');
 	}
-	return decryptToString(row.recoveryCode);
+	return row.recoveryCodeHash;
 }
 
-export function resetUserRecoveryCode(userId: string): string {
+export async function resetUserRecoveryCode(userId: string): Promise<string> {
 	const recoveryCode = generateRandomRecoveryCode();
-	db.update(userTable)
-		.set({ recoveryCode: encryptString(recoveryCode) })
-		.where(eq(userTable.id, userId))
-		.run();
+	const recoveryCodeHash = await hashRecoveryCode(recoveryCode);
+	db.update(userTable).set({ recoveryCodeHash }).where(eq(userTable.id, userId)).run();
 	return recoveryCode;
+}
+
+export function setUserRecoveryCodeHash(userId: string, recoveryCodeHash: string): void {
+	db.update(userTable).set({ recoveryCodeHash }).where(eq(userTable.id, userId)).run();
 }
 
 export interface AuthUser {
@@ -176,4 +179,5 @@ export interface AuthUser {
 	registeredTOTP: boolean;
 	registeredPasskey: boolean;
 	registered2FA: boolean;
+	recoveryCodeConfigured: boolean;
 }

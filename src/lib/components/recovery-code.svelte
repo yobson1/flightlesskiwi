@@ -25,7 +25,7 @@
 	async function loadRecoveryCode(signal?: AbortSignal) {
 		message = '';
 		try {
-			const response = await fetch('/api/auth/recovery-code', { signal });
+			const response = await fetch('/api/auth/recovery-code', { method: 'POST', signal });
 			if (!response.ok) throw new Error(await response.text());
 			const data = (await response.json()) as { recoveryCode?: unknown };
 			if (typeof data.recoveryCode !== 'string') throw new Error('Invalid recovery code response');
@@ -40,6 +40,17 @@
 		await navigator.clipboard.writeText(code);
 		copied = true;
 		window.setTimeout(() => (copied = false), 2000);
+	}
+
+	async function confirmSaved() {
+		message = '';
+		try {
+			const response = await fetch('/api/auth/recovery-code', { method: 'PUT' });
+			if (!response.ok) throw new Error(await response.text());
+			await onDone();
+		} catch (cause) {
+			message = cause instanceof Error ? cause.message : 'Unable to save recovery code';
+		}
 	}
 </script>
 
@@ -67,7 +78,7 @@
 					{#if copied}<CheckIcon />{:else}<ClipboardIcon />{/if}
 				</Button>
 			</div>
-			<Button size="lg" class="w-full" onclick={onDone}>I&apos;ve saved it</Button>
+			<Button size="lg" class="w-full" onclick={confirmSaved}>I&apos;ve saved it</Button>
 		{:else if message}
 			<p
 				class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"

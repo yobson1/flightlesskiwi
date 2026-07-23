@@ -1,6 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 import { get2FARedirect } from '$lib/server/auth/2fa';
-import { getUserRecoveryCode } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
 
 export function load(event: RequestEvent) {
@@ -14,5 +13,8 @@ export function load(event: RequestEvent) {
 	if (!event.locals.session.twoFactorVerified) {
 		redirect(302, get2FARedirect(event.locals.user));
 	}
-	return { recoveryCode: getUserRecoveryCode(event.locals.user.id) };
+	if (!event.locals.user.registeredTOTP || event.locals.user.recoveryCodeConfigured) {
+		redirect(302, '/');
+	}
+	return {};
 }

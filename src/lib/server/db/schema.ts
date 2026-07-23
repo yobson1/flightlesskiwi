@@ -18,7 +18,7 @@ export const user = sqliteTable(
 		username: text('username').notNull(),
 		passwordHash: text('password_hash').notNull(),
 		emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
-		recoveryCode: blob('recovery_code', { mode: 'buffer' }).notNull(),
+		recoveryCodeHash: text('recovery_code_hash'),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 	},
 	(table) => [index('user_email_idx').on(table.email)]

@@ -51,6 +51,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	if (!sessionToken) {
 		event.locals.user = null;
 		event.locals.session = null;
+		event.locals.authenticated = false;
 		return resolve(event);
 	}
 
@@ -64,6 +65,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	event.locals.user = user;
 	event.locals.session = session;
+	event.locals.authenticated = auth.isSessionFullyAuthenticated(user, session);
 	return resolve(event);
 };
 

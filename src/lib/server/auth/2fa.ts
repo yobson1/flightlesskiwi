@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
 	passkeyCredential,
@@ -6,34 +6,40 @@ import {
 	totpCredential,
 	user as userTable
 } from '$lib/server/db/schema';
-import { decryptToString, encryptString } from '$lib/server/auth/encryption';
+import { verifyRecoveryCodeHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { constantTimeEqual, generateRandomRecoveryCode } from '$lib/server/auth/utils';
 import type { AuthUser } from '$lib/server/auth/user';
 
 export const recoveryCodeBucket = new ExpiringTokenBucket<string>('recovery-code', 3, 60 * 60);
 
-export function resetUser2FAWithRecoveryCode(userId: string, recoveryCode: string): boolean {
+export async function resetUser2FAWithRecoveryCode(
+	userId: string,
+	recoveryCode: string
+): Promise<boolean> {
+	const row = db
+		.select({ recoveryCodeHash: userTable.recoveryCodeHash })
+		.from(userTable)
+		.where(eq(userTable.id, userId))
+		.get();
+	if (
+		!row?.recoveryCodeHash ||
+		!(await verifyRecoveryCodeHash(row.recoveryCodeHash, recoveryCode))
+	) {
+		return false;
+	}
+
 	return db.transaction((tx) => {
-		const row = tx
-			.select({ recoveryCode: userTable.recoveryCode })
-			.from(userTable)
-			.where(eq(userTable.id, userId))
+		const consumed = tx
+			.update(userTable)
+			.set({ recoveryCodeHash: null })
+			.where(and(eq(userTable.id, userId), eq(userTable.recoveryCodeHash, row.recoveryCodeHash!)))
+			.returning({ id: userTable.id })
 			.get();
-		if (!row) {
-			return false;
-		}
-		const expected = new TextEncoder().encode(decryptToString(row.recoveryCode));
-		const actual = new TextEncoder().encode(recoveryCode);
-		if (!constantTimeEqual(expected, actual)) {
+		if (!consumed) {
 			return false;
 		}
 
-		tx.update(userTable)
-			.set({ recoveryCode: encryptString(generateRandomRecoveryCode()) })
-			.where(eq(userTable.id, userId))
-			.run();
-		tx.update(session).set({ twoFactorVerified: false }).where(eq(session.userId, userId)).run();
+		tx.delete(session).where(eq(session.userId, userId)).run();
 		tx.delete(totpCredential).where(eq(totpCredential.userId, userId)).run();
 		tx.delete(passkeyCredential).where(eq(passkeyCredential.userId, userId)).run();
 		return true;

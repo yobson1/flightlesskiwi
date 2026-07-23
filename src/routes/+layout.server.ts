@@ -15,9 +15,11 @@ export const load: LayoutServerLoad = ({ locals }) => {
 				emailVerified: locals.user.emailVerified,
 				registeredTOTP: locals.user.registeredTOTP,
 				registeredPasskey: locals.user.registeredPasskey,
-				registered2FA: locals.user.registered2FA
+				registered2FA: locals.user.registered2FA,
+				recoveryCodeConfigured: locals.user.recoveryCodeConfigured
 			},
-			twoFactorVerified: locals.session.twoFactorVerified
+			twoFactorVerified: locals.session.twoFactorVerified,
+			fullyAuthenticated: locals.authenticated
 		}
 	};
 };

@@ -37,7 +37,16 @@
 	let passkeyMessage = $state('');
 
 	const wide = $derived(view === 'login' || view === 'signup');
-	const required = $derived(view === 'verify-email');
+	const pendingSecondFactor = $derived(
+		auth !== null && auth.user.registered2FA && !auth.twoFactorVerified
+	);
+	const pendingRecoveryCode = $derived(
+		auth !== null &&
+			auth.user.registeredTOTP &&
+			auth.twoFactorVerified &&
+			!auth.user.recoveryCodeConfigured
+	);
+	const required = $derived(view === 'verify-email' || pendingSecondFactor || pendingRecoveryCode);
 	const totpKeyURI = $derived(getStringProperty(routeData, 'keyURI'));
 	const passkeyOptions = $derived(getPasskeyOptions(routeData));
 	const title = $derived.by(() => {
@@ -266,6 +275,14 @@
 									Use an authenticator code instead
 								</Button>
 							{/if}
+							<form method="POST" action="/logout" class="text-center">
+								<button
+									type="submit"
+									class="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+								>
+									Log out
+								</button>
+							</form>
 						</Card.Content>
 					</Card.Root>
 				{/if}

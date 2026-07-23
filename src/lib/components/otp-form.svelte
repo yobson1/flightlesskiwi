@@ -192,14 +192,14 @@
 					</p>
 				{/if}
 			</form>
-			<form method="POST" action="/logout" class="mt-3 text-center">
-				<button
-					type="submit"
-					class="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-				>
-					Log out
-				</button>
-			</form>
 		{/if}
+		<form method="POST" action="/logout" class="mt-3 text-center">
+			<button
+				type="submit"
+				class="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+			>
+				Log out
+			</button>
+		</form>
 	</Card.Content>
 </Card.Root>

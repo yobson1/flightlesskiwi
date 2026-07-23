@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { hashPassword, verifyPasswordHash, verifyPasswordStrength } from './password';
+import {
+	hashPassword,
+	hashRecoveryCode,
+	verifyPasswordHash,
+	verifyPasswordStrength,
+	verifyRecoveryCodeHash
+} from './password';
 
 describe('password hashing', () => {
 	test('uses Argon2id and verifies only the original password', async () => {
@@ -15,5 +21,17 @@ describe('password hashing', () => {
 		expect(verifyPasswordStrength('correct horse battery staple')).toBe(true);
 		expect(verifyPasswordStrength('too-short')).toBe(false);
 		expect(verifyPasswordStrength('a'.repeat(256))).toBe(false);
+	});
+});
+
+describe('recovery code hashing', () => {
+	test('uses a one-way Argon2id hash and normalizes human input', async () => {
+		const recoveryCode = 'ABCDEFGH23456789';
+		const hash = await hashRecoveryCode(recoveryCode);
+
+		expect(hash).toStartWith('$argon2id$');
+		expect(hash).not.toContain(recoveryCode);
+		expect(await verifyRecoveryCodeHash(hash, `  ${recoveryCode.toLowerCase()}  `)).toBe(true);
+		expect(await verifyRecoveryCodeHash(hash, 'WRONGCODE2345678')).toBe(false);
 	});
 });

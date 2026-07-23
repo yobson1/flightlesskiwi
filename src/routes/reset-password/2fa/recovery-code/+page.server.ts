@@ -41,7 +41,7 @@ async function verifyRecoveryCode(event: RequestEvent) {
 	}
 	if (
 		!recoveryCodeBucket.consume(session.userId, 1) ||
-		!resetUser2FAWithRecoveryCode(session.userId, code)
+		!(await resetUser2FAWithRecoveryCode(session.userId, code))
 	) {
 		return fail(400, { message: 'Invalid recovery code' });
 	}
