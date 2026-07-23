@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
 	loginAttempt,
@@ -35,6 +35,18 @@ export function checkEmailAvailability(email: string): boolean {
 			.where(eq(userTable.email, normalizeEmail(email)))
 			.get() === undefined
 	);
+}
+
+export function checkUsernameAvailability(username: string, excludedUserId?: string): boolean {
+	const predicate =
+		excludedUserId === undefined
+			? eq(userTable.username, username)
+			: and(eq(userTable.username, username), ne(userTable.id, excludedUserId));
+	return db.select({ id: userTable.id }).from(userTable).where(predicate).get() === undefined;
+}
+
+export function isUserUniqueConstraintError(cause: unknown, field: 'email' | 'username'): boolean {
+	return String(cause).includes(`UNIQUE constraint failed: user.${field}`);
 }
 
 export function updateUserUsername(userId: string, username: string): boolean {

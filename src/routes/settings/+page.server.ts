@@ -33,8 +33,10 @@ import {
 } from '$lib/server/auth/totp';
 import {
 	checkEmailAvailability,
+	checkUsernameAvailability,
 	deleteUser,
 	getUserPasswordHash,
+	isUserUniqueConstraintError,
 	normalizeEmail,
 	resetUserRecoveryCode,
 	updateUserPassword,
@@ -113,8 +115,19 @@ async function updateUsername(event: RequestEvent) {
 			}
 		});
 	}
-	if (!updateUserUsername(event.locals.user.id, username)) {
-		return fail(404, { username: { message: 'Account not found' } });
+	if (!checkUsernameAvailability(username, event.locals.user.id)) {
+		return fail(400, { username: { message: 'Username is already used' } });
+	}
+	try {
+		if (!updateUserUsername(event.locals.user.id, username)) {
+			return fail(404, { username: { message: 'Account not found' } });
+		}
+	} catch (cause) {
+		if (isUserUniqueConstraintError(cause, 'username')) {
+			return fail(400, { username: { message: 'Username is already used' } });
+		}
+		logError('Failed to update username', cause);
+		return fail(500, { username: { message: 'Unable to update username' } });
 	}
 	return { username: { message: 'Updated username' } };
 }

@@ -15,7 +15,9 @@ import { verifyPasswordStrength } from '$lib/server/auth/password';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 import {
 	checkEmailAvailability,
+	checkUsernameAvailability,
 	createUser,
+	isUserUniqueConstraintError,
 	normalizeEmail,
 	verifyEmailInput,
 	verifyUsernameInput
@@ -78,13 +80,19 @@ async function signup(event: RequestEvent) {
 	if (!checkEmailAvailability(email)) {
 		return fail(400, { message: 'Email is already used', email, username });
 	}
+	if (!checkUsernameAvailability(username)) {
+		return fail(400, { message: 'Username is already used', email, username });
+	}
 
 	let user;
 	try {
 		user = await createUser(email, username, password);
 	} catch (cause) {
-		if (String(cause).includes('UNIQUE')) {
+		if (isUserUniqueConstraintError(cause, 'email')) {
 			return fail(400, { message: 'Email is already used', email, username });
+		}
+		if (isUserUniqueConstraintError(cause, 'username')) {
+			return fail(400, { message: 'Username is already used', email, username });
 		}
 		logError('Failed to create auth user', cause);
 		return fail(500, { message: 'Unable to create account', email, username });

@@ -89,7 +89,7 @@
 							required
 						/>
 						<Field.Description
-							>3–31 letters, numbers, spaces, underscores, or hyphens.</Field.Description
+							>3–31 letters, numbers, spaces, underscores, or hyphens. Usernames are unique.</Field.Description
 						>
 					</Field.Field>
 					<Field.Field>

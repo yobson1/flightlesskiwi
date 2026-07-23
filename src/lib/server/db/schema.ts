@@ -15,7 +15,7 @@ export const user = sqliteTable(
 	{
 		id: text('id').primaryKey(),
 		email: text('email').notNull().unique(),
-		username: text('username').notNull(),
+		username: text('username').notNull().unique(),
 		passwordHash: text('password_hash').notNull(),
 		emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
 		recoveryCodeHash: text('recovery_code_hash'),

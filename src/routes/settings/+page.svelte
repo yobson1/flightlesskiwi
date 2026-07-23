@@ -307,7 +307,7 @@
 									required
 								/>
 								<Field.Description>
-									3–31 letters, numbers, spaces, underscores, or hyphens.
+									3–31 letters, numbers, spaces, underscores, or hyphens. Usernames are unique.
 								</Field.Description>
 							</Field.Field>
 							<Button type="submit" class="w-full sm:w-auto">Update username</Button>
