@@ -412,4 +412,5 @@ output_folder=/home/brad/mangologs
 - [![shadcn-svelte](https://img.shields.io/badge/shadcn--svelte-000?logo=shadcnui&logoColor=fff)](https://shadcn-svelte.com/)
 - [![IGDB](https://img.shields.io/badge/IGDB-9147FF?logo=igdb&logoColor=white)](https://www.igdb.com/)
 - [![svelte-markdown](https://img.shields.io/badge/svelte--markdown-%23000000.svg?logo=markdown&logoColor=white)](https://github.com/humanspeak/svelte-markdown)
+- [![Lucide](https://img.shields.io/badge/Lucide-F56565?logo=lucide&logoColor=fff)](https://lucide.dev/)
 - [![Iconify](https://img.shields.io/badge/Iconify-026C9C?logo=iconify&logoColor=fff)](https://icon-sets.iconify.design/)
