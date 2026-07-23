@@ -1,9 +1,9 @@
 import { decodeBase64 } from '@oslojs/encoding';
-import { sha256 } from '@oslojs/crypto/sha2';
 import { fail, redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
 import { setSessionAs2FAVerified } from '$lib/server/auth';
 import { get2FARedirect } from '$lib/server/auth/2fa';
+import { hashSecret } from '$lib/server/auth/utils';
 import { createPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
 import {
 	verifyWebAuthnRegistration,
@@ -26,7 +26,7 @@ export function load(event: RequestEvent) {
 	return {
 		user: event.locals.user,
 		credentials: getUserPasskeyCredentials(event.locals.user.id),
-		credentialUserId: sha256(new TextEncoder().encode(event.locals.user.id))
+		credentialUserId: hashSecret(event.locals.user.id)
 	};
 }
 

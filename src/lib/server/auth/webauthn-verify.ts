@@ -12,7 +12,6 @@ import {
 	sha256ObjectIdentifier,
 	verifyRSASSAPKCS1v15Signature
 } from '@oslojs/crypto/rsa';
-import { sha256 } from '@oslojs/crypto/sha2';
 import {
 	AttestationStatementFormat,
 	ClientDataType,
@@ -29,6 +28,7 @@ import {
 	verifyWebAuthnChallenge,
 	type WebAuthnUserCredential
 } from '$lib/server/auth/webauthn';
+import { hashSecret } from '$lib/server/auth/utils';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
 export function verifyWebAuthnRegistration(
@@ -111,7 +111,7 @@ export function verifyWebAuthnAssertion(
 	}
 
 	const signatureMessage = createAssertionSignatureMessage(authenticatorDataBytes, clientDataJSON);
-	const signatureHash = sha256(signatureMessage);
+	const signatureHash = hashSecret(signatureMessage);
 	let validSignature = false;
 	try {
 		if (credential.algorithmId === coseAlgorithmES256) {

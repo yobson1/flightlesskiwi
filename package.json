@@ -72,7 +72,6 @@
 		"winston": "^3.19.0"
 	},
 	"dependencies": {
-		"@node-rs/argon2": "^2.0.2",
 		"@oslojs/otp": "^1.1.0",
 		"@oslojs/webauthn": "^1.0.0",
 		"nodemailer": "^9.0.3"

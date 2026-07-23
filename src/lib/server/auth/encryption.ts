@@ -1,6 +1,6 @@
 import { AUTH_ENCRYPTION_KEY } from '$env/static/private';
 import { decodeBase64 } from '@oslojs/encoding';
-import { createCipheriv, createDecipheriv, createHmac } from 'node:crypto';
+import { createCipheriv, createDecipheriv } from 'node:crypto';
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
@@ -38,5 +38,7 @@ export function decryptToString(data: Uint8Array): string {
 }
 
 export function hashAuthCode(code: string): Buffer {
-	return createHmac('sha256', key).update(code).digest();
+	const hasher = new Bun.CryptoHasher('sha256', key);
+	hasher.update(code);
+	return hasher.digest();
 }

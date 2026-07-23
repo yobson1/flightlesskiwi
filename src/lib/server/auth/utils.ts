@@ -3,8 +3,6 @@ import {
 	encodeBase32UpperCaseNoPadding,
 	encodeHexLowerCase
 } from '@oslojs/encoding';
-import { sha256 } from '@oslojs/crypto/sha2';
-import { timingSafeEqual } from 'node:crypto';
 
 export function generateSecureRandomString(): string {
 	const bytes = new Uint8Array(24);
@@ -25,8 +23,7 @@ export function generateRandomRecoveryCode(): string {
 }
 
 export function hashSecret(secret: string | Uint8Array): Buffer {
-	const bytes = typeof secret === 'string' ? new TextEncoder().encode(secret) : secret;
-	return Buffer.from(sha256(bytes));
+	return Bun.CryptoHasher.hash('sha256', secret);
 }
 
 export function encodeHashedSecret(secret: string | Uint8Array): string {
@@ -34,5 +31,12 @@ export function encodeHashedSecret(secret: string | Uint8Array): string {
 }
 
 export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
-	return a.byteLength === b.byteLength && timingSafeEqual(a, b);
+	if (a.byteLength !== b.byteLength) {
+		return false;
+	}
+	let difference = 0;
+	for (let index = 0; index < a.byteLength; index++) {
+		difference |= a[index]! ^ b[index]!;
+	}
+	return difference === 0;
 }
