@@ -3,6 +3,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
 import {
 	createSession,
+	deleteSessionTokenCookie,
 	generateSessionToken,
 	isSessionRecentlyReauthenticated,
 	rotateSessionAfterReauthentication,
@@ -12,25 +13,34 @@ import { get2FARedirect } from '$lib/server/auth/2fa';
 import { sendVerificationEmail } from '$lib/server/auth/email';
 import {
 	createEmailVerificationRequest,
+	deleteEmailVerificationRequestCookie,
 	sendVerificationEmailBucket,
 	setEmailVerificationRequestCookie
 } from '$lib/server/auth/email-verification';
 import { verifyPasswordHash, verifyPasswordStrength } from '$lib/server/auth/password';
-import { invalidateUserPasswordResetSessions } from '$lib/server/auth/password-reset';
+import {
+	deletePasswordResetSessionTokenCookie,
+	invalidateUserPasswordResetSessions
+} from '$lib/server/auth/password-reset';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
+import { deletePendingRecoveryCodeCookie } from '$lib/server/auth/recovery-code';
 import {
 	deleteUserTOTPKey,
+	deleteTOTPSetupCookie,
 	totpBucket,
 	totpUpdateBucket,
 	verifyAndConsumeUserTOTP
 } from '$lib/server/auth/totp';
 import {
 	checkEmailAvailability,
+	deleteUser,
 	getUserPasswordHash,
 	normalizeEmail,
 	resetUserRecoveryCode,
 	updateUserPassword,
-	verifyEmailInput
+	updateUserUsername,
+	verifyEmailInput,
+	verifyUsernameInput
 } from '$lib/server/auth/user';
 import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
 import type { Actions, RequestEvent } from './$types';
@@ -69,12 +79,45 @@ export function load(event: RequestEvent) {
 export const actions: Actions = {
 	reauth_password: reauthenticateWithPassword,
 	reauth_totp: reauthenticateWithTOTP,
+	update_username: updateUsername,
 	update_password: updatePassword,
 	update_email: updateEmail,
 	disconnect_totp: disconnectTOTP,
 	delete_passkey: deletePasskey,
-	regenerate_recovery_code: regenerateRecoveryCode
+	regenerate_recovery_code: regenerateRecoveryCode,
+	delete_account: deleteAccount
 };
+
+async function updateUsername(event: RequestEvent) {
+	if (event.locals.session === null || event.locals.user === null) {
+		return fail(401, { username: { message: 'Not authenticated' } });
+	}
+	if (
+		!event.locals.user.emailVerified ||
+		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+	) {
+		return fail(403, { username: { message: 'Forbidden' } });
+	}
+	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+		return reauthenticationRequired('username');
+	}
+	const formData = await event.request.formData();
+	const username = formData.get('username');
+	if (typeof username !== 'string') {
+		return fail(400, { username: { message: 'Invalid or missing fields' } });
+	}
+	if (!verifyUsernameInput(username)) {
+		return fail(400, {
+			username: {
+				message: 'Username must be 3–31 letters, numbers, spaces, underscores, or hyphens'
+			}
+		});
+	}
+	if (!updateUserUsername(event.locals.user.id, username)) {
+		return fail(404, { username: { message: 'Account not found' } });
+	}
+	return { username: { message: 'Updated username' } };
+}
 
 async function updatePassword(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
@@ -235,6 +278,38 @@ async function regenerateRecoveryCode(event: RequestEvent) {
 	};
 }
 
+async function deleteAccount(event: RequestEvent) {
+	if (event.locals.session === null || event.locals.user === null) {
+		return fail(401, { account: { message: 'Not authenticated' } });
+	}
+	if (
+		!event.locals.user.emailVerified ||
+		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+	) {
+		return fail(403, { account: { message: 'Forbidden' } });
+	}
+	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+		return reauthenticationRequired('account');
+	}
+	const formData = await event.request.formData();
+	const username = formData.get('username');
+	if (typeof username !== 'string' || username !== event.locals.user.username) {
+		return fail(400, {
+			account: { message: 'Enter your username exactly as shown to delete your account' }
+		});
+	}
+	if (!deleteUser(event.locals.user.id)) {
+		return fail(404, { account: { message: 'Account not found' } });
+	}
+
+	deleteSessionTokenCookie(event);
+	deleteEmailVerificationRequestCookie(event);
+	deletePasswordResetSessionTokenCookie(event);
+	deletePendingRecoveryCodeCookie(event);
+	deleteTOTPSetupCookie(event);
+	redirect(303, '/login');
+}
+
 async function reauthenticateWithPassword(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { message: 'Not authenticated' });
@@ -294,7 +369,7 @@ async function reauthenticateWithTOTP(event: RequestEvent) {
 	return { reauthenticated: true };
 }
 
-function reauthenticationRequired(field?: 'password' | 'email') {
+function reauthenticationRequired(field?: 'username' | 'password' | 'email' | 'account') {
 	const message = 'Confirm your identity to continue';
 	return fail(428, {
 		reauthenticationRequired: true,

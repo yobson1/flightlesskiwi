@@ -49,6 +49,8 @@
 	let removeAuthenticatorOpen = $state(false);
 	let removePasskeyId = $state<string | null>(null);
 	let replaceRecoveryCodeOpen = $state(false);
+	let deleteAccountOpen = $state(false);
+	let deleteAccountConfirmation = $state('');
 
 	onMount(() => {
 		if (data.reauthenticationDestination === null) return;
@@ -157,6 +159,18 @@
 		if (recentlyReauthenticated) return;
 		event.preventDefault();
 		requestReauthentication(() => void goto(resolve(destination)));
+	}
+
+	function requestAccountDeletion() {
+		const openConfirmation = () => {
+			deleteAccountConfirmation = '';
+			deleteAccountOpen = true;
+		};
+		if (recentlyReauthenticated) {
+			openConfirmation();
+			return;
+		}
+		requestReauthentication(openConfirmation);
 	}
 
 	async function copyRecoveryCode() {
@@ -274,12 +288,31 @@
 						</div>
 					</div>
 				</Card.Header>
-				<Card.Content class="space-y-4">
-					<Field.Field>
-						<Field.Label for="settings-username">Username</Field.Label>
-						<Input id="settings-username" value={data.user.username} disabled />
-						<Field.Description>Username changes are not currently available.</Field.Description>
-					</Field.Field>
+				<Card.Content>
+					<form
+						method="POST"
+						action="/settings?/update_username"
+						use:enhance={settingsSubmit('Username updated')}
+					>
+						<Field.Group>
+							<Field.Field>
+								<Field.Label for="settings-username">Username</Field.Label>
+								<Input
+									id="settings-username"
+									name="username"
+									value={data.user.username}
+									autocomplete="username"
+									minlength={3}
+									maxlength={31}
+									required
+								/>
+								<Field.Description>
+									3–31 letters, numbers, spaces, underscores, or hyphens.
+								</Field.Description>
+							</Field.Field>
+							<Button type="submit" class="w-full sm:w-auto">Update username</Button>
+						</Field.Group>
+					</form>
 				</Card.Content>
 			</Card.Root>
 
@@ -634,7 +667,82 @@
 			{/if}
 		</Card.Root>
 	</section>
+
+	<Separator />
+
+	<section aria-labelledby="danger-zone-heading" class="space-y-4">
+		<div>
+			<h2 id="danger-zone-heading" class="text-xl font-semibold text-destructive">Danger zone</h2>
+			<p class="text-sm text-muted-foreground">Irreversible account actions.</p>
+		</div>
+
+		<Card.Root class="bg-destructive/5 ring-destructive/40">
+			<Card.Content>
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<h3 class="font-semibold text-destructive">Delete this account</h3>
+						<p class="mt-1 text-sm text-muted-foreground">
+							Permanently delete your account and all data associated with it. This cannot be
+							undone.
+						</p>
+					</div>
+					<Button variant="destructive" class="shrink-0" onclick={requestAccountDeletion}>
+						<Trash2Icon />
+						Delete account
+					</Button>
+				</div>
+			</Card.Content>
+		</Card.Root>
+	</section>
 </div>
+
+<AlertDialog.Root
+	bind:open={deleteAccountOpen}
+	onOpenChange={(open) => {
+		if (!open) deleteAccountConfirmation = '';
+	}}
+>
+	<AlertDialog.Content>
+		<form
+			method="POST"
+			action="/settings?/delete_account"
+			use:enhance={settingsSubmit('Account deleted')}
+		>
+			<div class="grid gap-4">
+				<AlertDialog.Header>
+					<AlertDialog.Title>Delete your account?</AlertDialog.Title>
+					<AlertDialog.Description>
+						This permanently deletes your account and every database record associated with it. This
+						action cannot be undone.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<Field.Field>
+					<Field.Label for="delete-account-username">
+						Type <strong class="font-semibold text-foreground">{data.user.username}</strong> to confirm
+					</Field.Label>
+					<Input
+						id="delete-account-username"
+						name="username"
+						bind:value={deleteAccountConfirmation}
+						autocomplete="off"
+						spellcheck="false"
+						required
+					/>
+				</Field.Field>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+					<Button
+						type="submit"
+						variant="destructive"
+						disabled={deleteAccountConfirmation !== data.user.username}
+					>
+						Delete this account
+					</Button>
+				</AlertDialog.Footer>
+			</div>
+		</form>
+	</AlertDialog.Content>
+</AlertDialog.Root>
 
 <Dialog.Root
 	bind:open={reauthOpen}
