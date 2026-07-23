@@ -14,15 +14,11 @@
 	let authView = $derived<AuthModalView | null>(
 		requiredAuthModal(data.auth) ?? routeModal(page.url.pathname)
 	);
-	let visibleAuth = $derived(data.auth?.fullyAuthenticated ? data.auth : null);
+	let visibleAuth = $derived(data.auth);
 
 	function requiredAuthModal(auth: typeof data.auth): AuthModalView | null {
 		if (auth !== null && !auth.user.emailVerified) {
 			return 'verify-email';
-		}
-		if (auth !== null && auth.user.registered2FA && !auth.twoFactorVerified) {
-			if (auth.user.registeredTOTP) return 'totp';
-			if (auth.user.registeredPasskey) return 'passkey';
 		}
 		if (
 			auth !== null &&
@@ -99,16 +95,6 @@
 			if (pathname === '/recovery-code') {
 				authView = nextView;
 				await goto(resolve('/recovery-code'));
-				return;
-			}
-			if (pathname === '/2fa/totp') {
-				authView = nextView;
-				await goto(resolve('/2fa/totp'));
-				return;
-			}
-			if (pathname === '/2fa/passkey') {
-				authView = nextView;
-				await goto(resolve('/2fa/passkey'));
 				return;
 			}
 			authView = nextView;

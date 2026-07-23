@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
+	loginAttempt,
 	passkeyCredential,
 	session,
 	totpCredential,
@@ -128,6 +129,7 @@ export async function updateUserPassword(userId: string, password: string): Prom
 	db.transaction((tx) => {
 		tx.update(userTable).set({ passwordHash }).where(eq(userTable.id, userId)).run();
 		tx.delete(session).where(eq(session.userId, userId)).run();
+		tx.delete(loginAttempt).where(eq(loginAttempt.userId, userId)).run();
 	});
 }
 

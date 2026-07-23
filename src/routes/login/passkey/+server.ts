@@ -1,5 +1,6 @@
 import { error as logError } from '$lib/logger';
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
+import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { getClientIP, parseAssertionRequest } from '$lib/server/auth/routes';
 import { getUserById } from '$lib/server/auth/user';
@@ -47,6 +48,7 @@ export async function POST(event: RequestEvent) {
 	if (user === null) {
 		return new Response('Invalid credential', { status: 400 });
 	}
+	invalidateLoginAttemptRequest(event);
 	const token = generateSessionToken();
 	const session = createSession(token, user.id, { twoFactorVerified: true });
 	setSessionTokenCookie(event, token, session.expiresAt);

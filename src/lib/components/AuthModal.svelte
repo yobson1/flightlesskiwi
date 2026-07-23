@@ -37,20 +37,19 @@
 	let passkeyMessage = $state('');
 
 	const wide = $derived(view === 'login' || view === 'signup');
-	const pendingSecondFactor = $derived(
-		auth !== null && auth.user.registered2FA && !auth.twoFactorVerified
-	);
 	const pendingRecoveryCode = $derived(
 		auth !== null &&
 			auth.user.registeredTOTP &&
 			auth.twoFactorVerified &&
 			!auth.user.recoveryCodeConfigured
 	);
-	const required = $derived(view === 'verify-email' || pendingSecondFactor || pendingRecoveryCode);
+	const required = $derived(view === 'verify-email' || pendingRecoveryCode);
 	const totpKeyURI = $derived(getStringProperty(routeData, 'keyURI'));
 	const passkeyOptions = $derived(getPasskeyOptions(routeData));
 	const title = $derived.by(() => {
 		switch (view) {
+			case 'login-totp':
+				return 'Two-factor authentication';
 			case 'signup':
 				return 'Create your account';
 			case 'verify-email':
@@ -80,6 +79,10 @@
 	async function close() {
 		view = null;
 		await onClose?.();
+	}
+
+	function requestLoginTOTP() {
+		view = 'login-totp';
 	}
 
 	async function verifyWithPasskey() {
@@ -190,7 +193,13 @@
 
 			{#key view}
 				{#if view === 'login'}
-					<LoginForm onSwitchToSignup={() => switchView('signup')} {onRedirect} />
+					<LoginForm
+						onSwitchToSignup={() => switchView('signup')}
+						onTOTPRequired={requestLoginTOTP}
+						{onRedirect}
+					/>
+				{:else if view === 'login-totp'}
+					<OTPForm kind="login-totp" onBack={() => switchView('login')} {onRedirect} />
 				{:else if view === 'signup'}
 					<SignupForm onSwitchToLogin={() => switchView('login')} {onRedirect} />
 				{:else if view === 'verify-email'}
@@ -275,14 +284,6 @@
 									Use an authenticator code instead
 								</Button>
 							{/if}
-							<form method="POST" action="/logout" class="text-center">
-								<button
-									type="submit"
-									class="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-								>
-									Log out
-								</button>
-							</form>
 						</Card.Content>
 					</Card.Root>
 				{/if}

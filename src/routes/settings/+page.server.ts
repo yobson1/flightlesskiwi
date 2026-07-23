@@ -56,7 +56,7 @@ async function updatePassword(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { password: { message: 'Not authenticated' } });
 	}
-	if (!event.locals.authenticated) {
+	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
 		return fail(403, { password: { message: 'Forbidden' } });
 	}
 	if (!passwordUpdateBucket.check(event.locals.session.id, 1)) {
@@ -97,7 +97,7 @@ async function updateEmail(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { email: { message: 'Not authenticated' } });
 	}
-	if (!event.locals.authenticated) {
+	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
 		return fail(403, { email: { message: 'Forbidden' } });
 	}
 	if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
@@ -135,7 +135,10 @@ async function disconnectTOTP(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
 	}
-	if (!event.locals.authenticated) {
+	if (
+		!event.locals.user.emailVerified ||
+		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+	) {
 		return fail(403);
 	}
 	if (!totpUpdateBucket.consume(event.locals.user.id, 1)) {
@@ -149,7 +152,10 @@ async function deletePasskey(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
 	}
-	if (!event.locals.authenticated) {
+	if (
+		!event.locals.user.emailVerified ||
+		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+	) {
 		return fail(403);
 	}
 	const formData = await event.request.formData();
@@ -172,9 +178,10 @@ async function regenerateRecoveryCode(event: RequestEvent) {
 		return fail(401);
 	}
 	if (
-		!event.locals.authenticated ||
+		!event.locals.user.emailVerified ||
 		!event.locals.user.registered2FA ||
-		!event.locals.user.registeredTOTP
+		!event.locals.user.registeredTOTP ||
+		!event.locals.session.twoFactorVerified
 	) {
 		return fail(403);
 	}

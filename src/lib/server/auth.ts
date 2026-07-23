@@ -71,6 +71,10 @@ export function validateSessionToken(token: string): SessionValidationResult {
 		invalidateSession(row.id);
 		return { session: null, user: null };
 	}
+	if (user.registered2FA && !row.twoFactorVerified) {
+		invalidateSession(row.id);
+		return { session: null, user: null };
+	}
 
 	let lastVerifiedAt = row.lastVerifiedAt;
 	if (now.getTime() - row.lastVerifiedAt.getTime() >= ACTIVITY_CHECK_INTERVAL_MS) {
@@ -110,18 +114,6 @@ export function setSessionAs2FAVerified(sessionId: string): void {
 		.set({ twoFactorVerified: true })
 		.where(eq(sessionTable.id, sessionId))
 		.run();
-}
-
-export function isSessionFullyAuthenticated(
-	user: AuthUser | null,
-	session: Session | null
-): boolean {
-	return (
-		user !== null &&
-		session !== null &&
-		user.emailVerified &&
-		(!user.registered2FA || session.twoFactorVerified)
-	);
 }
 
 export function setSessionTokenCookie(event: RequestEvent, token: string, expiresAt: Date): void {

@@ -1,18 +1,21 @@
+import { verifyTOTP } from '@oslojs/otp';
 import { fail, redirect } from '@sveltejs/kit';
+import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
 import {
-	createSession,
-	generateSessionToken,
-	setSessionTokenCookie,
-	type SessionFlags
-} from '$lib/server/auth';
-import { get2FARedirect } from '$lib/server/auth/2fa';
+	consumeLoginAttemptRequest,
+	createLoginAttempt,
+	invalidateLoginAttemptRequest,
+	validateLoginAttemptRequest
+} from '$lib/server/auth/login-attempt';
 import { hashPassword, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { getAuthenticatedRedirect, getClientIP } from '$lib/server/auth/routes';
+import { getUserTOTPKey, totpBucket } from '$lib/server/auth/totp';
 import {
 	getUserFromEmail,
 	getUserPasswordHash,
 	normalizeEmail,
+	type AuthUser,
 	verifyEmailInput
 } from '$lib/server/auth/user';
 import type { Actions, PageServerLoadEvent, RequestEvent } from './$types';
@@ -29,10 +32,15 @@ export function load(event: PageServerLoadEvent) {
 }
 
 export const actions: Actions = {
-	default: login
+	password: login,
+	totp: loginWithTOTP
 };
 
 async function login(event: RequestEvent) {
+	if (event.locals.session !== null) {
+		return fail(409, { message: 'Already authenticated', email: '' });
+	}
+	invalidateLoginAttemptRequest(event);
 	const clientIP = getClientIP(event);
 	if (!ipBucket.check(clientIP, 1)) {
 		return fail(429, { message: 'Too many requests', email: '' });
@@ -66,16 +74,69 @@ async function login(event: RequestEvent) {
 	}
 	accountBucket.reset(`${clientIP}:${email}`);
 
-	const flags: SessionFlags = { twoFactorVerified: !user.registered2FA };
+	if (user.registeredTOTP) {
+		createLoginAttempt(event, user.id);
+		return { requiresTOTP: true };
+	}
+	if (user.registeredPasskey) {
+		return fail(403, {
+			message: 'This account requires passkey sign-in',
+			email
+		});
+	}
+	completeLogin(event, user);
+}
+
+async function loginWithTOTP(event: RequestEvent) {
+	if (event.locals.session !== null) {
+		return fail(409, { message: 'Already authenticated' });
+	}
+	const clientIP = getClientIP(event);
+	if (!ipBucket.check(clientIP, 1)) {
+		return fail(429, { message: 'Too many requests' });
+	}
+
+	const formData = await event.request.formData();
+	const code = formData.get('code');
+	if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+		return fail(400, { message: 'Invalid or missing fields' });
+	}
+	if (!ipBucket.consume(clientIP, 1)) {
+		return fail(429, { message: 'Too many requests' });
+	}
+
+	const { attempt, user } = validateLoginAttemptRequest(event);
+	if (attempt === null) {
+		return fail(401, { message: 'Sign-in attempt expired. Enter your password again.' });
+	}
+	const key = getUserTOTPKey(user.id);
+	if (!user.registeredTOTP || key === null) {
+		invalidateLoginAttemptRequest(event);
+		return fail(400, { message: 'Authenticator is no longer available. Sign in again.' });
+	}
+	if (!totpBucket.consume(user.id, 1)) {
+		return fail(429, { message: 'Too many requests' });
+	}
+	if (!verifyTOTP(key, 30, 6, code)) {
+		return fail(400, { message: 'Invalid authenticator code' });
+	}
+	if (!consumeLoginAttemptRequest(event, attempt.id)) {
+		return fail(401, { message: 'Sign-in attempt expired. Enter your password again.' });
+	}
+	totpBucket.reset(user.id);
+	completeLogin(event, user);
+}
+
+function completeLogin(event: RequestEvent, user: AuthUser): never {
 	const sessionToken = generateSessionToken();
-	const session = createSession(sessionToken, user.id, flags);
+	const session = createSession(sessionToken, user.id, { twoFactorVerified: true });
 	setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
 	if (!user.emailVerified) {
 		redirect(302, '/verify-email');
 	}
-	if (!user.registered2FA) {
+	if (!user.registeredTOTP) {
 		redirect(302, '/2fa/setup');
 	}
-	redirect(302, get2FARedirect(user));
+	redirect(302, '/');
 }

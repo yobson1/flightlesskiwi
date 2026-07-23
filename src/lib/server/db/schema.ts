@@ -39,6 +39,22 @@ export const session = sqliteTable(
 	(table) => [index('session_user_id_idx').on(table.userId)]
 );
 
+export const loginAttempt = sqliteTable(
+	'login_attempt',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		secretHash: blob('secret_hash', { mode: 'buffer' }).notNull(),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [
+		index('login_attempt_user_id_idx').on(table.userId),
+		index('login_attempt_expires_at_idx').on(table.expiresAt)
+	]
+);
+
 export const emailVerificationRequest = sqliteTable(
 	'email_verification_request',
 	{
@@ -278,6 +294,7 @@ export const gameEngineRelations = relations(gameEngine, ({ many }) => ({
 
 export const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),
+	loginAttempts: many(loginAttempt),
 	totpCredential: one(totpCredential),
 	passkeyCredentials: many(passkeyCredential),
 	emailVerificationRequests: many(emailVerificationRequest),
@@ -287,6 +304,13 @@ export const userRelations = relations(user, ({ many, one }) => ({
 export const sessionRelations = relations(session, ({ one }) => ({
 	user: one(user, {
 		fields: [session.userId],
+		references: [user.id]
+	})
+}));
+
+export const loginAttemptRelations = relations(loginAttempt, ({ one }) => ({
+	user: one(user, {
+		fields: [loginAttempt.userId],
 		references: [user.id]
 	})
 }));
@@ -313,6 +337,7 @@ export const STORES = {
 } as const;
 
 export type Session = typeof session.$inferSelect;
+export type LoginAttempt = typeof loginAttempt.$inferSelect;
 export type User = typeof user.$inferSelect;
 export type PasskeyCredential = typeof passkeyCredential.$inferSelect;
 export type PasswordResetSession = typeof passwordResetSession.$inferSelect;

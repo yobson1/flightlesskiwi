@@ -18,8 +18,7 @@ export const load: LayoutServerLoad = ({ locals }) => {
 				registered2FA: locals.user.registered2FA,
 				recoveryCodeConfigured: locals.user.recoveryCodeConfigured
 			},
-			twoFactorVerified: locals.session.twoFactorVerified,
-			fullyAuthenticated: locals.authenticated
+			twoFactorVerified: locals.session.twoFactorVerified
 		}
 	};
 };

@@ -15,7 +15,8 @@ export function POST(event: RequestEvent) {
 		return new Response('Not authenticated', { status: 401 });
 	}
 	if (
-		!event.locals.authenticated ||
+		!event.locals.user.emailVerified ||
+		!event.locals.session.twoFactorVerified ||
 		!event.locals.user.registeredTOTP ||
 		event.locals.user.recoveryCodeConfigured
 	) {
@@ -35,7 +36,8 @@ export async function PUT(event: RequestEvent) {
 		return new Response('Not authenticated', { status: 401 });
 	}
 	if (
-		!event.locals.authenticated ||
+		!event.locals.user.emailVerified ||
+		!event.locals.session.twoFactorVerified ||
 		!event.locals.user.registeredTOTP ||
 		event.locals.user.recoveryCodeConfigured
 	) {

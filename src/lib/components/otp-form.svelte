@@ -12,15 +12,22 @@
 	import type { ComponentProps } from 'svelte';
 
 	interface Props extends ComponentProps<typeof Card.Root> {
-		kind?: 'email' | 'totp';
+		kind?: 'email' | 'totp' | 'login-totp';
 		email?: string;
+		onBack?: () => void;
 		onRedirect?: (location: string) => void | Promise<void>;
 	}
 
-	let { kind = 'email', email, onRedirect, ...props }: Props = $props();
+	let { kind = 'email', email, onBack, onRedirect, ...props }: Props = $props();
 
 	const codeLength = $derived(kind === 'email' ? 8 : 6);
-	const action = $derived(kind === 'email' ? '/verify-email?/verify' : '/2fa/totp');
+	const action = $derived(
+		kind === 'email'
+			? '/verify-email?/verify'
+			: kind === 'login-totp'
+				? '/login?/totp'
+				: '/2fa/totp'
+	);
 	let code = $state('');
 	let message = $state('');
 	let resendMessage = $state('');
@@ -193,13 +200,23 @@
 				{/if}
 			</form>
 		{/if}
-		<form method="POST" action="/logout" class="mt-3 text-center">
+		{#if kind === 'email'}
+			<form method="POST" action="/logout" class="mt-3 text-center">
+				<button
+					type="submit"
+					class="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+				>
+					Log out
+				</button>
+			</form>
+		{:else if kind === 'login-totp'}
 			<button
-				type="submit"
-				class="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+				type="button"
+				class="mt-3 w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+				onclick={onBack}
 			>
-				Log out
+				Back to sign in
 			</button>
-		</form>
+		{/if}
 	</Card.Content>
 </Card.Root>

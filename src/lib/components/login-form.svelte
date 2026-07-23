@@ -14,12 +14,21 @@
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		onSwitchToSignup?: () => void;
+		onTOTPRequired?: () => void;
 		onRedirect?: (location: string) => void | Promise<void>;
 	}
 
-	let { class: className, onSwitchToSignup, onRedirect, ...restProps }: Props = $props();
+	let {
+		class: className,
+		onSwitchToSignup,
+		onTOTPRequired,
+		onRedirect,
+		...restProps
+	}: Props = $props();
 
 	const id = $props.id();
+	let email = $state('');
+	let password = $state('');
 	let message = $state('');
 	let pending = $state(false);
 	let passkeyPending = $state(false);
@@ -36,6 +45,11 @@
 			}
 			if (result.type === 'redirect') {
 				await onRedirect?.(result.location);
+				return;
+			}
+			if (result.type === 'success' && requiresTOTP(result.data)) {
+				password = '';
+				onTOTPRequired?.();
 				return;
 			}
 			if (result.type === 'error') {
@@ -80,12 +94,21 @@
 		}
 		return fallback;
 	}
+
+	function requiresTOTP(data: unknown): boolean {
+		return (
+			typeof data === 'object' &&
+			data !== null &&
+			'requiresTOTP' in data &&
+			data.requiresTOTP === true
+		);
+	}
 </script>
 
 <div class={cn('flex flex-col gap-6', className)} {...restProps}>
 	<Card.Root class="overflow-hidden p-0">
 		<Card.Content class="grid p-0 md:grid-cols-2">
-			<form method="POST" action="/login" class="p-6 md:p-8" use:enhance={submit}>
+			<form method="POST" action="/login?/password" class="p-6 md:p-8" use:enhance={submit}>
 				<Field.Group>
 					<div class="flex flex-col items-center gap-2 text-center">
 						<h2 class="text-2xl font-bold">Welcome back</h2>
@@ -107,6 +130,7 @@
 							id="login-email-{id}"
 							name="email"
 							type="email"
+							bind:value={email}
 							placeholder="you@example.com"
 							autocomplete="email"
 							disabled={pending || passkeyPending}
@@ -119,6 +143,7 @@
 							id="login-password-{id}"
 							name="password"
 							type="password"
+							bind:value={password}
 							autocomplete="current-password"
 							disabled={pending || passkeyPending}
 							required

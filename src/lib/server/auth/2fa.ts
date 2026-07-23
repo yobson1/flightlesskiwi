@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
+	loginAttempt,
 	passkeyCredential,
 	session,
 	totpCredential,
@@ -40,6 +41,7 @@ export async function resetUser2FAWithRecoveryCode(
 		}
 
 		tx.delete(session).where(eq(session.userId, userId)).run();
+		tx.delete(loginAttempt).where(eq(loginAttempt.userId, userId)).run();
 		tx.delete(totpCredential).where(eq(totpCredential.userId, userId)).run();
 		tx.delete(passkeyCredential).where(eq(passkeyCredential.userId, userId)).run();
 		return true;

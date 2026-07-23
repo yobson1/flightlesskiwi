@@ -1,0 +1,168 @@
+import { dev } from '$app/environment';
+import type { RequestEvent } from '@sveltejs/kit';
+import { eq, lt } from 'drizzle-orm';
+import { db } from '$lib/server/db';
+import { loginAttempt as loginAttemptTable } from '$lib/server/db/schema';
+import { getUserById, type AuthUser } from '$lib/server/auth/user';
+import { constantTimeEqual, generateSecureRandomString, hashSecret } from '$lib/server/auth/utils';
+
+const LOGIN_ATTEMPT_TTL_MS = 5 * 60 * 1000;
+const cookieName = 'login_attempt';
+
+export function createLoginAttempt(event: RequestEvent, userId: string): LoginAttempt {
+	const id = generateSecureRandomString();
+	const secret = generateSecureRandomString();
+	const expiresAt = new Date(Date.now() + LOGIN_ATTEMPT_TTL_MS);
+
+	db.transaction((tx) => {
+		tx.delete(loginAttemptTable).where(lt(loginAttemptTable.expiresAt, new Date())).run();
+		tx.insert(loginAttemptTable)
+			.values({
+				id,
+				userId,
+				secretHash: hashSecret(secret),
+				expiresAt
+			})
+			.run();
+	});
+
+	event.cookies.set(cookieName, `${id}.${secret}`, {
+		httpOnly: true,
+		path: '/login',
+		secure: !dev,
+		sameSite: 'lax',
+		expires: expiresAt
+	});
+
+	return { id, userId, expiresAt };
+}
+
+export function validateLoginAttemptRequest(event: RequestEvent): LoginAttemptValidationResult {
+	const token = event.cookies.get(cookieName);
+	if (!token) {
+		return { attempt: null, user: null };
+	}
+
+	const attempt = validateLoginAttemptToken(token);
+	if (attempt === null) {
+		deleteLoginAttemptCookie(event);
+		return { attempt: null, user: null };
+	}
+
+	const user = getUserById(attempt.userId);
+	if (user === null) {
+		invalidateLoginAttempt(attempt.id);
+		deleteLoginAttemptCookie(event);
+		return { attempt: null, user: null };
+	}
+
+	return { attempt, user };
+}
+
+export function consumeLoginAttemptRequest(event: RequestEvent, attemptId: string): boolean {
+	const token = event.cookies.get(cookieName);
+	const tokenParts = token ? parseLoginAttemptToken(token) : null;
+	if (tokenParts === null || tokenParts.id !== attemptId) {
+		deleteLoginAttemptCookie(event);
+		return false;
+	}
+
+	const consumed = db.transaction((tx) => {
+		const row = tx
+			.select()
+			.from(loginAttemptTable)
+			.where(eq(loginAttemptTable.id, tokenParts.id))
+			.get();
+		if (
+			!row ||
+			row.expiresAt <= new Date() ||
+			!constantTimeEqual(row.secretHash, hashSecret(tokenParts.secret))
+		) {
+			if (row?.expiresAt && row.expiresAt <= new Date()) {
+				tx.delete(loginAttemptTable).where(eq(loginAttemptTable.id, row.id)).run();
+			}
+			return false;
+		}
+
+		tx.delete(loginAttemptTable).where(eq(loginAttemptTable.id, row.id)).run();
+		return true;
+	});
+
+	deleteLoginAttemptCookie(event);
+	return consumed;
+}
+
+export function invalidateLoginAttemptRequest(event: RequestEvent): void {
+	const token = event.cookies.get(cookieName);
+	const tokenParts = token ? parseLoginAttemptToken(token) : null;
+	if (tokenParts !== null) {
+		const row = db
+			.select({ secretHash: loginAttemptTable.secretHash })
+			.from(loginAttemptTable)
+			.where(eq(loginAttemptTable.id, tokenParts.id))
+			.get();
+		if (row && constantTimeEqual(row.secretHash, hashSecret(tokenParts.secret))) {
+			invalidateLoginAttempt(tokenParts.id);
+		}
+	}
+	deleteLoginAttemptCookie(event);
+}
+
+function validateLoginAttemptToken(token: string): LoginAttempt | null {
+	const tokenParts = parseLoginAttemptToken(token);
+	if (tokenParts === null) {
+		return null;
+	}
+
+	const row = db
+		.select()
+		.from(loginAttemptTable)
+		.where(eq(loginAttemptTable.id, tokenParts.id))
+		.get();
+	if (
+		!row ||
+		!constantTimeEqual(row.secretHash, hashSecret(tokenParts.secret)) ||
+		row.expiresAt <= new Date()
+	) {
+		if (row?.expiresAt && row.expiresAt <= new Date()) {
+			invalidateLoginAttempt(row.id);
+		}
+		return null;
+	}
+
+	return {
+		id: row.id,
+		userId: row.userId,
+		expiresAt: row.expiresAt
+	};
+}
+
+function invalidateLoginAttempt(attemptId: string): void {
+	db.delete(loginAttemptTable).where(eq(loginAttemptTable.id, attemptId)).run();
+}
+
+function deleteLoginAttemptCookie(event: RequestEvent): void {
+	event.cookies.delete(cookieName, {
+		httpOnly: true,
+		path: '/login',
+		secure: !dev,
+		sameSite: 'lax'
+	});
+}
+
+function parseLoginAttemptToken(token: string): { id: string; secret: string } | null {
+	const tokenParts = token.split('.');
+	if (tokenParts.length !== 2 || !tokenParts[0] || !tokenParts[1]) {
+		return null;
+	}
+	return { id: tokenParts[0], secret: tokenParts[1] };
+}
+
+export interface LoginAttempt {
+	id: string;
+	userId: string;
+	expiresAt: Date;
+}
+
+export type LoginAttemptValidationResult =
+	{ attempt: LoginAttempt; user: AuthUser } | { attempt: null; user: null };

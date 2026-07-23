@@ -1,5 +1,6 @@
 export type AuthModalView =
 	| 'login'
+	| 'login-totp'
 	| 'signup'
 	| 'verify-email'
 	| 'setup'
@@ -20,5 +21,4 @@ export interface ClientAuthState {
 		recoveryCodeConfigured: boolean;
 	};
 	twoFactorVerified: boolean;
-	fullyAuthenticated: boolean;
 }
