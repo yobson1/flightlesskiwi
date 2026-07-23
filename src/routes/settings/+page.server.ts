@@ -56,7 +56,10 @@ async function updatePassword(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { password: { message: 'Not authenticated' } });
 	}
-	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
+	if (
+		!event.locals.user.emailVerified ||
+		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+	) {
 		return fail(403, { password: { message: 'Forbidden' } });
 	}
 	if (!passwordUpdateBucket.check(event.locals.session.id, 1)) {
@@ -97,7 +100,10 @@ async function updateEmail(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { email: { message: 'Not authenticated' } });
 	}
-	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
+	if (
+		!event.locals.user.emailVerified ||
+		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+	) {
 		return fail(403, { email: { message: 'Forbidden' } });
 	}
 	if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
