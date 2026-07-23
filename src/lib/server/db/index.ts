@@ -9,3 +9,4 @@ export const db = drizzle(DATABASE_URL, { schema });
 db.$client.run('PRAGMA journal_mode = WAL');
 db.$client.run('PRAGMA synchronous = NORMAL');
 db.$client.run('PRAGMA busy_timeout = 5000');
+db.$client.run('PRAGMA foreign_keys = ON');

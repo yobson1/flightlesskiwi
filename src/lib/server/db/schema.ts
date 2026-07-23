@@ -1,6 +1,8 @@
 import { relations } from 'drizzle-orm';
 import {
 	type AnySQLiteColumn,
+	blob,
+	index,
 	integer,
 	primaryKey,
 	sqliteTable,
@@ -8,17 +10,107 @@ import {
 	unique
 } from 'drizzle-orm/sqlite-core';
 
-export const user = sqliteTable('user', {
-	id: text('id').primaryKey(),
-	age: integer('age')
+export const user = sqliteTable(
+	'user',
+	{
+		id: text('id').primaryKey(),
+		email: text('email').notNull().unique(),
+		username: text('username').notNull(),
+		passwordHash: text('password_hash').notNull(),
+		emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+		recoveryCode: blob('recovery_code', { mode: 'buffer' }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [index('user_email_idx').on(table.email)]
+);
+
+export const session = sqliteTable(
+	'session',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		secretHash: blob('secret_hash', { mode: 'buffer' }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+		lastVerifiedAt: integer('last_verified_at', { mode: 'timestamp_ms' }).notNull(),
+		twoFactorVerified: integer('two_factor_verified', { mode: 'boolean' }).notNull().default(false)
+	},
+	(table) => [index('session_user_id_idx').on(table.userId)]
+);
+
+export const emailVerificationRequest = sqliteTable(
+	'email_verification_request',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		email: text('email').notNull(),
+		codeHash: blob('code_hash', { mode: 'buffer' }).notNull(),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [unique('email_verification_request_user_id_unique').on(table.userId)]
+);
+
+export const passwordResetSession = sqliteTable(
+	'password_reset_session',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		secretHash: blob('secret_hash', { mode: 'buffer' }).notNull(),
+		email: text('email').notNull(),
+		codeHash: blob('code_hash', { mode: 'buffer' }).notNull(),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+		emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+		twoFactorVerified: integer('two_factor_verified', { mode: 'boolean' }).notNull().default(false)
+	},
+	(table) => [index('password_reset_session_user_id_idx').on(table.userId)]
+);
+
+export const totpCredential = sqliteTable('totp_credential', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	encryptedKey: blob('encrypted_key', { mode: 'buffer' }).notNull()
 });
 
-export const session = sqliteTable('session', {
+export const passkeyCredential = sqliteTable(
+	'passkey_credential',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		algorithm: integer('algorithm').notNull(),
+		publicKey: blob('public_key', { mode: 'buffer' }).notNull(),
+		signCount: integer('sign_count').notNull().default(0),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [index('passkey_credential_user_id_idx').on(table.userId)]
+);
+
+export const webAuthnChallenge = sqliteTable(
+	'webauthn_challenge',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+		purpose: text('purpose', {
+			enum: ['passkey-login', 'passkey-register', 'passkey-2fa', 'password-reset-2fa']
+		}).notNull(),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [index('webauthn_challenge_expires_at_idx').on(table.expiresAt)]
+);
+
+export const authRateLimit = sqliteTable('auth_rate_limit', {
 	id: text('id').primaryKey(),
-	userId: text('user_id')
-		.notNull()
-		.references(() => user.id),
-	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
+	tokens: integer('tokens').notNull(),
+	refilledAt: integer('refilled_at', { mode: 'timestamp_ms' }).notNull(),
+	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
 });
 
 // Game data from IGDB tables
@@ -184,6 +276,35 @@ export const gameEngineRelations = relations(gameEngine, ({ many }) => ({
 	usedEngines: many(usedEngine)
 }));
 
+export const userRelations = relations(user, ({ many, one }) => ({
+	sessions: many(session),
+	totpCredential: one(totpCredential),
+	passkeyCredentials: many(passkeyCredential),
+	emailVerificationRequests: many(emailVerificationRequest),
+	passwordResetSessions: many(passwordResetSession)
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+	user: one(user, {
+		fields: [session.userId],
+		references: [user.id]
+	})
+}));
+
+export const totpCredentialRelations = relations(totpCredential, ({ one }) => ({
+	user: one(user, {
+		fields: [totpCredential.userId],
+		references: [user.id]
+	})
+}));
+
+export const passkeyCredentialRelations = relations(passkeyCredential, ({ one }) => ({
+	user: one(user, {
+		fields: [passkeyCredential.userId],
+		references: [user.id]
+	})
+}));
+
 export const STORES = {
 	STEAM: { id: 0, name: 'Steam' },
 	GOG: { id: 1, name: 'GOG' },
@@ -193,6 +314,9 @@ export const STORES = {
 
 export type Session = typeof session.$inferSelect;
 export type User = typeof user.$inferSelect;
+export type PasskeyCredential = typeof passkeyCredential.$inferSelect;
+export type PasswordResetSession = typeof passwordResetSession.$inferSelect;
+export type EmailVerificationRequest = typeof emailVerificationRequest.$inferSelect;
 export type Store = typeof store.$inferSelect;
 export type StoreLink = typeof storeLink.$inferSelect;
 export type GameEngine = typeof gameEngine.$inferSelect;

@@ -1,82 +1,155 @@
+import { dev } from '$app/environment';
 import type { RequestEvent } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
-import { sha256 } from '@oslojs/crypto/sha2';
-import { encodeBase64url, encodeHexLowerCase } from '@oslojs/encoding';
+import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import * as table from '$lib/server/db/schema';
+import { session as sessionTable } from '$lib/server/db/schema';
+import { getUserById, type AuthUser } from '$lib/server/auth/user';
+import { constantTimeEqual, generateSecureRandomString, hashSecret } from '$lib/server/auth/utils';
 
 const DAY_IN_MS = 1000 * 60 * 60 * 24;
-const EXPIRE_IN_MS = DAY_IN_MS * 30;
+const INACTIVITY_TIMEOUT_MS = DAY_IN_MS * 30;
+const ABSOLUTE_TIMEOUT_MS = DAY_IN_MS * 90;
+const ACTIVITY_CHECK_INTERVAL_MS = 1000 * 60 * 60;
 
-export const sessionCookieName = 'auth-session';
+export const sessionCookieName = 'session';
 
-export function generateSessionToken() {
-	const bytes = crypto.getRandomValues(new Uint8Array(18));
-	const token = encodeBase64url(bytes);
-	return token;
+export function generateSessionToken(): string {
+	return `${generateSecureRandomString()}.${generateSecureRandomString()}`;
 }
 
-export function createSession(token: string, userId: string) {
-	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
-	const session: table.Session = {
-		id: sessionId,
+export function createSession(token: string, userId: string, flags: SessionFlags): Session {
+	const tokenParts = parseSessionToken(token);
+	if (tokenParts === null) {
+		throw new Error('Invalid session token');
+	}
+
+	const now = new Date();
+	const session: Session = {
+		id: tokenParts.id,
 		userId,
-		expiresAt: new Date(Date.now() + EXPIRE_IN_MS)
+		createdAt: now,
+		lastVerifiedAt: now,
+		expiresAt: new Date(now.getTime() + INACTIVITY_TIMEOUT_MS),
+		twoFactorVerified: flags.twoFactorVerified
 	};
-	db.insert(table.session).values(session).run();
+
+	db.insert(sessionTable)
+		.values({
+			id: session.id,
+			userId,
+			secretHash: hashSecret(tokenParts.secret),
+			createdAt: now,
+			lastVerifiedAt: now,
+			twoFactorVerified: flags.twoFactorVerified
+		})
+		.run();
+
 	return session;
 }
 
-export function validateSessionToken(token: string) {
-	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
-	const result = db
-		.select({
-			user: { id: table.user.id },
-			session: table.session
-		})
-		.from(table.session)
-		.innerJoin(table.user, eq(table.session.userId, table.user.id))
-		.where(eq(table.session.id, sessionId))
-		.get();
-
-	if (!result) {
-		return { session: null, user: null };
-	}
-	const { session, user } = result;
-
-	const sessionExpired = Date.now() >= session.expiresAt.getTime();
-	if (sessionExpired) {
-		db.delete(table.session).where(eq(table.session.id, session.id)).run();
+export function validateSessionToken(token: string): SessionValidationResult {
+	const tokenParts = parseSessionToken(token);
+	if (tokenParts === null) {
 		return { session: null, user: null };
 	}
 
-	const renewSession = Date.now() >= session.expiresAt.getTime() - EXPIRE_IN_MS / 2;
-	if (renewSession) {
-		session.expiresAt = new Date(Date.now() + EXPIRE_IN_MS);
-		db.update(table.session)
-			.set({ expiresAt: session.expiresAt })
-			.where(eq(table.session.id, session.id))
+	const row = db.select().from(sessionTable).where(eq(sessionTable.id, tokenParts.id)).get();
+	if (!row || !constantTimeEqual(hashSecret(tokenParts.secret), row.secretHash)) {
+		return { session: null, user: null };
+	}
+
+	const now = new Date();
+	const inactivityExpiresAt = new Date(row.lastVerifiedAt.getTime() + INACTIVITY_TIMEOUT_MS);
+	const absoluteExpiresAt = new Date(row.createdAt.getTime() + ABSOLUTE_TIMEOUT_MS);
+	if (now >= inactivityExpiresAt || now >= absoluteExpiresAt) {
+		invalidateSession(row.id);
+		return { session: null, user: null };
+	}
+
+	const user = getUserById(row.userId);
+	if (user === null) {
+		invalidateSession(row.id);
+		return { session: null, user: null };
+	}
+
+	let lastVerifiedAt = row.lastVerifiedAt;
+	if (now.getTime() - row.lastVerifiedAt.getTime() >= ACTIVITY_CHECK_INTERVAL_MS) {
+		db.update(sessionTable)
+			.set({ lastVerifiedAt: now })
+			.where(and(eq(sessionTable.id, row.id), eq(sessionTable.lastVerifiedAt, row.lastVerifiedAt)))
 			.run();
+		lastVerifiedAt = now;
 	}
 
-	return { session, user };
+	const expiresAt = new Date(
+		Math.min(lastVerifiedAt.getTime() + INACTIVITY_TIMEOUT_MS, absoluteExpiresAt.getTime())
+	);
+	return {
+		session: {
+			id: row.id,
+			userId: row.userId,
+			createdAt: row.createdAt,
+			lastVerifiedAt,
+			expiresAt,
+			twoFactorVerified: row.twoFactorVerified
+		},
+		user
+	};
 }
 
-export type SessionValidationResult = Awaited<ReturnType<typeof validateSessionToken>>;
-
-export function invalidateSession(sessionId: string) {
-	db.delete(table.session).where(eq(table.session.id, sessionId)).run();
+export function invalidateSession(sessionId: string): void {
+	db.delete(sessionTable).where(eq(sessionTable.id, sessionId)).run();
 }
 
-export function setSessionTokenCookie(event: RequestEvent, token: string, expiresAt: Date) {
+export function invalidateUserSessions(userId: string): void {
+	db.delete(sessionTable).where(eq(sessionTable.userId, userId)).run();
+}
+
+export function setSessionAs2FAVerified(sessionId: string): void {
+	db.update(sessionTable)
+		.set({ twoFactorVerified: true })
+		.where(eq(sessionTable.id, sessionId))
+		.run();
+}
+
+export function setSessionTokenCookie(event: RequestEvent, token: string, expiresAt: Date): void {
 	event.cookies.set(sessionCookieName, token, {
-		expires: expiresAt,
-		path: '/'
+		httpOnly: true,
+		path: '/',
+		secure: !dev,
+		sameSite: 'lax',
+		expires: expiresAt
 	});
 }
 
-export function deleteSessionTokenCookie(event: RequestEvent) {
+export function deleteSessionTokenCookie(event: RequestEvent): void {
 	event.cookies.delete(sessionCookieName, {
-		path: '/'
+		httpOnly: true,
+		path: '/',
+		secure: !dev,
+		sameSite: 'lax'
 	});
 }
+
+function parseSessionToken(token: string): { id: string; secret: string } | null {
+	const tokenParts = token.split('.');
+	if (tokenParts.length !== 2 || !tokenParts[0] || !tokenParts[1]) {
+		return null;
+	}
+	return { id: tokenParts[0], secret: tokenParts[1] };
+}
+
+export interface SessionFlags {
+	twoFactorVerified: boolean;
+}
+
+export interface Session extends SessionFlags {
+	id: string;
+	userId: string;
+	createdAt: Date;
+	lastVerifiedAt: Date;
+	expiresAt: Date;
+}
+
+export type SessionValidationResult =
+	{ session: Session; user: AuthUser } | { session: null; user: null };

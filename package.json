@@ -42,6 +42,7 @@
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/bun": "^1.3.14",
 		"@types/node": "^26.1.1",
+		"@types/nodemailer": "^8.0.1",
 		"apicalypse": "^1.0.5",
 		"better-sqlite3": "^13.0.1",
 		"bits-ui": "^2.18.1",
@@ -69,5 +70,11 @@
 		"unplugin-icons": "^23.0.1",
 		"vite": "^8.1.5",
 		"winston": "^3.19.0"
+	},
+	"dependencies": {
+		"@node-rs/argon2": "^2.0.2",
+		"@oslojs/otp": "^1.1.0",
+		"@oslojs/webauthn": "^1.0.0",
+		"nodemailer": "^9.0.3"
 	}
 }

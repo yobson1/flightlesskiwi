@@ -1,5 +1,5 @@
 import { building } from '$app/environment';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { error, info, warn } from '$lib/logger';
 import { igdb, invalidateIgdbAccessToken } from '$lib/server/igdb';
 import type { Game as IGDBGame } from '$lib/types/igdb';
@@ -68,6 +68,13 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = handleAuth;
+
+export const handleError: HandleServerError = ({ error: cause, event, status, message }) => {
+	error(`Unhandled ${status} error for ${event.request.method} ${event.url.pathname}`, cause);
+	return {
+		message: status >= 500 ? 'An unexpected error occurred' : message
+	};
+};
 
 function seedStores() {
 	db.insert(store)

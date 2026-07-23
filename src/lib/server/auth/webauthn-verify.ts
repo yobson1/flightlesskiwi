@@ -1,0 +1,158 @@
+import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from '$env/static/private';
+import {
+	ECDSAPublicKey,
+	decodePKIXECDSASignature,
+	decodeSEC1PublicKey,
+	p256,
+	verifyECDSASignature
+} from '@oslojs/crypto/ecdsa';
+import {
+	RSAPublicKey,
+	decodePKCS1RSAPublicKey,
+	sha256ObjectIdentifier,
+	verifyRSASSAPKCS1v15Signature
+} from '@oslojs/crypto/rsa';
+import { sha256 } from '@oslojs/crypto/sha2';
+import {
+	AttestationStatementFormat,
+	ClientDataType,
+	coseAlgorithmES256,
+	coseAlgorithmRS256,
+	coseEllipticCurveP256,
+	createAssertionSignatureMessage,
+	parseAttestationObject,
+	parseAuthenticatorData,
+	parseClientDataJSON
+} from '@oslojs/webauthn';
+import {
+	updatePasskeyCounter,
+	verifyWebAuthnChallenge,
+	type WebAuthnUserCredential
+} from '$lib/server/auth/webauthn';
+import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+
+export function verifyWebAuthnRegistration(
+	attestationObjectBytes: Uint8Array,
+	clientDataJSON: Uint8Array,
+	userId: string,
+	purpose: Extract<WebAuthnChallengePurpose, 'passkey-register'>
+): Omit<WebAuthnUserCredential, 'userId' | 'name'> {
+	const attestationObject = parseAttestationObject(attestationObjectBytes);
+	if (attestationObject.attestationStatement.format !== AttestationStatementFormat.None) {
+		throw new WebAuthnVerificationError('Unsupported attestation format');
+	}
+	const authenticatorData = attestationObject.authenticatorData;
+	verifyAuthenticatorData(authenticatorData);
+	if (!authenticatorData.userVerified || authenticatorData.credential === null) {
+		throw new WebAuthnVerificationError('User verification is required');
+	}
+
+	const clientData = parseClientDataJSON(clientDataJSON);
+	if (
+		clientData.type !== ClientDataType.Create ||
+		clientData.origin !== WEBAUTHN_ORIGIN ||
+		clientData.crossOrigin === true
+	) {
+		throw new WebAuthnVerificationError('Invalid client data');
+	}
+
+	const publicKey = authenticatorData.credential.publicKey;
+	let encodedPublicKey: Uint8Array;
+	if (publicKey.algorithm() === coseAlgorithmES256) {
+		const cosePublicKey = publicKey.ec2();
+		if (cosePublicKey.curve !== coseEllipticCurveP256) {
+			throw new WebAuthnVerificationError('Unsupported elliptic curve');
+		}
+		encodedPublicKey = new ECDSAPublicKey(
+			p256,
+			cosePublicKey.x,
+			cosePublicKey.y
+		).encodeSEC1Uncompressed();
+	} else if (publicKey.algorithm() === coseAlgorithmRS256) {
+		const cosePublicKey = publicKey.rsa();
+		encodedPublicKey = new RSAPublicKey(cosePublicKey.n, cosePublicKey.e).encodePKCS1();
+	} else {
+		throw new WebAuthnVerificationError('Unsupported algorithm');
+	}
+
+	if (!verifyWebAuthnChallenge(clientData.challenge, userId, purpose)) {
+		throw new WebAuthnVerificationError('Invalid or expired challenge');
+	}
+
+	return {
+		id: authenticatorData.credential.id,
+		algorithmId: publicKey.algorithm(),
+		publicKey: encodedPublicKey,
+		signCount: authenticatorData.signatureCounter
+	};
+}
+
+export function verifyWebAuthnAssertion(
+	authenticatorDataBytes: Uint8Array,
+	clientDataJSON: Uint8Array,
+	signatureBytes: Uint8Array,
+	credential: WebAuthnUserCredential,
+	challengeUserId: string | null,
+	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
+): void {
+	const authenticatorData = parseAuthenticatorData(authenticatorDataBytes);
+	verifyAuthenticatorData(authenticatorData);
+	if (!authenticatorData.userVerified) {
+		throw new WebAuthnVerificationError('User verification is required');
+	}
+
+	const clientData = parseClientDataJSON(clientDataJSON);
+	if (
+		clientData.type !== ClientDataType.Get ||
+		clientData.origin !== WEBAUTHN_ORIGIN ||
+		clientData.crossOrigin === true
+	) {
+		throw new WebAuthnVerificationError('Invalid client data');
+	}
+
+	const signatureMessage = createAssertionSignatureMessage(authenticatorDataBytes, clientDataJSON);
+	const signatureHash = sha256(signatureMessage);
+	let validSignature = false;
+	try {
+		if (credential.algorithmId === coseAlgorithmES256) {
+			validSignature = verifyECDSASignature(
+				decodeSEC1PublicKey(p256, credential.publicKey),
+				signatureHash,
+				decodePKIXECDSASignature(signatureBytes)
+			);
+		} else if (credential.algorithmId === coseAlgorithmRS256) {
+			validSignature = verifyRSASSAPKCS1v15Signature(
+				decodePKCS1RSAPublicKey(credential.publicKey),
+				sha256ObjectIdentifier,
+				signatureHash,
+				signatureBytes
+			);
+		}
+	} catch {
+		throw new WebAuthnVerificationError('Invalid signature encoding');
+	}
+	if (!validSignature) {
+		throw new WebAuthnVerificationError('Invalid signature');
+	}
+	if (!verifyWebAuthnChallenge(clientData.challenge, challengeUserId, purpose)) {
+		throw new WebAuthnVerificationError('Invalid or expired challenge');
+	}
+	if (
+		!updatePasskeyCounter(credential.id, credential.signCount, authenticatorData.signatureCounter)
+	) {
+		throw new WebAuthnVerificationError('Authenticator counter did not increase');
+	}
+}
+
+function verifyAuthenticatorData(
+	authenticatorData: ReturnType<typeof parseAuthenticatorData>
+): void {
+	if (
+		!authenticatorData.verifyRelyingPartyIdHash(WEBAUTHN_RP_ID) ||
+		!authenticatorData.userPresent
+	) {
+		throw new WebAuthnVerificationError('Invalid authenticator data');
+	}
+}
+
+export class WebAuthnVerificationError extends Error {}
