@@ -28,7 +28,11 @@ export function authSuccess(next: AuthModalView | null, data: object = {}): Resp
 export function authError(
 	status: number,
 	message: string,
-	options: { modal?: AuthModalView; reauthenticationRequired?: boolean } = {}
+	options: {
+		modal?: AuthModalView;
+		reauthenticationRequired?: boolean;
+		retryAfterSeconds?: number;
+	} = {}
 ): Response {
 	return json({ message, ...options }, { status, headers: noStoreHeaders });
 }

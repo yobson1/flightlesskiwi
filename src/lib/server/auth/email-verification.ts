@@ -10,7 +10,6 @@ import {
 	generateRandomOTP,
 	generateSecureRandomString
 } from '$lib/server/auth/utils';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 
 const cookieName = 'email_verification';
 
@@ -102,12 +101,6 @@ export function getUserEmailVerificationRequestFromRequest(
 	}
 	return request;
 }
-
-export const sendVerificationEmailBucket = new ExpiringTokenBucket<string>(
-	'email-verification-send',
-	3,
-	EMAIL_CODE_TTL_MS / 1000
-);
 
 export interface EmailVerificationRequest {
 	id: string;

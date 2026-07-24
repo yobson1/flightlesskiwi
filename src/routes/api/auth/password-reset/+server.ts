@@ -8,7 +8,13 @@ import {
 import { createSessionAndSetCookie } from '$lib/server/auth';
 import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
-import { sendPasswordResetEmail } from '$lib/server/auth/email';
+import {
+	checkCodeEmailSendRateLimit,
+	CodeEmailRateLimitError,
+	consumeCodeEmailSendRateLimit,
+	getCodeEmailSendRetryAfterSeconds,
+	sendPasswordResetEmail
+} from '$lib/server/auth/email';
 import { verifyPasswordStrength } from '$lib/server/auth/password';
 import {
 	createPasswordResetSession,
@@ -85,33 +91,44 @@ async function requestReset(event: RequestEvent, formData: FormData): Promise<Re
 	if (!requestIPBucket.consume(clientIP, 1) || !requestEmailBucket.consume(email, 1)) {
 		return authError(429, 'Too many reset requests. Try again later.');
 	}
+	if (!checkCodeEmailSendRateLimit(email)) {
+		return resetEmailRateLimitError(email);
+	}
 
 	const genericMessage = 'If an account uses that email, a reset code has been sent.';
 	const user = getUserFromEmail(email);
 	if (user === null) {
+		if (!consumeCodeEmailSendRateLimit(email)) {
+			return resetEmailRateLimitError(email);
+		}
 		deletePasswordResetSessionTokenCookie(event);
 		return authSuccess('password-reset', {
 			stage: 'email-code',
 			email,
-			message: genericMessage
+			message: genericMessage,
+			retryAfterSeconds: getCodeEmailSendRetryAfterSeconds(email)
 		});
 	}
 
 	const session = createPasswordResetSession(user.id, user.email);
 	setPasswordResetSessionTokenCookie(event, session.token, session.expiresAt);
 	try {
-		await sendPasswordResetEmail(session.email, session.code);
+		const retryAfterSeconds = await sendPasswordResetEmail(session.email, session.code);
+		return authSuccess('password-reset', {
+			stage: 'email-code',
+			email: session.email,
+			message: genericMessage,
+			retryAfterSeconds
+		});
 	} catch (cause) {
 		invalidateUserPasswordResetSessions(user.id);
 		deletePasswordResetSessionTokenCookie(event);
+		if (cause instanceof CodeEmailRateLimitError) {
+			return resetEmailRateLimitError(session.email, cause.retryAfterSeconds);
+		}
 		logError('Failed to send password reset email', cause);
 		return authError(503, 'The password reset email could not be sent');
 	}
-	return authSuccess('password-reset', {
-		stage: 'email-code',
-		email: session.email,
-		message: genericMessage
-	});
 }
 
 function verifyEmailCode(event: RequestEvent, formData: FormData): Response {
@@ -224,5 +241,14 @@ async function updatePassword(event: RequestEvent, formData: FormData): Promise<
 }
 
 function stateResponse(session: PasswordResetSession, user: AuthUser): Response {
-	return authSuccess('password-reset', getPasswordResetState(session, user));
+	return authSuccess('password-reset', {
+		...getPasswordResetState(session, user),
+		retryAfterSeconds: getCodeEmailSendRetryAfterSeconds(session.email)
+	});
+}
+
+function resetEmailRateLimitError(email: string, retryAfterSeconds?: number): Response {
+	return authError(429, 'Too many reset requests. Try again later.', {
+		retryAfterSeconds: retryAfterSeconds ?? getCodeEmailSendRetryAfterSeconds(email)
+	});
 }

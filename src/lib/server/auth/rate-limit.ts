@@ -115,6 +115,87 @@ export class ExpiringTokenBucket<Key> {
 	}
 }
 
+export class ExpiringMultiWindowTokenBucket<Key> {
+	constructor(
+		private readonly namespace: string,
+		private readonly windows: readonly {
+			max: number;
+			expiresInSeconds: number;
+		}[]
+	) {}
+
+	check(key: Key, cost: number): boolean {
+		return this.retryAfterSeconds(key, cost) === 0;
+	}
+
+	retryAfterSeconds(key: Key, cost: number): number {
+		const now = new Date();
+		return this.windows.reduce((retryAfter, _, index) => {
+			const row = getBucket(this.id(key, index));
+			if (!row || row.expiresAt <= now || row.tokens >= cost) {
+				return retryAfter;
+			}
+			return Math.max(retryAfter, Math.ceil((row.expiresAt.getTime() - now.getTime()) / 1000));
+		}, 0);
+	}
+
+	consume(key: Key, cost: number): boolean {
+		const now = new Date();
+		const consumed = db.transaction((tx) => {
+			const buckets = this.windows.map((window, index) => {
+				const id = this.id(key, index);
+				const row = tx.select().from(authRateLimit).where(eq(authRateLimit.id, id)).get();
+				const expired = !row || row.expiresAt <= now;
+				return {
+					id,
+					tokens: expired ? window.max : row.tokens,
+					expiresAt: expired
+						? new Date(now.getTime() + window.expiresInSeconds * 1000)
+						: row.expiresAt
+				};
+			});
+			if (buckets.some((bucket) => bucket.tokens < cost)) {
+				return false;
+			}
+			for (const bucket of buckets) {
+				tx.insert(authRateLimit)
+					.values({
+						id: bucket.id,
+						tokens: bucket.tokens - cost,
+						refilledAt: now,
+						expiresAt: bucket.expiresAt
+					})
+					.onConflictDoUpdate({
+						target: authRateLimit.id,
+						set: {
+							tokens: bucket.tokens - cost,
+							refilledAt: now,
+							expiresAt: bucket.expiresAt
+						}
+					})
+					.run();
+			}
+			return true;
+		});
+		cleanExpiredBuckets();
+		return consumed;
+	}
+
+	reset(key: Key): void {
+		db.transaction((tx) => {
+			for (let index = 0; index < this.windows.length; index++) {
+				tx.delete(authRateLimit)
+					.where(eq(authRateLimit.id, this.id(key, index)))
+					.run();
+			}
+		});
+	}
+
+	private id(key: Key, windowIndex: number): string {
+		return encodeHashedSecret(`${this.namespace}:${windowIndex}:${String(key)}`);
+	}
+}
+
 function getBucket(id: string) {
 	return db.select().from(authRateLimit).where(eq(authRateLimit.id, id)).get();
 }

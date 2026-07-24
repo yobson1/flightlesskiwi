@@ -7,10 +7,40 @@ import {
 	SMTP_USER
 } from '$env/static/private';
 import nodemailer from 'nodemailer';
+import {
+	EMAIL_CODE_SEND_INTERVAL_SECONDS,
+	EMAIL_CODE_SEND_WINDOW_MAX,
+	EMAIL_CODE_SEND_WINDOW_SECONDS
+} from '$lib/auth-constants';
+import { ExpiringMultiWindowTokenBucket } from '$lib/server/auth/rate-limit';
 
 export const EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
 
 let transporter: nodemailer.Transporter | null = null;
+
+const codeEmailSendBucket = new ExpiringMultiWindowTokenBucket<string>('code-email-send', [
+	{ max: 1, expiresInSeconds: EMAIL_CODE_SEND_INTERVAL_SECONDS },
+	{ max: EMAIL_CODE_SEND_WINDOW_MAX, expiresInSeconds: EMAIL_CODE_SEND_WINDOW_SECONDS }
+]);
+
+export class CodeEmailRateLimitError extends Error {
+	constructor(readonly retryAfterSeconds: number) {
+		super('Too many code emails requested');
+		this.name = 'CodeEmailRateLimitError';
+	}
+}
+
+export function checkCodeEmailSendRateLimit(email: string): boolean {
+	return codeEmailSendBucket.check(normalizeRecipient(email), 1);
+}
+
+export function getCodeEmailSendRetryAfterSeconds(email: string): number {
+	return codeEmailSendBucket.retryAfterSeconds(normalizeRecipient(email), 1);
+}
+
+export function consumeCodeEmailSendRateLimit(email: string): boolean {
+	return codeEmailSendBucket.consume(normalizeRecipient(email), 1);
+}
 
 function getTransporter(): nodemailer.Transporter {
 	if (!SMTP_HOST || !SMTP_FROM) {
@@ -38,15 +68,15 @@ function getTransporter(): nodemailer.Transporter {
 	return transporter;
 }
 
-export async function sendVerificationEmail(email: string, code: string): Promise<void> {
-	await sendCodeEmail(email, code, {
+export async function sendVerificationEmail(email: string, code: string): Promise<number> {
+	return sendCodeEmail(email, code, {
 		subject: 'Verify your FlightlessKiwi email',
 		codeDescription: 'verification code'
 	});
 }
 
-export async function sendPasswordResetEmail(email: string, code: string): Promise<void> {
-	await sendCodeEmail(email, code, {
+export async function sendPasswordResetEmail(email: string, code: string): Promise<number> {
+	return sendCodeEmail(email, code, {
 		subject: 'Reset your FlightlessKiwi password',
 		codeDescription: 'password reset code'
 	});
@@ -71,12 +101,21 @@ async function sendCodeEmail(
 	email: string,
 	code: string,
 	options: { subject: string; codeDescription: string }
-): Promise<void> {
+): Promise<number> {
+	const emailTransporter = getTransporter();
+	if (!consumeCodeEmailSendRateLimit(email)) {
+		throw new CodeEmailRateLimitError(getCodeEmailSendRetryAfterSeconds(email));
+	}
 	const lifetime = formatDuration(EMAIL_CODE_TTL_MS);
-	await getTransporter().sendMail({
+	await emailTransporter.sendMail({
 		from: SMTP_FROM,
 		to: email,
 		subject: options.subject,
 		text: `Your ${options.codeDescription} is ${code}. It expires in ${lifetime}.`
 	});
+	return getCodeEmailSendRetryAfterSeconds(email);
+}
+
+function normalizeRecipient(email: string): string {
+	return email.trim().toLowerCase();
 }

@@ -31,6 +31,7 @@ export interface ClientAuthState {
 export interface AuthAPIResponse {
 	next: AuthModalView | null;
 	message?: string;
+	retryAfterSeconds?: number;
 	[key: string]: unknown;
 }
 
@@ -38,4 +39,5 @@ export interface AuthAPIErrorResponse {
 	message: string;
 	modal?: AuthModalView;
 	reauthenticationRequired?: boolean;
+	retryAfterSeconds?: number;
 }

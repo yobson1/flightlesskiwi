@@ -7,6 +7,7 @@
 	import {
 		EMAIL_CODE_LENGTH,
 		EMAIL_CODE_LENGTH_WORD,
+		EMAIL_CODE_SEND_INTERVAL_SECONDS,
 		MAX_EMAIL_LENGTH,
 		MAX_PASSWORD_LENGTH,
 		MIN_PASSWORD_LENGTH
@@ -19,6 +20,7 @@
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
+	import ResendCodeButton from '$lib/components/resend-code-button.svelte';
 	import type { AuthAPIResponse, AuthModalView } from '$lib/types/auth';
 
 	type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';
@@ -43,6 +45,8 @@
 	let notice = $state('');
 	let pending = $state(false);
 	let passkeyPending = $state(false);
+	let resendPending = $state(false);
+	let resendAvailableAt = $state(0);
 	let factorMode = $state<'choose' | 'authenticator'>('choose');
 
 	$effect(() => {
@@ -52,6 +56,7 @@
 		registeredTOTP = nextState.registeredTOTP;
 		registeredPasskey = nextState.registeredPasskey;
 		factorMode = 'choose';
+		if (nextState.stage === 'email-code') setResendAvailability(initialState);
 	});
 
 	async function submit(event: SubmitEvent) {
@@ -75,6 +80,7 @@
 				return;
 			}
 			applyState(result);
+			if (formData.get('step') === 'request') setResendAvailability(result);
 			code = '';
 			password = '';
 			confirmPassword = '';
@@ -138,6 +144,47 @@
 		code = '';
 		message = '';
 		notice = '';
+	}
+
+	async function resendCode() {
+		message = '';
+		notice = '';
+		resendPending = true;
+		const formData = new FormData();
+		formData.set('step', 'request');
+		formData.set('email', email);
+		try {
+			const result = await authRequest('/api/auth/password-reset', {
+				method: 'POST',
+				body: formData
+			});
+			applyState(result);
+			setResendAvailability(result);
+			code = '';
+			notice = result.message ?? 'A new reset code was sent.';
+		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) {
+				await onComplete?.(cause.modal);
+				return;
+			}
+			if (cause instanceof AuthAPIError) setResendAvailability(cause);
+			message = cause instanceof Error ? cause.message : 'Unable to resend the reset code';
+		} finally {
+			resendPending = false;
+		}
+	}
+
+	function setResendAvailability(value: unknown) {
+		const retryAfterSeconds =
+			typeof value === 'object' &&
+			value !== null &&
+			'retryAfterSeconds' in value &&
+			typeof value.retryAfterSeconds === 'number' &&
+			Number.isFinite(value.retryAfterSeconds) &&
+			value.retryAfterSeconds >= 0
+				? Math.ceil(value.retryAfterSeconds)
+				: EMAIL_CODE_SEND_INTERVAL_SECONDS;
+		resendAvailableAt = Date.now() + retryAfterSeconds * 1000;
 	}
 
 	function readState(value: unknown): {
@@ -308,13 +355,23 @@
 						</Button>
 					</Field.Group>
 				</form>
-				<button
-					type="button"
-					class="mt-4 w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-					onclick={startAgain}
-				>
-					Use a different email or send another code
-				</button>
+				<div class="mt-4 space-y-2 text-center text-sm text-muted-foreground">
+					<p>
+						Didn&apos;t receive it?
+						<ResendCodeButton
+							availableAt={resendAvailableAt}
+							pending={resendPending}
+							onclick={resendCode}
+						/>
+					</p>
+					<button
+						type="button"
+						class="underline underline-offset-4 hover:text-foreground"
+						onclick={startAgain}
+					>
+						Use a different email
+					</button>
+				</div>
 			{:else if stage === 'two-factor'}
 				{#if registeredTOTP}
 					<Button

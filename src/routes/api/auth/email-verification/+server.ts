@@ -1,12 +1,16 @@
 import { error as logError } from '$lib/logger';
 import { authError, authSuccess, requireAuthenticated } from '$lib/server/auth/api';
-import { sendVerificationEmail } from '$lib/server/auth/email';
+import {
+	checkCodeEmailSendRateLimit,
+	CodeEmailRateLimitError,
+	getCodeEmailSendRetryAfterSeconds,
+	sendVerificationEmail
+} from '$lib/server/auth/email';
 import {
 	createEmailVerificationRequest,
 	deleteEmailVerificationRequestCookie,
 	deleteUserEmailVerificationRequest,
 	getUserEmailVerificationRequestFromRequest,
-	sendVerificationEmailBucket,
 	setEmailVerificationRequestCookie,
 	verifyEmailVerificationCode
 } from '$lib/server/auth/email-verification';
@@ -28,21 +32,27 @@ export async function POST(event: RequestEvent) {
 
 	const current = getUserEmailVerificationRequestFromRequest(event);
 	if (current !== null && current.expiresAt > new Date()) {
-		return authSuccess('verify-email', { sent: false });
+		return authSuccess('verify-email', {
+			sent: false,
+			retryAfterSeconds: getCodeEmailSendRetryAfterSeconds(current.email)
+		});
 	}
-	if (!sendVerificationEmailBucket.consume(user.id, 1)) {
-		return authError(429, 'Too many verification emails requested');
+	if (!checkCodeEmailSendRateLimit(user.email)) {
+		return verificationEmailRateLimitError(user.email);
 	}
 
 	const request = createEmailVerificationRequest(user.id, user.email);
 	setEmailVerificationRequestCookie(event, request);
 	try {
-		await sendVerificationEmail(request.email, request.code);
+		const retryAfterSeconds = await sendVerificationEmail(request.email, request.code);
+		return authSuccess('verify-email', { sent: true, retryAfterSeconds });
 	} catch (cause) {
+		if (cause instanceof CodeEmailRateLimitError) {
+			return verificationEmailRateLimitError(request.email, cause.retryAfterSeconds);
+		}
 		logError('Failed to restore email verification request', cause);
 		return authError(503, 'The verification email could not be sent');
 	}
-	return authSuccess('verify-email', { sent: true });
 }
 
 export async function PUT(event: RequestEvent) {
@@ -80,21 +90,33 @@ export async function PATCH(event: RequestEvent) {
 	if (user.registered2FA && !session.twoFactorVerified) {
 		return authError(403, 'Complete two-factor authentication first');
 	}
-	if (!sendVerificationEmailBucket.consume(user.id, 1)) {
-		return authError(429, 'Too many requests');
-	}
 	const current = getUserEmailVerificationRequestFromRequest(event);
 	const email = current?.email ?? user.email;
+	if (!checkCodeEmailSendRateLimit(email)) {
+		return verificationEmailRateLimitError(email);
+	}
 	if (current === null && user.emailVerified) {
 		return authError(403, 'Email is already verified');
 	}
 	const request = createEmailVerificationRequest(user.id, email);
 	setEmailVerificationRequestCookie(event, request);
 	try {
-		await sendVerificationEmail(request.email, request.code);
+		const retryAfterSeconds = await sendVerificationEmail(request.email, request.code);
+		return authSuccess('verify-email', {
+			message: 'A new code was sent to your inbox.',
+			retryAfterSeconds
+		});
 	} catch (cause) {
+		if (cause instanceof CodeEmailRateLimitError) {
+			return verificationEmailRateLimitError(request.email, cause.retryAfterSeconds);
+		}
 		logError('Failed to resend verification email', cause);
 		return authError(503, 'The verification email could not be sent');
 	}
-	return authSuccess('verify-email', { message: 'A new code was sent to your inbox.' });
+}
+
+function verificationEmailRateLimitError(email: string, retryAfterSeconds?: number): Response {
+	return authError(429, 'Too many verification emails requested', {
+		retryAfterSeconds: retryAfterSeconds ?? getCodeEmailSendRetryAfterSeconds(email)
+	});
 }

@@ -6,6 +6,7 @@
 	import {
 		EMAIL_CODE_LENGTH,
 		EMAIL_CODE_LENGTH_WORD,
+		EMAIL_CODE_SEND_INTERVAL_SECONDS,
 		MAX_RECOVERY_CODE_LENGTH,
 		TOTP_CODE_LENGTH,
 		TOTP_CODE_LENGTH_WORD
@@ -16,6 +17,7 @@
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
+	import ResendCodeButton from '$lib/components/resend-code-button.svelte';
 	import type { ComponentProps } from 'svelte';
 	import type { AuthModalView } from '$lib/types/auth';
 
@@ -33,6 +35,7 @@
 	let resendMessage = $state('');
 	let pending = $state(false);
 	let resendPending = $state(false);
+	let resendAvailableAt = $state(0);
 	let usingRecoveryCode = $state(false);
 
 	const codeLength = $derived(kind === 'email' ? EMAIL_CODE_LENGTH : TOTP_CODE_LENGTH);
@@ -52,12 +55,14 @@
 			if ('sent' in result && result.sent === true) {
 				resendMessage = 'A verification code was sent to your inbox.';
 			}
+			setResendAvailability(result);
 		} catch (cause) {
 			if (cause instanceof DOMException && cause.name === 'AbortError') return;
 			if (cause instanceof AuthAPIError && cause.modal) {
 				await onComplete?.(cause.modal);
 				return;
 			}
+			if (cause instanceof AuthAPIError) setResendAvailability(cause);
 			resendMessage =
 				'We could not prepare email verification. Use “Send another code” to try again.';
 		}
@@ -104,22 +109,33 @@
 		message = '';
 	}
 
-	async function resend(event: SubmitEvent) {
-		event.preventDefault();
+	async function resend() {
 		resendMessage = '';
 		resendPending = true;
 		try {
 			const result = await authRequest('/api/auth/email-verification', { method: 'PATCH' });
 			resendMessage = result.message ?? 'A new code was sent.';
+			setResendAvailability(result);
 		} catch (cause) {
 			if (cause instanceof AuthAPIError && cause.modal) {
 				await onComplete?.(cause.modal);
 				return;
 			}
+			if (cause instanceof AuthAPIError) setResendAvailability(cause);
 			resendMessage = cause instanceof Error ? cause.message : 'Unable to resend the code';
 		} finally {
 			resendPending = false;
 		}
+	}
+
+	function setResendAvailability(value: { retryAfterSeconds?: unknown }) {
+		const retryAfterSeconds =
+			typeof value.retryAfterSeconds === 'number' &&
+			Number.isFinite(value.retryAfterSeconds) &&
+			value.retryAfterSeconds >= 0
+				? Math.ceil(value.retryAfterSeconds)
+				: EMAIL_CODE_SEND_INTERVAL_SECONDS;
+		resendAvailableAt = Date.now() + retryAfterSeconds * 1000;
 	}
 
 	async function logout() {
@@ -221,23 +237,21 @@
 		</form>
 
 		{#if kind === 'email'}
-			<form class="mt-4" onsubmit={resend}>
+			<div class="mt-4">
 				<p class="text-center text-sm text-muted-foreground">
 					Didn&apos;t receive it?
-					<button
-						type="submit"
-						class="font-medium text-foreground underline underline-offset-4 hover:text-primary disabled:opacity-50"
-						disabled={resendPending}
-					>
-						{resendPending ? 'Sending…' : 'Send another code'}
-					</button>
+					<ResendCodeButton
+						availableAt={resendAvailableAt}
+						pending={resendPending}
+						onclick={resend}
+					/>
 				</p>
 				{#if resendMessage}
 					<p class="mt-2 text-center text-sm text-muted-foreground" aria-live="polite">
 						{resendMessage}
 					</p>
 				{/if}
-			</form>
+			</div>
 		{/if}
 		{#if kind === 'email'}
 			<div class="mt-3 text-center">

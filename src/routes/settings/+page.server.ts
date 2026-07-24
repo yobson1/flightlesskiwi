@@ -14,11 +14,15 @@ import {
 	isSessionRecentlyReauthenticated
 } from '$lib/server/auth';
 import { requireVerifiedPage } from '$lib/server/auth/api';
-import { sendVerificationEmail } from '$lib/server/auth/email';
+import {
+	checkCodeEmailSendRateLimit,
+	CodeEmailRateLimitError,
+	getCodeEmailSendRetryAfterSeconds,
+	sendVerificationEmail
+} from '$lib/server/auth/email';
 import {
 	createEmailVerificationRequest,
 	deleteEmailVerificationRequestCookie,
-	sendVerificationEmailBucket,
 	setEmailVerificationRequestCookie
 } from '$lib/server/auth/email-verification';
 import { verifyPasswordStrength } from '$lib/server/auth/password';
@@ -175,9 +179,6 @@ async function updateEmail(event: RequestEvent) {
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
 		return reauthenticationRequired('email');
 	}
-	if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
-		return fail(429, { email: { message: 'Too many requests' } });
-	}
 	const formData = await event.request.formData();
 	const rawEmail = formData.get('email');
 	if (typeof rawEmail !== 'string') {
@@ -190,14 +191,23 @@ async function updateEmail(event: RequestEvent) {
 	if (!checkEmailAvailability(email)) {
 		return fail(400, { email: { message: 'Email is already used' } });
 	}
-	if (!sendVerificationEmailBucket.consume(event.locals.user.id, 1)) {
-		return fail(429, { email: { message: 'Too many requests' } });
+	if (!checkCodeEmailSendRateLimit(email)) {
+		return fail(429, {
+			email: {
+				message: `Try again in ${getCodeEmailSendRetryAfterSeconds(email)} seconds`
+			}
+		});
 	}
 	const request = createEmailVerificationRequest(event.locals.user.id, email);
 	setEmailVerificationRequestCookie(event, request);
 	try {
 		await sendVerificationEmail(request.email, request.code);
 	} catch (cause) {
+		if (cause instanceof CodeEmailRateLimitError) {
+			return fail(429, {
+				email: { message: `Try again in ${cause.retryAfterSeconds} seconds` }
+			});
+		}
 		logError('Failed to send email-change verification email', cause);
 		return fail(503, {
 			email: { message: 'The verification email could not be sent' }

@@ -3,15 +3,21 @@ import type { AuthAPIErrorResponse, AuthAPIResponse, AuthModalView } from '$lib/
 export class AuthAPIError extends Error {
 	readonly modal: AuthModalView | null;
 	readonly reauthenticationRequired: boolean;
+	readonly retryAfterSeconds: number;
 
 	constructor(
 		message: string,
-		options: { modal?: AuthModalView; reauthenticationRequired?: boolean }
+		options: {
+			modal?: AuthModalView;
+			reauthenticationRequired?: boolean;
+			retryAfterSeconds?: number;
+		}
 	) {
 		super(message);
 		this.name = 'AuthAPIError';
 		this.modal = options.modal ?? null;
 		this.reauthenticationRequired = options.reauthenticationRequired ?? false;
+		this.retryAfterSeconds = options.retryAfterSeconds ?? 0;
 	}
 }
 
@@ -27,7 +33,8 @@ export async function authRequest(
 			error?.message || response.statusText || 'Authentication request failed',
 			{
 				modal: error?.modal,
-				reauthenticationRequired: error?.reauthenticationRequired
+				reauthenticationRequired: error?.reauthenticationRequired,
+				retryAfterSeconds: error?.retryAfterSeconds
 			}
 		);
 	}

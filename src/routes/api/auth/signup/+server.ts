@@ -2,7 +2,12 @@ import { error as logError } from '$lib/logger';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '$lib/auth-constants';
 import { createSessionAndSetCookie, type SessionFlags } from '$lib/server/auth';
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
-import { sendVerificationEmail } from '$lib/server/auth/email';
+import {
+	checkCodeEmailSendRateLimit,
+	CodeEmailRateLimitError,
+	getCodeEmailSendRetryAfterSeconds,
+	sendVerificationEmail
+} from '$lib/server/auth/email';
 import {
 	createEmailVerificationRequest,
 	setEmailVerificationRequestCookie
@@ -53,6 +58,11 @@ export async function POST(event: RequestEvent) {
 	if (!ipBucket.consume(clientIP, 1)) return authError(429, 'Too many requests');
 	if (!checkEmailAvailability(email)) return authError(400, 'Email is already used');
 	if (!checkUsernameAvailability(username)) return authError(400, 'Username is already used');
+	if (!checkCodeEmailSendRateLimit(email)) {
+		return authError(429, 'Too many requests', {
+			retryAfterSeconds: getCodeEmailSendRetryAfterSeconds(email)
+		});
+	}
 
 	let user;
 	try {
@@ -73,12 +83,21 @@ export async function POST(event: RequestEvent) {
 	const flags: SessionFlags = { twoFactorVerified: false };
 	createSessionAndSetCookie(event, user.id, flags);
 	try {
-		await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
+		const retryAfterSeconds = await sendVerificationEmail(
+			verificationRequest.email,
+			verificationRequest.code
+		);
+		return authSuccess('verify-email', { retryAfterSeconds });
 	} catch (cause) {
-		logError('Failed to send signup verification email', cause);
+		if (!(cause instanceof CodeEmailRateLimitError)) {
+			logError('Failed to send signup verification email', cause);
+		}
 		return authSuccess('verify-email', {
-			message: 'Account created. Use “Send another code” to retry the verification email.'
+			message: 'Account created. Use “Send another code” to retry the verification email.',
+			retryAfterSeconds:
+				cause instanceof CodeEmailRateLimitError
+					? cause.retryAfterSeconds
+					: getCodeEmailSendRetryAfterSeconds(verificationRequest.email)
 		});
 	}
-	return authSuccess('verify-email');
 }
