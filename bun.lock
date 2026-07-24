@@ -14,6 +14,7 @@
         "@eslint/compat": "^2.1.0",
         "@eslint/js": "^10.0.1",
         "@humanspeak/svelte-markdown": "^1.8.4",
+        "@humanspeak/svelte-virtual-list": "^0.5.13",
         "@iconify-json/line-md": "^1.2.16",
         "@iconify-json/simple-icons": "^1.2.91",
         "@internationalized/date": "^3.12.2",
@@ -161,6 +162,8 @@
     "@humanspeak/memory-cache": ["@humanspeak/memory-cache@1.1.2", "", {}, "sha512-6kmeqrCVThw4RYZsJ74l9cOdZQ84XHnGIzrv+Po49CZBNNVDEzi0CGsTx+KKmr/Hb6hY6yDGxeWTiz4VHkdsEg=="],
 
     "@humanspeak/svelte-markdown": ["@humanspeak/svelte-markdown@1.8.4", "", { "dependencies": { "@humanspeak/memory-cache": "^1.1.2", "github-slugger": "^2.0.0", "htmlparser2": "^12.0.0", "marked": "^18.0.5" }, "peerDependencies": { "katex": ">=0.16.0", "mermaid": ">=10.0.0", "shiki": ">=4.0.0", "svelte": "^5.0.0" }, "optionalPeers": ["katex", "mermaid", "shiki"] }, "sha512-wDx8nHKkYWMPpXkF0+Z1qJC6SyAGu0jqu3bT5lVqd1JdpFbbHG3yB3zMd6MTfQ1BOKox+wHMd7HMIGBCHhtBwg=="],
+
+    "@humanspeak/svelte-virtual-list": ["@humanspeak/svelte-virtual-list@0.5.13", "", { "dependencies": { "esm-env": "^1.2.2" }, "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-F75hlpZ/7SflG6FPomdT6cQVnp0TCPjyJYegye7KkwKUS0o58736zik5k8MRsSL9nb/sQ5lTvM2++aSQ1SjzLw=="],
 
     "@humanwhocodes/module-importer": ["@humanwhocodes/module-importer@1.0.1", "", {}, "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA=="],
 
