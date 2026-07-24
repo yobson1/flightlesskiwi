@@ -64,7 +64,7 @@
 			...baseOption,
 			color: series.map(({ colorIndex }) => getBenchmarkEChartSeriesColor(theme, colorIndex)),
 			grid: {
-				bottom: showLegend ? 52 : 40,
+				bottom: showLegend ? 64 : 40,
 				containLabel: false,
 				left: leftPadding,
 				right: rightPadding,
