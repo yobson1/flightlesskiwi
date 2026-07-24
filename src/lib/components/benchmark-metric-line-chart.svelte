@@ -45,6 +45,7 @@
 		formatMetricValue,
 		getBenchmarkMetricUnit,
 		hasNonZeroMetricValues,
+		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
@@ -82,7 +83,7 @@
 			return [
 				{
 					key: run.id,
-					label: run.originalName,
+					label: stripFileExtension(run.originalName),
 					points
 				}
 			];

@@ -9,7 +9,8 @@ import {
 	hasNonZeroMetricValues,
 	percentagesRelativeToMinimum,
 	percentileMetricValue,
-	sortBenchmarkChartRunsByAverageFps
+	sortBenchmarkChartRunsByAverageFps,
+	stripFileExtension
 } from './benchmark-chart';
 
 describe('benchmark chart metric helpers', () => {
@@ -25,6 +26,13 @@ describe('benchmark chart metric helpers', () => {
 		expect(getBenchmarkMetricUnit('gpu_temp')).toBe('°C');
 		expect(getBenchmarkMetricUnit('unknown_metric')).toBe('');
 		expect(formatMetricValue(110, '%')).toBe('110%');
+	});
+
+	test('strips the final extension from benchmark filenames', () => {
+		expect(stripFileExtension('benchmark.csv')).toBe('benchmark');
+		expect(stripFileExtension('benchmark.high.csv')).toBe('benchmark.high');
+		expect(stripFileExtension('.hidden')).toBe('.hidden');
+		expect(stripFileExtension('benchmark')).toBe('benchmark');
 	});
 
 	test('calculates averages and interpolated percentiles while ignoring missing samples', () => {

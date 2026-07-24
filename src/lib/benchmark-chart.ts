@@ -45,6 +45,14 @@ export function formatBenchmarkMetricName(key: string): string {
 		.join(' ');
 }
 
+export function stripFileExtension(value: string): string {
+	const lastSeparator = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+	const lastDot = value.lastIndexOf('.');
+	return lastDot > lastSeparator + 1 && lastDot < value.length - 1
+		? value.slice(0, lastDot)
+		: value;
+}
+
 export function getBenchmarkMetricUnit(key: string): string {
 	return METRIC_UNITS[key] ?? '';
 }

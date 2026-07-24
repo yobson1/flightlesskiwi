@@ -5,6 +5,7 @@
 		getBenchmarkChartColorIndex,
 		getBenchmarkMetricUnit,
 		hasNonZeroMetricValues,
+		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
 	import BenchmarkHorizontalBarChart from '$lib/components/benchmark-horizontal-bar-chart.svelte';
@@ -24,7 +25,7 @@
 			const metric = run.mangoHudData?.metrics.find(({ key }) => key === metricKey);
 			if (!metric || !hasNonZeroMetricValues(metric.values)) return [];
 			const average = averageMetricValues(metric.values);
-			return average === null ? [] : [{ run: run.originalName, average }];
+			return average === null ? [] : [{ run: stripFileExtension(run.originalName), average }];
 		})
 	);
 	const series = $derived([

@@ -5,6 +5,7 @@
 		hasNonZeroMetricValues,
 		percentagesRelativeToMinimum,
 		percentileMetricValue,
+		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
 	import BenchmarkHorizontalBarChart from '$lib/components/benchmark-horizontal-bar-chart.svelte';
@@ -26,7 +27,7 @@
 			const high = percentileMetricValue(fps.values, 0.97);
 			return low === null || average === null || high === null
 				? []
-				: [{ run: run.originalName, low, average, high }];
+				: [{ run: stripFileExtension(run.originalName), low, average, high }];
 		})
 	);
 	const series = [
