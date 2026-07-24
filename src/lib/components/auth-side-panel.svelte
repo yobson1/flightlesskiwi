@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ChartNoAxesCombinedIcon from '@lucide/svelte/icons/chart-no-axes-combined';
 	import ShaderRenderer from '$lib/components/shader-renderer.svelte';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import Wordmark from '$lib/components/wordmark.svelte';
 	import fragShaderSource from '$lib/shaders/isovalues/frag.glsl?raw';
 	import vertShaderSource from '$lib/shaders/isovalues/vert.glsl?raw';
@@ -44,18 +45,20 @@
 		<Wordmark size="large" />
 	</div>
 
-	<div class="relative mx-8 rounded-xl border bg-card p-4 ring-1 ring-foreground/10">
-		<div class="mb-3 flex items-center justify-between">
-			<div class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+	<Card.Root class="relative mx-8">
+		<Card.Header>
+			<Card.Title class="flex items-center gap-2 text-sm text-muted-foreground">
 				<ChartNoAxesCombinedIcon class="size-4" />
 				Run comparison
-			</div>
-			<span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-				<span class="size-1.5 rounded-full bg-emerald-500"></span>
-				2 runs
-			</span>
-		</div>
-		<div class="space-y-3">
+			</Card.Title>
+			<Card.Action>
+				<span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+					<span class="size-1.5 rounded-full bg-emerald-500"></span>
+					2 runs
+				</span>
+			</Card.Action>
+		</Card.Header>
+		<Card.Content class="space-y-3">
 			{#each runs as run, index (run.label)}
 				<div>
 					<div class="mb-1 flex items-baseline justify-between gap-2">
@@ -79,8 +82,8 @@
 					</div>
 				</div>
 			{/each}
-		</div>
-	</div>
+		</Card.Content>
+	</Card.Root>
 
 	<p class="relative max-w-xs p-8 leading-relaxed text-balance text-muted-foreground">
 		Upload MangoHud or PresentMon output and see exactly how each run compares.
