@@ -160,7 +160,7 @@
 	<title>Settings · flightlesskiwi</title>
 </svelte:head>
 
-<div class="mx-auto flex w-full max-w-4xl flex-col gap-8">
+<div class="flex flex-col gap-8">
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
 		<div>
 			<p class="text-sm font-medium text-primary">Your account</p>

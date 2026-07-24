@@ -266,7 +266,7 @@
 		</nav>
 	</header>
 	<main class="flex flex-1 justify-center px-4 py-8">
-		<div class="w-4/5 max-w-7xl min-w-80">
+		<div class="w-full max-w-7xl">
 			{@render children?.()}
 		</div>
 	</main>

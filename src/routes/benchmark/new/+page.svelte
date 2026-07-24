@@ -101,7 +101,7 @@
 	<title>Upload benchmark · flightlesskiwi</title>
 </svelte:head>
 
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
+<div class="flex flex-col gap-6">
 	<div>
 		<p class="text-sm font-medium text-primary">Share your results</p>
 		<h1 class="text-3xl font-bold tracking-tight">Upload benchmark</h1>
