@@ -18,6 +18,7 @@ export type AuthModalView = (typeof AUTH_MODAL_VIEWS)[number];
 export interface ClientAuthState {
 	user: {
 		email: string;
+		verificationEmail: string;
 		username: string;
 		emailVerified: boolean;
 		registeredTOTP: boolean;

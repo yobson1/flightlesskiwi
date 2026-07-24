@@ -68,7 +68,7 @@
 					toast.error(getActionMessage(result.data, 'Unable to update settings'));
 				} else if (result.type === 'success') {
 					onSuccess?.(result.data);
-					toast.success(successMessage);
+					toast.success(getActionMessage(result.data, successMessage));
 				}
 				await update({
 					reset: result.type === 'success',
@@ -274,6 +274,9 @@
 									maxlength={MAX_EMAIL_LENGTH}
 									required
 								/>
+								<Field.Description>
+									We’ll send a verification code to the new address before updating your account.
+								</Field.Description>
 							</Field.Field>
 							<Button type="submit" class="w-full sm:w-auto">Update email</Button>
 						</Field.Group>

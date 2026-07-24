@@ -206,7 +206,7 @@
 				{:else if view === 'signup'}
 					<SignupForm onSwitchToLogin={() => switchView('login')} {onComplete} />
 				{:else if view === 'verify-email'}
-					<OTPForm kind="email" email={auth?.user.email} {onComplete} />
+					<OTPForm kind="email" email={auth?.user.verificationEmail} {onComplete} />
 				{:else if view === 'setup'}
 					<TwoFactorSetup
 						registeredPasskey={auth?.user.registeredPasskey ?? false}

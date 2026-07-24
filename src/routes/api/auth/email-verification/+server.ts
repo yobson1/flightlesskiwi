@@ -7,16 +7,16 @@ import {
 	sendVerificationEmail
 } from '$lib/server/auth/email';
 import {
+	completeEmailVerificationRequest,
 	createEmailVerificationRequest,
 	deleteEmailVerificationRequestCookie,
-	deleteUserEmailVerificationRequest,
 	getUserEmailVerificationRequestFromRequest,
 	setEmailVerificationRequestCookie,
 	verifyEmailVerificationCode
 } from '$lib/server/auth/email-verification';
 import { invalidateUserPasswordResetSessions } from '$lib/server/auth/password-reset';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { updateUserEmailAndSetEmailAsVerified } from '$lib/server/auth/user';
+import { isUserUniqueConstraintError } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
 
 const verifyBucket = new ExpiringTokenBucket<string>('email-verification-code', 5, 30 * 60);
@@ -37,11 +37,12 @@ export async function POST(event: RequestEvent) {
 			retryAfterSeconds: getCodeEmailSendRetryAfterSeconds(current.email)
 		});
 	}
-	if (!checkCodeEmailSendRateLimit(user.email)) {
-		return verificationEmailRateLimitError(user.email);
+	const email = current?.email ?? user.email;
+	if (!checkCodeEmailSendRateLimit(email)) {
+		return verificationEmailRateLimitError(email);
 	}
 
-	const request = createEmailVerificationRequest(user.id, user.email);
+	const request = createEmailVerificationRequest(user.id, email);
 	setEmailVerificationRequestCookie(event, request);
 	try {
 		const retryAfterSeconds = await sendVerificationEmail(request.email, request.code);
@@ -75,12 +76,22 @@ export async function PUT(event: RequestEvent) {
 		return authError(400, 'Incorrect or expired code');
 	}
 
+	const isEmailChange = request.email !== user.email;
 	verifyBucket.reset(user.id);
-	deleteUserEmailVerificationRequest(user.id);
+	try {
+		if (!completeEmailVerificationRequest(request)) {
+			return authError(401, 'Verification request expired');
+		}
+	} catch (cause) {
+		if (isUserUniqueConstraintError(cause, 'email')) {
+			return authError(409, 'Email is already used');
+		}
+		logError('Failed to complete email verification', cause);
+		return authError(500, 'Unable to verify your email');
+	}
 	invalidateUserPasswordResetSessions(user.id);
-	updateUserEmailAndSetEmailAsVerified(user.id, request.email);
 	deleteEmailVerificationRequestCookie(event);
-	return authSuccess(user.registered2FA ? null : 'setup');
+	return authSuccess(isEmailChange || user.registered2FA ? null : 'setup');
 }
 
 export async function PATCH(event: RequestEvent) {

@@ -24,8 +24,11 @@ import {
 	sendVerificationEmail
 } from '$lib/server/auth/email';
 import {
-	createEmailVerificationRequest,
+	cancelEmailChangeVerificationRequest,
+	createEmailChangeVerificationRequest,
 	deleteEmailVerificationRequestCookie,
+	getUserEmailVerificationRequest,
+	setUserEmailAsUnverified,
 	setEmailVerificationRequestCookie
 } from '$lib/server/auth/email-verification';
 import { verifyPasswordStrength } from '$lib/server/auth/password';
@@ -193,6 +196,16 @@ async function updateEmail(event: RequestEvent) {
 	if (!verifyEmailInput(email)) {
 		return fail(400, { email: { message: 'Invalid email' } });
 	}
+	const pendingRequest = getUserEmailVerificationRequest(event.locals.user.id);
+	if (pendingRequest !== null && pendingRequest.expiresAt.getTime() > Date.now()) {
+		setUserEmailAsUnverified(event.locals.user.id);
+		setEmailVerificationRequestCookie(event, pendingRequest);
+		return {
+			email: {
+				message: 'Finish verifying your pending email change before starting another one'
+			}
+		};
+	}
 	if (!checkEmailAvailability(email)) {
 		return fail(400, { email: { message: 'Email is already used' } });
 	}
@@ -203,11 +216,22 @@ async function updateEmail(event: RequestEvent) {
 			}
 		});
 	}
-	const request = createEmailVerificationRequest(event.locals.user.id, email);
-	setEmailVerificationRequestCookie(event, request);
+	const creation = createEmailChangeVerificationRequest(event.locals.user.id, email);
+	if (!creation.created) {
+		setUserEmailAsUnverified(event.locals.user.id);
+		setEmailVerificationRequestCookie(event, creation.request);
+		return {
+			email: {
+				message: 'Finish verifying your pending email change before starting another one'
+			}
+		};
+	}
+	const request = creation.request;
 	try {
 		await sendVerificationEmail(request.email, request.code);
 	} catch (cause) {
+		cancelEmailChangeVerificationRequest(request);
+		deleteEmailVerificationRequestCookie(event);
 		if (cause instanceof CodeEmailRateLimitError) {
 			return fail(429, {
 				email: { message: `Try again in ${cause.retryAfterSeconds} seconds` }
@@ -218,6 +242,7 @@ async function updateEmail(event: RequestEvent) {
 			email: { message: 'The verification email could not be sent' }
 		});
 	}
+	setEmailVerificationRequestCookie(event, request);
 	return { email: { message: 'Verification email sent' } };
 }
 

@@ -165,13 +165,6 @@ export async function updateUserPassword(userId: string, password: string): Prom
 	});
 }
 
-export function updateUserEmailAndSetEmailAsVerified(userId: string, email: string): void {
-	db.update(userTable)
-		.set({ email: normalizeEmail(email), emailVerified: true })
-		.where(eq(userTable.id, userId))
-		.run();
-}
-
 export function setUserAsEmailVerifiedIfEmailMatches(userId: string, email: string): boolean {
 	const result = db
 		.update(userTable)
