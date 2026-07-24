@@ -29,6 +29,7 @@ import {
 	type WebAuthnUserCredential
 } from '$lib/server/auth/webauthn';
 import { hashSecret } from '$lib/server/auth/utils';
+import { formatAAGUID } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
 export function verifyWebAuthnRegistration(
@@ -81,6 +82,7 @@ export function verifyWebAuthnRegistration(
 
 	return {
 		id: authenticatorData.credential.id,
+		aaguid: formatAAGUID(authenticatorData.credential.authenticatorAAGUID),
 		algorithmId: publicKey.algorithm(),
 		publicKey: encodedPublicKey,
 		signCount: authenticatorData.signatureCounter

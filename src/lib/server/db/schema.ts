@@ -103,6 +103,7 @@ export const passkeyCredential = sqliteTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
+		aaguid: text('aaguid'),
 		algorithm: integer('algorithm').notNull(),
 		publicKey: blob('public_key', { mode: 'buffer' }).notNull(),
 		signCount: integer('sign_count').notNull().default(0),

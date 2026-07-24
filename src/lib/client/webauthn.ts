@@ -1,4 +1,8 @@
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
+import {
+	fetchPasskeyAuthenticatorMetadata,
+	formatAAGUID
+} from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
 export async function createWebAuthnChallenge(
@@ -99,19 +103,22 @@ export async function createWebAuthnRegistration(options: {
 		throw new Error('The authenticator returned an invalid response');
 	}
 
+	let suggestedName = '';
+	try {
+		const authenticatorData = new Uint8Array(response.getAuthenticatorData());
+		if (authenticatorData.byteLength >= 53 && (authenticatorData[32]! & 0x40) !== 0) {
+			const aaguid = formatAAGUID(authenticatorData.slice(37, 53));
+			suggestedName = (await fetchPasskeyAuthenticatorMetadata())[aaguid]?.name ?? '';
+		}
+	} catch {
+		// Metadata is optional; a passkey can still be named manually.
+	}
+
 	return {
 		attestation_object: encodeBase64(new Uint8Array(response.attestationObject)),
 		client_data_json: encodeBase64(new Uint8Array(response.clientDataJSON)),
-		suggested_name: getSuggestedPasskeyName(response)
+		suggested_name: suggestedName
 	};
-}
-
-function getSuggestedPasskeyName(response: AuthenticatorAttestationResponse): string {
-	const transports = response.getTransports?.() ?? [];
-	if (transports.includes('hybrid')) return 'Phone or tablet';
-	if (transports.includes('usb') || transports.includes('nfc')) return 'Security key';
-	if (transports.includes('internal')) return 'This device';
-	return 'My passkey';
 }
 
 function verifyWebAuthnSupport(): void {

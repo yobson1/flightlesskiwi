@@ -98,6 +98,7 @@ export function createPasskeyCredential(credential: WebAuthnUserCredential): voi
 			id: encodeBase64url(credential.id),
 			userId: credential.userId,
 			name: credential.name,
+			aaguid: credential.aaguid,
 			algorithm: credential.algorithmId,
 			publicKey: Buffer.from(credential.publicKey),
 			signCount: credential.signCount,
@@ -150,6 +151,7 @@ function toCredential(row: typeof passkeyCredential.$inferSelect): WebAuthnUserC
 		id: decodeBase64url(row.id),
 		userId: row.userId,
 		name: row.name,
+		aaguid: row.aaguid,
 		algorithmId: row.algorithm,
 		publicKey: row.publicKey,
 		signCount: row.signCount
@@ -160,6 +162,7 @@ export interface WebAuthnUserCredential {
 	id: Uint8Array;
 	userId: string;
 	name: string;
+	aaguid: string | null;
 	algorithmId: number;
 	publicKey: Uint8Array;
 	signCount: number;

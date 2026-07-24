@@ -1,6 +1,7 @@
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { fail } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
+import { fetchPasskeyAuthenticatorMetadata } from '$lib/passkey-authenticator-metadata';
 import {
 	createSession,
 	deleteSessionTokenCookie,
@@ -41,17 +42,21 @@ import type { Actions, RequestEvent } from './$types';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>('password-update', 5, 30 * 60);
 
-export function load(event: RequestEvent) {
+export async function load(event: RequestEvent) {
 	event.setHeaders({ 'cache-control': 'no-store' });
 	const { session, user } = requireVerifiedPage(event);
 	const passkeyCredentials = getUserPasskeyCredentials(user.id);
+	const authenticatorMetadata =
+		passkeyCredentials.length > 0 ? await fetchPasskeyAuthenticatorMetadata(event.fetch) : {};
 	return {
 		user,
 		recoveryCodeConfigured: user.recoveryCodeConfigured,
 		recentlyReauthenticated: isSessionRecentlyReauthenticated(session),
 		passkeyCredentials: passkeyCredentials.map((credential) => ({
 			id: encodeBase64(credential.id),
-			name: credential.name
+			name: credential.name,
+			iconDark: credential.aaguid ? authenticatorMetadata[credential.aaguid]?.iconDark : undefined,
+			iconLight: credential.aaguid ? authenticatorMetadata[credential.aaguid]?.iconLight : undefined
 		}))
 	};
 }

@@ -110,7 +110,7 @@
 						<Input
 							id="passkey-name"
 							bind:value={name}
-							placeholder={registration.suggested_name}
+							placeholder={registration.suggested_name || 'Passkey name'}
 							autocomplete="off"
 							maxlength={64}
 							disabled={pending}

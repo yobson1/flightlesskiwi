@@ -430,7 +430,20 @@
 							{#each data.passkeyCredentials as credential, index (credential.id)}
 								<div class="flex items-center justify-between gap-3 p-3">
 									<div class="flex min-w-0 items-center gap-3">
-										<FingerprintIcon class="size-4 shrink-0 text-muted-foreground" />
+										{#if credential.iconLight || credential.iconDark}
+											<img
+												src={credential.iconLight ?? credential.iconDark}
+												alt=""
+												class="size-4 shrink-0 object-contain dark:hidden"
+											/>
+											<img
+												src={credential.iconDark ?? credential.iconLight}
+												alt=""
+												class="hidden size-4 shrink-0 object-contain dark:block"
+											/>
+										{:else}
+											<FingerprintIcon class="size-4 shrink-0 text-muted-foreground" />
+										{/if}
 										<span class="truncate text-sm font-medium">{credential.name}</span>
 									</div>
 									<form
