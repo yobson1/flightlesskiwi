@@ -5,7 +5,6 @@
 	import LaptopIcon from '@lucide/svelte/icons/laptop';
 	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
 	import Game from '$lib/components/game.svelte';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -26,12 +25,12 @@
 	<title>{data.benchmark.title} · flightlesskiwi</title>
 </svelte:head>
 
-<div class="flex flex-col gap-8">
-	<Game gameId={data.benchmark.gameId} />
+<div class="grid items-start gap-8 lg:grid-cols-2">
+	<div class="min-w-0">
+		<Game gameId={data.benchmark.gameId} />
+	</div>
 
-	<Separator />
-
-	<article>
+	<article class="min-w-0 lg:border-l lg:pl-8">
 		<p class="text-sm font-medium text-primary">Benchmark result</p>
 		<h1 class="text-3xl font-bold tracking-tight">{data.benchmark.title}</h1>
 		<p class="mt-2 text-sm text-muted-foreground">
@@ -43,7 +42,7 @@
 
 		<section class="mt-6" aria-labelledby="included-runs-heading">
 			<h2 id="included-runs-heading" class="mb-3 text-lg font-semibold">Included runs</h2>
-			<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+			<div class="grid gap-3 sm:grid-cols-2">
 				{#each data.runs as run (run.id)}
 					<div class="min-w-0 rounded-xl border bg-card p-4 text-card-foreground">
 						<div class="flex min-w-0 items-center gap-2">
