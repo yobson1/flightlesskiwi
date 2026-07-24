@@ -109,7 +109,7 @@
 		onQueryChange={setActiveSearchQuery}
 		onClear={resetBenchmarkList}
 		inputId="benchmark-search"
-		placeholder="Search benchmarks by title or game..."
+		placeholder="Search benchmarks by title, game or run configuration..."
 	/>
 
 	{#if benchmarks.length > 0}
