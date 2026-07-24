@@ -1,4 +1,8 @@
 <script lang="ts">
+	import DownloadIcon from '@lucide/svelte/icons/download';
+	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import { enhance } from '$app/forms';
 	import SvelteMarkdown, {
 		buildUnsupportedHTML,
 		defaultRenderers
@@ -6,9 +10,14 @@
 	import BenchmarkCharts from '$lib/components/benchmark-charts.svelte';
 	import BenchmarkRunCard from '$lib/components/benchmark-run-card.svelte';
 	import Game from '$lib/components/game.svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { toast } from 'svelte-sonner';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+	let deleting = $state(false);
 
 	const dateFormatter = new Intl.DateTimeFormat('en', {
 		dateStyle: 'long',
@@ -18,6 +27,32 @@
 		...defaultRenderers,
 		html: buildUnsupportedHTML()
 	};
+
+	const deleteSubmit: SubmitFunction = () => {
+		deleting = true;
+
+		return async ({ result, update }) => {
+			deleting = false;
+			if (result.type === 'failure') {
+				toast.error(getMessage(result.data, 'Unable to delete benchmark'));
+			} else if (result.type === 'error') {
+				toast.error('Unable to delete benchmark');
+			}
+			await update({ reset: false });
+		};
+	};
+
+	function getMessage(value: unknown, fallback: string): string {
+		if (
+			typeof value === 'object' &&
+			value !== null &&
+			'message' in value &&
+			typeof value.message === 'string'
+		) {
+			return value.message;
+		}
+		return fallback;
+	}
 </script>
 
 <svelte:head>
@@ -34,14 +69,60 @@
 			class="min-w-0 lg:absolute lg:inset-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-l lg:pl-8"
 		>
 			<div class="shrink-0">
-				<p class="text-sm font-medium text-primary">Benchmark result</p>
-				<h1 class="text-3xl font-bold tracking-tight">{data.benchmark.title}</h1>
-				<p class="mt-2 text-sm text-muted-foreground">
-					Uploaded by {data.benchmark.username} on
-					<time datetime={data.benchmark.createdAt.toISOString()}>
-						{dateFormatter.format(data.benchmark.createdAt)}
-					</time>
-				</p>
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+					<div class="min-w-0">
+						<p class="text-sm font-medium text-primary">Benchmark result</p>
+						<h1 class="text-3xl font-bold tracking-tight">{data.benchmark.title}</h1>
+						<p class="mt-2 text-sm text-muted-foreground">
+							Uploaded by {data.benchmark.username} on
+							<time datetime={data.benchmark.createdAt.toISOString()}>
+								{dateFormatter.format(data.benchmark.createdAt)}
+							</time>
+						</p>
+					</div>
+					<div class="flex shrink-0 gap-2">
+						<Button href={`/benchmark/${data.benchmark.id}/download`} variant="outline">
+							<DownloadIcon />
+							Download
+						</Button>
+						{#if data.canDelete}
+							<AlertDialog.Root>
+								<AlertDialog.Trigger class="inline-flex">
+									{#snippet child({ props })}
+										<Button variant="destructive" {...props}>
+											<Trash2Icon />
+											Delete
+										</Button>
+									{/snippet}
+								</AlertDialog.Trigger>
+								<AlertDialog.Content>
+									<form method="POST" action="?/delete" use:enhance={deleteSubmit}>
+										<div class="grid gap-4">
+											<AlertDialog.Header>
+												<AlertDialog.Title>Delete this benchmark?</AlertDialog.Title>
+												<AlertDialog.Description>
+													This permanently deletes the benchmark and its uploaded files. This action
+													cannot be undone.
+												</AlertDialog.Description>
+											</AlertDialog.Header>
+											<AlertDialog.Footer>
+												<AlertDialog.Cancel type="button">Cancel</AlertDialog.Cancel>
+												<Button type="submit" variant="destructive" disabled={deleting}>
+													{#if deleting}
+														<LoaderIcon class="animate-spin" />
+														Deleting…
+													{:else}
+														Delete benchmark
+													{/if}
+												</Button>
+											</AlertDialog.Footer>
+										</div>
+									</form>
+								</AlertDialog.Content>
+							</AlertDialog.Root>
+						{/if}
+					</div>
+				</div>
 			</div>
 
 			{#if data.benchmark.description}

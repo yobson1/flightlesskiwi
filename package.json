@@ -45,6 +45,7 @@
 		"@types/node": "^26.1.1",
 		"@types/nodemailer": "^8.0.1",
 		"@types/qrcode": "^1.5.6",
+		"@types/tar-stream": "^3.1.4",
 		"apicalypse": "^1.0.5",
 		"better-sqlite3": "^13.0.1",
 		"bits-ui": "^2.18.1",
@@ -79,6 +80,7 @@
 		"@oslojs/otp": "^1.1.0",
 		"@oslojs/webauthn": "^1.0.0",
 		"nodemailer": "^9.0.3",
-		"qrcode": "^1.5.4"
+		"qrcode": "^1.5.4",
+		"tar-stream": "^3.2.0"
 	}
 }

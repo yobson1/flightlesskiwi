@@ -1,16 +1,21 @@
-import { error } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { and, eq } from 'drizzle-orm';
 import { error as logError } from '$lib/logger';
 import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from '$lib/mangohud';
-import { readBenchmarkFile } from '$lib/server/benchmark-files';
+import { requireVerifiedSession } from '$lib/server/auth/api';
+import { deleteBenchmarkFiles, readBenchmarkFile } from '$lib/server/benchmark-files';
+import { removeBenchmarksFromSearch } from '$lib/server/benchmark-search';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, user } from '$lib/server/db/schema';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
+	setHeaders({ 'cache-control': 'private, no-store' });
+
 	const benchmark = db
 		.select({
 			id: benchmarkResult.id,
+			userId: benchmarkResult.userId,
 			title: benchmarkResult.title,
 			description: benchmarkResult.description,
 			createdAt: benchmarkResult.createdAt,
@@ -50,5 +55,69 @@ export const load: PageServerLoad = async ({ params }) => {
 		})
 	);
 
-	return { benchmark, runs };
+	const { userId, ...publicBenchmark } = benchmark;
+	return {
+		benchmark: publicBenchmark,
+		runs,
+		canDelete: locals.user?.id === userId
+	};
+};
+
+export const actions: Actions = {
+	delete: async (event) => {
+		const authResult = requireVerifiedSession(event);
+		if (authResult.response) {
+			const responseData = (await authResult.response.json()) as { message?: string };
+			return fail(authResult.response.status, {
+				message: responseData.message ?? 'Sign in to delete this benchmark'
+			});
+		}
+
+		const benchmark = db
+			.select({ userId: benchmarkResult.userId })
+			.from(benchmarkResult)
+			.where(eq(benchmarkResult.id, event.params.id))
+			.get();
+		if (!benchmark) return fail(404, { message: 'Benchmark not found' });
+		if (benchmark.userId !== authResult.authenticated.user.id) {
+			return fail(403, { message: 'You can only delete your own benchmarks' });
+		}
+
+		const fileIds = db
+			.select({ id: benchmarkFile.id })
+			.from(benchmarkFile)
+			.where(eq(benchmarkFile.benchmarkId, event.params.id))
+			.all()
+			.map(({ id }) => id);
+
+		try {
+			const deleted = db
+				.delete(benchmarkResult)
+				.where(
+					and(
+						eq(benchmarkResult.id, event.params.id),
+						eq(benchmarkResult.userId, authResult.authenticated.user.id)
+					)
+				)
+				.returning({ id: benchmarkResult.id })
+				.get();
+			if (!deleted) return fail(404, { message: 'Benchmark not found' });
+		} catch (cause) {
+			logError(`Failed to delete benchmark ${event.params.id}`, cause);
+			return fail(500, { message: 'The benchmark could not be deleted. Please try again.' });
+		}
+
+		try {
+			await deleteBenchmarkFiles(fileIds);
+		} catch (cause) {
+			logError(`Failed to clean up files for deleted benchmark ${event.params.id}`, cause);
+		}
+		try {
+			await removeBenchmarksFromSearch([event.params.id]);
+		} catch (cause) {
+			logError(`Failed to remove deleted benchmark ${event.params.id} from search`, cause);
+		}
+
+		redirect(303, '/');
+	}
 };
