@@ -597,10 +597,8 @@ async function fetchGames(
 						.where(filter)
 						.request('/games');
 
-					if (!Array.isArray(response.data) || response.data.length !== pageSize) {
-						throw new Error(
-							`IGDB returned ${Array.isArray(response.data) ? response.data.length : 'invalid'} rows at offset ${pageOffset}; expected ${pageSize}`
-						);
+					if (!Array.isArray(response.data)) {
+						throw new Error(`IGDB returned an invalid response at offset ${pageOffset}`);
 					}
 
 					return response;
@@ -646,9 +644,7 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 			totalGames - importedGames
 		);
 
-		if (games.length !== expectedGames) {
-			throw new Error(`IGDB returned ${games.length} games; expected ${expectedGames}`);
-		}
+		const reachedEndOfResults = games.length < expectedGames;
 
 		for (const relationship of syncGames(games)) {
 			relationships.set(relationship.id, relationship);
@@ -663,6 +659,13 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 				gameSearchReady = false;
 				warn('Game search indexing failed; queued games will be retried on restart', cause);
 			}
+		}
+
+		if (reachedEndOfResults) {
+			warn(
+				`IGDB returned ${games.length} games at offset ${importedGames - games.length}; expected ${expectedGames}. Treating the short page as the end of the result set`
+			);
+			break;
 		}
 	}
 
@@ -724,7 +727,7 @@ function startIgdbSync() {
 			await igdbSync(getLastSyncTime(), gameSearchReady);
 		})
 		.catch((cause) => {
-			error('IGDB sync failed; it will resume from the previous checkpoint on restart', cause);
+			error('IGDB sync failed; the current sync window will restart from the beginning', cause);
 		})
 		.finally(() => {
 			if (syncGlobal.flightlesskiwiIgdbSync === sync) {
