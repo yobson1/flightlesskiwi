@@ -5,6 +5,7 @@
 		buildSharedMetricChartData,
 		formatBenchmarkMetricName,
 		formatMetricValue,
+		getBenchmarkChartBottomLayout,
 		getBenchmarkMetricUnit,
 		hasNonZeroMetricValues,
 		type BenchmarkChartRun
@@ -59,6 +60,7 @@
 		) satisfies Chart.ChartConfig
 	);
 	const hasLegend = $derived(series.length > 1);
+	const bottomLayout = $derived(getBenchmarkChartBottomLayout(hasLegend));
 </script>
 
 <BenchmarkChartCard
@@ -71,19 +73,18 @@
 		data={chartData}
 		x="timeSeconds"
 		{series}
+		brush
+		transform={{ mode: 'domain', axis: 'x' }}
 		legend={hasLegend ? { variant: 'swatches' } : false}
 		padding={{
 			left: 52,
 			right: 12,
-			bottom: hasLegend ? 76 : 44
+			bottom: bottomLayout.padding
 		}}
 		props={{
 			xAxis: {
 				label: 'Time (seconds)',
-				// LayerChart anchors both the bottom legend and the X-axis label to the
-				// bottom of the chart. Lift the label into the reserved padding so the
-				// swatches have their own row.
-				labelProps: hasLegend ? { dy: -24 } : undefined
+				labelProps: bottomLayout.xAxisLabelProps
 			},
 			yAxis: { label: unit || title },
 			spline: { strokeWidth: 1.75 }

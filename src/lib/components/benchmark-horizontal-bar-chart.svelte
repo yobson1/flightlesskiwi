@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { BarChart } from 'layerchart';
-	import { formatMetricValue } from '$lib/benchmark-chart';
+	import { formatMetricValue, getBenchmarkChartBottomLayout } from '$lib/benchmark-chart';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
 	import BenchmarkChartTooltip from '$lib/components/benchmark-chart-tooltip.svelte';
 	import type { ChartConfig } from '$lib/components/ui/chart';
@@ -48,6 +48,7 @@
 	const xAccessor = $derived(
 		series.length === 1 ? (series[0]?.value ?? series[0]?.key) : series.map(({ value }) => value)
 	);
+	const bottomLayout = $derived(getBenchmarkChartBottomLayout(showLegend));
 </script>
 
 <BenchmarkChartCard {title} {description} {config} {chartClass}>
@@ -67,12 +68,12 @@
 		padding={{
 			left: leftPadding,
 			right: rightPadding,
-			bottom: showLegend ? 52 : 44
+			bottom: bottomLayout.padding
 		}}
 		props={{
 			xAxis: {
 				label: unit || title,
-				labelProps: showLegend ? { dy: -24 } : undefined
+				labelProps: bottomLayout.xAxisLabelProps
 			},
 			yAxis: {
 				tickLabelProps: {

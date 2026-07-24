@@ -42,6 +42,21 @@ export const BENCHMARK_CHART_COLORS = [
 	'color-mix(in oklch, var(--chart-3), var(--chart-4) 45%)'
 ] as const;
 
+const BOTTOM_LAYOUT = {
+	withoutLegend: {
+		padding: 44,
+		xAxisLabelProps: undefined
+	},
+	withLegend: {
+		padding: 76,
+		xAxisLabelProps: { dy: -24 }
+	}
+} as const;
+
+export function getBenchmarkChartBottomLayout(hasLegend: boolean) {
+	return hasLegend ? BOTTOM_LAYOUT.withLegend : BOTTOM_LAYOUT.withoutLegend;
+}
+
 export function formatBenchmarkMetricName(key: string): string {
 	return key
 		.split(/[_\s-]+/)
