@@ -75,6 +75,7 @@
 		{series}
 		brush
 		transform={{ mode: 'domain', axis: 'x' }}
+		tooltipContext={{ mode: 'bisect-x' }}
 		legend={hasLegend ? { variant: 'swatches' } : false}
 		padding={{
 			left: 52,
