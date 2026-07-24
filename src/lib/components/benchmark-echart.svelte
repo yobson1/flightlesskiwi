@@ -22,26 +22,47 @@
 	let theme = $state.raw<BenchmarkEChartTheme>();
 	const option = $derived(theme ? createOption(theme) : undefined);
 
+	function activateDragZoom(instance: BenchmarkEChartInstance) {
+		instance.dispatchAction({
+			type: 'takeGlobalCursor',
+			key: 'dataZoomSelect',
+			dataZoomSelectActive: true
+		});
+	}
+
 	$effect(() => {
 		if (chart && option) {
 			chart.setOption(option, { notMerge: true });
 			if (dragZoom) {
-				chart.dispatchAction({
-					type: 'takeGlobalCursor',
-					key: 'dataZoomSelect',
-					dataZoomSelectActive: true
-				});
+				activateDragZoom(chart);
 			}
 		}
 	});
 
 	onMount(() => {
+		let resetZoom: ((event: unknown) => void) | undefined;
 		const render = () => {
 			if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
 
 			if (!chart) {
 				theme = readBenchmarkEChartTheme();
 				chart = createBenchmarkEChart(container);
+				if (dragZoom) {
+					resetZoom = (event: unknown) => {
+						const pointer = event as { offsetX?: number; offsetY?: number };
+						if (
+							typeof pointer.offsetX !== 'number' ||
+							typeof pointer.offsetY !== 'number' ||
+							!chart?.containPixel({ gridIndex: 0 }, [pointer.offsetX, pointer.offsetY])
+						) {
+							return;
+						}
+
+						chart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+						activateDragZoom(chart);
+					};
+					chart.getZr().on('click', resetZoom);
+				}
 			} else {
 				chart.resize();
 			}
@@ -61,6 +82,7 @@
 		return () => {
 			resizeObserver.disconnect();
 			themeObserver.disconnect();
+			if (resetZoom) chart?.getZr().off('click', resetZoom);
 			chart?.dispose();
 			chart = undefined;
 		};
