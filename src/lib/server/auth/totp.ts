@@ -3,19 +3,19 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { decodeBase64url, encodeBase64url } from '@oslojs/encoding';
 import { verifyHOTP } from '@oslojs/otp';
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
+import { TOTP_CODE_LENGTH } from '$lib/auth-constants';
 import { db } from '$lib/server/db';
 import { totpCredential } from '$lib/server/db/schema';
 import { decrypt, encrypt } from '$lib/server/auth/encryption';
 import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 
-export const totpBucket = new ExpiringTokenBucket<string>('totp-verify', 5, 30 * 60);
+const totpBucket = new ExpiringTokenBucket<string>('totp-verify', 5, 30 * 60);
 export const totpUpdateBucket = new RefillingTokenBucket<string>('totp-update', 3, 10 * 60);
 
 const TOTP_INTERVAL_SECONDS = 30;
-const TOTP_DIGITS = 6;
 
 export function isTOTPCode(value: unknown): value is string {
-	return typeof value === 'string' && /^\d{6}$/.test(value);
+	return typeof value === 'string' && value.length === TOTP_CODE_LENGTH && /^\d+$/.test(value);
 }
 
 export function generateTOTPKey(): Uint8Array {
@@ -64,11 +64,11 @@ function verifyAndConsumeUserTOTP(userId: string, code: string): boolean {
 	return consumed !== undefined;
 }
 
-export type TOTPVerificationResult = 'valid' | 'invalid' | 'rate-limited';
+type TOTPVerificationResult = 'valid' | 'invalid' | 'rate-limited';
 
 export function verifyTOTPKey(key: Uint8Array, code: string): number | null {
 	const counter = Math.floor(Date.now() / (TOTP_INTERVAL_SECONDS * 1000));
-	return verifyHOTP(key, BigInt(counter), TOTP_DIGITS, code) ? counter : null;
+	return verifyHOTP(key, BigInt(counter), TOTP_CODE_LENGTH, code) ? counter : null;
 }
 
 export function updateUserTOTPKey(userId: string, key: Uint8Array, lastUsedCounter: number): void {

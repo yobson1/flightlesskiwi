@@ -2,6 +2,7 @@
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
+	import { TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import type { AuthModalView } from '$lib/types/auth';
@@ -49,7 +50,7 @@
 				<span class="flex flex-col items-start">
 					<span>Set up an authenticator app</span>
 					<span class="text-xs font-normal opacity-75"
-						>Recommended · enter a six-digit code after signing in</span
+						>Recommended · enter a {TOTP_CODE_LENGTH_WORD}-digit code after signing in</span
 					>
 				</span>
 			</Button>

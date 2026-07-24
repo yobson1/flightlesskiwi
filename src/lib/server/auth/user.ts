@@ -1,4 +1,5 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
+import { MAX_EMAIL_LENGTH, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH } from '$lib/auth-constants';
 import { db } from '$lib/server/db';
 import {
 	loginAttempt,
@@ -15,13 +16,13 @@ export function normalizeEmail(email: string): string {
 }
 
 export function verifyEmailInput(email: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255;
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= MAX_EMAIL_LENGTH;
 }
 
 export function verifyUsernameInput(username: string): boolean {
 	return (
-		username.length >= 3 &&
-		username.length <= 31 &&
+		username.length >= MIN_USERNAME_LENGTH &&
+		username.length <= MAX_USERNAME_LENGTH &&
 		username.trim() === username &&
 		/^[\p{L}\p{N}_ -]+$/u.test(username)
 	);
@@ -179,18 +180,6 @@ export function setUserAsEmailVerifiedIfEmailMatches(userId: string, email: stri
 		.returning({ id: userTable.id })
 		.get();
 	return result !== undefined;
-}
-
-export function getUserRecoveryCodeHash(userId: string): string | null {
-	const row = db
-		.select({ recoveryCodeHash: userTable.recoveryCodeHash })
-		.from(userTable)
-		.where(eq(userTable.id, userId))
-		.get();
-	if (!row) {
-		throw new Error('Invalid user ID');
-	}
-	return row.recoveryCodeHash;
 }
 
 export async function resetUserRecoveryCode(userId: string): Promise<string> {

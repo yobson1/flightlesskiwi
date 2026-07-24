@@ -2,6 +2,7 @@
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
+	import { MAX_PASSWORD_LENGTH, TOTP_CODE_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -104,6 +105,7 @@
 							type="password"
 							bind:value={password}
 							autocomplete="current-password"
+							maxlength={MAX_PASSWORD_LENGTH}
 							disabled={pending}
 							required
 						/>
@@ -121,7 +123,7 @@
 						<Field.Label for="reauth-code" class="sr-only">Authenticator code</Field.Label>
 						<InputOTP.Root
 							id="reauth-code"
-							maxlength={6}
+							maxlength={TOTP_CODE_LENGTH}
 							class="justify-center"
 							bind:value={code}
 							disabled={pending}
@@ -135,7 +137,11 @@
 						</InputOTP.Root>
 						<input type="hidden" name="code" value={code} />
 					</Field.Field>
-					<Button type="submit" class="w-full" disabled={pending || code.length !== 6}>
+					<Button
+						type="submit"
+						class="w-full"
+						disabled={pending || code.length !== TOTP_CODE_LENGTH}
+					>
 						{#if pending}<LoaderCircleIcon class="animate-spin" />{/if}
 						Confirm authenticator code
 					</Button>

@@ -15,6 +15,14 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { getAuthModal } from '$lib/auth-modal';
+	import {
+		MAX_EMAIL_LENGTH,
+		MAX_PASSWORD_LENGTH,
+		MAX_USERNAME_LENGTH,
+		MIN_PASSWORD_LENGTH,
+		MIN_USERNAME_LENGTH,
+		TOTP_CODE_LENGTH_WORD
+	} from '$lib/auth-constants';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -221,12 +229,13 @@
 									name="username"
 									value={data.user.username}
 									autocomplete="username"
-									minlength={3}
-									maxlength={31}
+									minlength={MIN_USERNAME_LENGTH}
+									maxlength={MAX_USERNAME_LENGTH}
 									required
 								/>
 								<Field.Description>
-									3–31 letters, numbers, spaces, underscores, or hyphens. Usernames are unique.
+									{MIN_USERNAME_LENGTH}–{MAX_USERNAME_LENGTH} letters, numbers, spaces, underscores, or
+									hyphens. Usernames are unique.
 								</Field.Description>
 							</Field.Field>
 							<Button type="submit" class="w-full sm:w-auto">Update username</Button>
@@ -262,6 +271,7 @@
 									type="email"
 									value={data.user.email}
 									autocomplete="email"
+									maxlength={MAX_EMAIL_LENGTH}
 									required
 								/>
 							</Field.Field>
@@ -281,7 +291,7 @@
 					<div>
 						<Card.Title>Password</Card.Title>
 						<Card.Description>
-							Use at least 12 characters. Updating it signs out your other sessions.
+							Use at least {MIN_PASSWORD_LENGTH} characters. Updating it signs out your other sessions.
 						</Card.Description>
 					</div>
 				</div>
@@ -300,8 +310,8 @@
 								name="new_password"
 								type="password"
 								autocomplete="new-password"
-								minlength={12}
-								maxlength={255}
+								minlength={MIN_PASSWORD_LENGTH}
+								maxlength={MAX_PASSWORD_LENGTH}
 								required
 							/>
 						</Field.Field>
@@ -312,8 +322,8 @@
 								name="confirm_password"
 								type="password"
 								autocomplete="new-password"
-								minlength={12}
-								maxlength={255}
+								minlength={MIN_PASSWORD_LENGTH}
+								maxlength={MAX_PASSWORD_LENGTH}
 								required
 							/>
 						</Field.Field>
@@ -351,7 +361,7 @@
 								</Badge>
 							</div>
 							<p class="mt-1 text-sm text-muted-foreground">
-								Use a rotating six-digit code when signing in.
+								Use a rotating {TOTP_CODE_LENGTH_WORD}-digit code when signing in.
 							</p>
 						</div>
 					</div>

@@ -4,6 +4,7 @@
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import QRCode from 'qrcode';
+	import { TOTP_CODE_LENGTH, TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -80,7 +81,7 @@
 			<span aria-hidden="true"></span>
 		</div>
 		<Card.Description class="text-center text-balance">
-			Add this account in your authenticator app, then enter its six-digit code.
+			Add this account in your authenticator app, then enter its {TOTP_CODE_LENGTH_WORD}-digit code.
 		</Card.Description>
 	</Card.Header>
 	<Card.Content class="space-y-4">
@@ -120,7 +121,7 @@
 				<Field.Field class="items-center">
 					<Field.Label for="totp-setup-code" class="sr-only">Authenticator code</Field.Label>
 					<InputOTP.Root
-						maxlength={6}
+						maxlength={TOTP_CODE_LENGTH}
 						id="totp-setup-code"
 						class="justify-center"
 						bind:value={code}
@@ -141,7 +142,12 @@
 					<input type="hidden" name="code" value={code} />
 					{#if message}<Field.Error>{message}</Field.Error>{/if}
 				</Field.Field>
-				<Button type="submit" size="lg" class="w-full" disabled={pending || code.length !== 6}>
+				<Button
+					type="submit"
+					size="lg"
+					class="w-full"
+					disabled={pending || code.length !== TOTP_CODE_LENGTH}
+				>
 					{#if pending}
 						<LoaderCircleIcon class="animate-spin" />
 						Verifying…

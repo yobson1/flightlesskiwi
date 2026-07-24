@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import { MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH } from '$lib/auth-constants';
 	import { authFormRequest, authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
 	import favicon from '$lib/assets/favicon.svg';
@@ -102,6 +103,7 @@
 							bind:value={email}
 							placeholder="you@example.com"
 							autocomplete="email"
+							maxlength={MAX_EMAIL_LENGTH}
 							disabled={pending || passkeyPending}
 							required
 						/>
@@ -123,6 +125,7 @@
 							type="password"
 							bind:value={password}
 							autocomplete="current-password"
+							maxlength={MAX_PASSWORD_LENGTH}
 							disabled={pending || passkeyPending}
 							required
 						/>

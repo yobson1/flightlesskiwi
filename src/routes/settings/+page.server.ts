@@ -1,5 +1,11 @@
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { fail } from '@sveltejs/kit';
+import {
+	MAX_PASSWORD_LENGTH,
+	MAX_USERNAME_LENGTH,
+	MIN_PASSWORD_LENGTH,
+	MIN_USERNAME_LENGTH
+} from '$lib/auth-constants';
 import { error as logError } from '$lib/logger';
 import { fetchPasskeyAuthenticatorMetadata } from '$lib/passkey-authenticator-metadata';
 import {
@@ -90,7 +96,7 @@ async function updateUsername(event: RequestEvent) {
 	if (!verifyUsernameInput(username)) {
 		return fail(400, {
 			username: {
-				message: 'Username must be 3–31 letters, numbers, spaces, underscores, or hyphens'
+				message: `Username must be ${MIN_USERNAME_LENGTH}–${MAX_USERNAME_LENGTH} letters, numbers, spaces, underscores, or hyphens`
 			}
 		});
 	}
@@ -139,7 +145,7 @@ async function updatePassword(event: RequestEvent) {
 	if (!verifyPasswordStrength(newPassword)) {
 		return fail(400, {
 			password: {
-				message: 'New password must be between 12 and 255 characters'
+				message: `New password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`
 			}
 		});
 	}

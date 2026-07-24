@@ -14,11 +14,11 @@ const REAUTHENTICATION_TTL_MS = 1000 * 60 * 5;
 
 export const sessionCookieName = 'session';
 
-export function generateSessionToken(): string {
+function generateSessionToken(): string {
 	return `${generateSecureRandomString()}.${generateSecureRandomString()}`;
 }
 
-export function createSession(token: string, userId: string, flags: SessionFlags): Session {
+function createSession(token: string, userId: string, flags: SessionFlags): Session {
 	const tokenParts = parseSessionToken(token);
 	if (tokenParts === null) {
 		throw new Error('Invalid session token');
@@ -118,10 +118,6 @@ export function validateSessionToken(token: string): SessionValidationResult {
 
 export function invalidateSession(sessionId: string): void {
 	db.delete(sessionTable).where(eq(sessionTable.id, sessionId)).run();
-}
-
-export function invalidateUserSessions(userId: string): void {
-	db.delete(sessionTable).where(eq(sessionTable.userId, userId)).run();
 }
 
 export function setSessionAs2FAVerified(sessionId: string): void {

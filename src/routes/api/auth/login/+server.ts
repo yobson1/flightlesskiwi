@@ -7,7 +7,7 @@ import {
 	invalidateLoginAttemptRequest,
 	validateLoginAttemptRequest
 } from '$lib/server/auth/login-attempt';
-import { hashPassword, verifyPasswordHash } from '$lib/server/auth/password';
+import { hashPassword, isPasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import {
@@ -40,7 +40,7 @@ export async function POST(event: RequestEvent) {
 		return authError(400, 'Invalid or missing fields');
 	}
 	const email = normalizeEmail(rawEmail);
-	if (!verifyEmailInput(email) || password.length === 0 || password.length > 255) {
+	if (!verifyEmailInput(email) || !isPasswordInput(password)) {
 		return authError(400, 'Invalid email or password');
 	}
 	if (!ipBucket.consume(clientIP, 1) || !accountBucket.check(`${clientIP}:${email}`, 1)) {

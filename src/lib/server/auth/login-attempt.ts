@@ -164,5 +164,5 @@ export interface LoginAttempt {
 	expiresAt: Date;
 }
 
-export type LoginAttemptValidationResult =
+type LoginAttemptValidationResult =
 	{ attempt: LoginAttempt; user: AuthUser } | { attempt: null; user: null };

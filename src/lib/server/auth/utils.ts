@@ -3,6 +3,7 @@ import {
 	encodeBase32UpperCaseNoPadding,
 	encodeHexLowerCase
 } from '@oslojs/encoding';
+import { EMAIL_CODE_LENGTH, RECOVERY_CODE_LENGTH } from '$lib/auth-constants';
 
 export function generateSecureRandomString(): string {
 	const bytes = new Uint8Array(24);
@@ -11,15 +12,17 @@ export function generateSecureRandomString(): string {
 }
 
 export function generateRandomOTP(): string {
-	const bytes = new Uint8Array(5);
-	crypto.getRandomValues(bytes);
-	return encodeBase32UpperCaseNoPadding(bytes);
+	return generateBase32Code(EMAIL_CODE_LENGTH);
 }
 
 export function generateRandomRecoveryCode(): string {
-	const bytes = new Uint8Array(10);
+	return generateBase32Code(RECOVERY_CODE_LENGTH);
+}
+
+function generateBase32Code(length: number): string {
+	const bytes = new Uint8Array(Math.ceil((length * 5) / 8));
 	crypto.getRandomValues(bytes);
-	return encodeBase32UpperCaseNoPadding(bytes);
+	return encodeBase32UpperCaseNoPadding(bytes).slice(0, length);
 }
 
 export function hashSecret(secret: string | Uint8Array): Buffer {

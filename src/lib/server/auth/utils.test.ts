@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import {
+	EMAIL_CODE_LENGTH,
+	EMAIL_CODE_LENGTH_WORD,
+	RECOVERY_CODE_LENGTH,
+	TOTP_CODE_LENGTH_WORD
+} from '$lib/auth-constants';
+import {
 	constantTimeEqual,
 	generateRandomOTP,
 	generateRandomRecoveryCode,
@@ -17,8 +23,15 @@ describe('auth secrets', () => {
 	});
 
 	test('generates fixed-length human-readable codes', () => {
-		expect(generateRandomOTP()).toMatch(/^[A-Z2-7]{8}$/);
-		expect(generateRandomRecoveryCode()).toMatch(/^[A-Z2-7]{16}$/);
+		const emailCode = generateRandomOTP();
+		const recoveryCode = generateRandomRecoveryCode();
+
+		expect(emailCode).toHaveLength(EMAIL_CODE_LENGTH);
+		expect(emailCode).toMatch(/^[A-Z2-7]+$/);
+		expect(recoveryCode).toHaveLength(RECOVERY_CODE_LENGTH);
+		expect(recoveryCode).toMatch(/^[A-Z2-7]+$/);
+		expect(EMAIL_CODE_LENGTH_WORD).toBe('eight');
+		expect(TOTP_CODE_LENGTH_WORD).toBe('six');
 	});
 
 	test('compares hashes without accepting unequal inputs', () => {

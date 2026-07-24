@@ -1,5 +1,12 @@
 <script lang="ts">
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import {
+		MAX_EMAIL_LENGTH,
+		MAX_PASSWORD_LENGTH,
+		MAX_USERNAME_LENGTH,
+		MIN_PASSWORD_LENGTH,
+		MIN_USERNAME_LENGTH
+	} from '$lib/auth-constants';
 	import { authFormRequest, AuthAPIError } from '$lib/client/auth-api';
 	import favicon from '$lib/assets/favicon.svg';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -71,14 +78,15 @@
 							name="username"
 							placeholder="kiwi_fan"
 							autocomplete="username"
-							minlength={3}
-							maxlength={31}
+							minlength={MIN_USERNAME_LENGTH}
+							maxlength={MAX_USERNAME_LENGTH}
 							disabled={pending}
 							required
 						/>
-						<Field.Description
-							>3–31 letters, numbers, spaces, underscores, or hyphens. Usernames are unique.</Field.Description
-						>
+						<Field.Description>
+							{MIN_USERNAME_LENGTH}–{MAX_USERNAME_LENGTH} letters, numbers, spaces, underscores, or hyphens.
+							Usernames are unique.
+						</Field.Description>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="signup-email-{id}">Email</Field.Label>
@@ -88,7 +96,7 @@
 							type="email"
 							placeholder="you@example.com"
 							autocomplete="email"
-							maxlength={255}
+							maxlength={MAX_EMAIL_LENGTH}
 							disabled={pending}
 							required
 						/>
@@ -102,8 +110,8 @@
 									name="password"
 									type="password"
 									autocomplete="new-password"
-									minlength={12}
-									maxlength={255}
+									minlength={MIN_PASSWORD_LENGTH}
+									maxlength={MAX_PASSWORD_LENGTH}
 									disabled={pending}
 									required
 								/>
@@ -115,14 +123,14 @@
 									name="confirm-password"
 									type="password"
 									autocomplete="new-password"
-									minlength={12}
-									maxlength={255}
+									minlength={MIN_PASSWORD_LENGTH}
+									maxlength={MAX_PASSWORD_LENGTH}
 									disabled={pending}
 									required
 								/>
 							</Field.Field>
 						</div>
-						<Field.Description>Use at least 12 characters.</Field.Description>
+						<Field.Description>Use at least {MIN_PASSWORD_LENGTH} characters.</Field.Description>
 					</Field.Field>
 					<Field.Field>
 						<Button type="submit" size="lg" class="w-full" disabled={pending}>

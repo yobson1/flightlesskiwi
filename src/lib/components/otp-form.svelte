@@ -3,6 +3,13 @@
 	import MailCheckIcon from '@lucide/svelte/icons/mail-check';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { onMount } from 'svelte';
+	import {
+		EMAIL_CODE_LENGTH,
+		EMAIL_CODE_LENGTH_WORD,
+		MAX_RECOVERY_CODE_LENGTH,
+		TOTP_CODE_LENGTH,
+		TOTP_CODE_LENGTH_WORD
+	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -28,7 +35,7 @@
 	let resendPending = $state(false);
 	let usingRecoveryCode = $state(false);
 
-	const codeLength = $derived(kind === 'email' ? 8 : 6);
+	const codeLength = $derived(kind === 'email' ? EMAIL_CODE_LENGTH : TOTP_CODE_LENGTH);
 	onMount(() => {
 		if (kind !== 'email') return;
 		const controller = new AbortController();
@@ -142,11 +149,11 @@
 		</div>
 		<Card.Description class="text-center text-balance">
 			{#if kind === 'email'}
-				Enter the eight-character code sent to {email ?? 'your email'}.
+				Enter the {EMAIL_CODE_LENGTH_WORD}-character code sent to {email ?? 'your email'}.
 			{:else if usingRecoveryCode}
 				Enter the recovery code you saved when you set up two-factor authentication.
 			{:else}
-				Enter the six-digit code from your authenticator app.
+				Enter the {TOTP_CODE_LENGTH_WORD}-digit code from your authenticator app.
 			{/if}
 		</Card.Description>
 	</Card.Header>
@@ -165,7 +172,7 @@
 							autocomplete="one-time-code"
 							autocapitalize="characters"
 							spellcheck={false}
-							maxlength={64}
+							maxlength={MAX_RECOVERY_CODE_LENGTH}
 							disabled={pending}
 							aria-invalid={message ? 'true' : undefined}
 							required

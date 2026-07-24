@@ -1,3 +1,4 @@
+import { TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
 import { createSessionAndSetCookie, setSessionAs2FAVerified } from '$lib/server/auth';
 import { authError, authSuccess, requireAuthenticated } from '$lib/server/auth/api';
 import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
@@ -17,7 +18,7 @@ export async function POST(event: RequestEvent) {
 	const formData = await event.request.formData();
 	const code = formData.get('code');
 	if (!isTOTPCode(code)) {
-		return authError(400, 'Enter the six-digit code');
+		return authError(400, `Enter the ${TOTP_CODE_LENGTH_WORD}-digit code`);
 	}
 	const verification = verifyUserTOTP(user.id, code);
 	if (verification === 'rate-limited') return authError(429, 'Too many requests');

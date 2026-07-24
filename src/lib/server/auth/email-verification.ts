@@ -43,7 +43,7 @@ export function createEmailVerificationRequest(
 	return request;
 }
 
-export function getUserEmailVerificationRequest(
+function getUserEmailVerificationRequest(
 	userId: string,
 	id: string
 ): EmailVerificationRequest | null {

@@ -126,7 +126,7 @@ export function verifyWebAuthnRegistration(
 	};
 }
 
-export function verifyWebAuthnAssertion(
+function verifyWebAuthnAssertion(
 	authenticatorDataBytes: Uint8Array,
 	clientDataJSON: Uint8Array,
 	signatureBytes: Uint8Array,

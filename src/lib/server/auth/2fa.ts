@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import { MAX_RECOVERY_CODE_LENGTH } from '$lib/auth-constants';
 import { db } from '$lib/server/db';
 import {
 	loginAttempt,
@@ -13,7 +14,9 @@ import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 const recoveryCodeBucket = new ExpiringTokenBucket<string>('recovery-code', 3, 60 * 60);
 
 export function isRecoveryCode(value: unknown): value is string {
-	return typeof value === 'string' && value.trim().length > 0 && value.length <= 64;
+	return (
+		typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_RECOVERY_CODE_LENGTH
+	);
 }
 
 export async function verifyUserRecoveryCode(
@@ -61,4 +64,4 @@ async function resetUser2FAWithRecoveryCode(
 	});
 }
 
-export type RecoveryCodeVerificationResult = 'valid' | 'invalid' | 'rate-limited';
+type RecoveryCodeVerificationResult = 'valid' | 'invalid' | 'rate-limited';

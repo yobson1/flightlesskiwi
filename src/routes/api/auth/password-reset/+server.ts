@@ -1,4 +1,10 @@
 import { error as logError } from '$lib/logger';
+import {
+	EMAIL_CODE_LENGTH,
+	MAX_PASSWORD_LENGTH,
+	MIN_PASSWORD_LENGTH,
+	TOTP_CODE_LENGTH_WORD
+} from '$lib/auth-constants';
 import { createSessionAndSetCookie } from '$lib/server/auth';
 import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
@@ -111,7 +117,12 @@ async function requestReset(event: RequestEvent, formData: FormData): Promise<Re
 function verifyEmailCode(event: RequestEvent, formData: FormData): Response {
 	const { session, user } = validatePasswordResetSessionRequest(event);
 	const code = formData.get('code');
-	if (session === null || session.emailVerified || typeof code !== 'string' || code.length !== 8) {
+	if (
+		session === null ||
+		session.emailVerified ||
+		typeof code !== 'string' ||
+		code.length !== EMAIL_CODE_LENGTH
+	) {
 		return authError(400, 'Incorrect or expired reset code');
 	}
 	if (!codeBucket.consume(session.userId, 1)) {
@@ -142,7 +153,7 @@ function verifyTOTP(event: RequestEvent, formData: FormData): Response {
 	}
 	const code = formData.get('code');
 	if (!isTOTPCode(code)) {
-		return authError(400, 'Enter the six-digit authenticator code');
+		return authError(400, `Enter the ${TOTP_CODE_LENGTH_WORD}-digit authenticator code`);
 	}
 	const verification = verifyUserTOTP(session.userId, code);
 	if (verification === 'rate-limited') {
@@ -199,7 +210,10 @@ async function updatePassword(event: RequestEvent, formData: FormData): Promise<
 		return authError(400, 'Passwords do not match');
 	}
 	if (!verifyPasswordStrength(password)) {
-		return authError(400, 'Password must be between 12 and 255 characters');
+		return authError(
+			400,
+			`Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`
+		);
 	}
 
 	await updateUserPassword(user.id, password);

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnRegistration, type WebAuthnRegistration } from '$lib/client/webauthn';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -112,7 +113,7 @@
 							bind:value={name}
 							placeholder={registration.suggested_name || 'Passkey name'}
 							autocomplete="off"
-							maxlength={64}
+							maxlength={MAX_PASSKEY_NAME_LENGTH}
 							disabled={pending}
 							autofocus
 							required

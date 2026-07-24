@@ -4,6 +4,13 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import MailCheckIcon from '@lucide/svelte/icons/mail-check';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
+	import {
+		EMAIL_CODE_LENGTH,
+		EMAIL_CODE_LENGTH_WORD,
+		MAX_EMAIL_LENGTH,
+		MAX_PASSWORD_LENGTH,
+		MIN_PASSWORD_LENGTH
+	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
 	import OTPForm from '$lib/components/otp-form.svelte';
@@ -196,11 +203,11 @@
 				{#if stage === 'request'}
 					Enter your account email and we’ll send you a reset code.
 				{:else if stage === 'email-code'}
-					Enter the eight-character code sent to {email || 'your email'}.
+					Enter the {EMAIL_CODE_LENGTH_WORD}-character code sent to {email || 'your email'}.
 				{:else if stage === 'two-factor'}
 					Verify a second factor before changing your password.
 				{:else}
-					Use at least 12 characters for your new password.
+					Use at least {MIN_PASSWORD_LENGTH} characters for your new password.
 				{/if}
 			</Card.Description>
 		</Card.Header>
@@ -236,6 +243,7 @@
 								bind:value={email}
 								autocomplete="email"
 								placeholder="you@example.com"
+								maxlength={MAX_EMAIL_LENGTH}
 								disabled={pending}
 								required
 							/>
@@ -267,7 +275,7 @@
 								Password reset code
 							</Field.Label>
 							<InputOTP.Root
-								maxlength={8}
+								maxlength={EMAIL_CODE_LENGTH}
 								id="password-reset-code-{id}"
 								class="justify-center"
 								bind:value={code}
@@ -285,7 +293,12 @@
 								{/snippet}
 							</InputOTP.Root>
 						</Field.Field>
-						<Button type="submit" size="lg" class="w-full" disabled={pending || code.length !== 8}>
+						<Button
+							type="submit"
+							size="lg"
+							class="w-full"
+							disabled={pending || code.length !== EMAIL_CODE_LENGTH}
+						>
 							{#if pending}
 								<LoaderCircleIcon class="animate-spin" />
 								Verifying…
@@ -356,8 +369,8 @@
 								type="password"
 								bind:value={password}
 								autocomplete="new-password"
-								minlength={12}
-								maxlength={255}
+								minlength={MIN_PASSWORD_LENGTH}
+								maxlength={MAX_PASSWORD_LENGTH}
 								disabled={pending}
 								required
 							/>
@@ -370,8 +383,8 @@
 								type="password"
 								bind:value={confirmPassword}
 								autocomplete="new-password"
-								minlength={12}
-								maxlength={255}
+								minlength={MIN_PASSWORD_LENGTH}
+								maxlength={MAX_PASSWORD_LENGTH}
 								disabled={pending}
 								required
 							/>

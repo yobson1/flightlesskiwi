@@ -1,5 +1,5 @@
-const MIN_PASSWORD_LENGTH = 12;
-const MAX_PASSWORD_LENGTH = 255;
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '$lib/auth-constants';
+
 const ARGON2ID_OPTIONS = {
 	algorithm: 'argon2id',
 	memoryCost: 65_536,
@@ -16,6 +16,10 @@ export async function verifyPasswordHash(passwordHash: string, password: string)
 
 export function verifyPasswordStrength(password: string): boolean {
 	return password.length >= MIN_PASSWORD_LENGTH && password.length <= MAX_PASSWORD_LENGTH;
+}
+
+export function isPasswordInput(value: unknown): value is string {
+	return typeof value === 'string' && value.length > 0 && value.length <= MAX_PASSWORD_LENGTH;
 }
 
 export async function hashRecoveryCode(recoveryCode: string): Promise<string> {

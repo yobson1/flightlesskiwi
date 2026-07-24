@@ -1,5 +1,6 @@
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { error as logError } from '$lib/logger';
+import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
 import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
 import { hashSecret } from '$lib/server/auth/utils';
@@ -37,7 +38,7 @@ export async function PUT(event: RequestEvent) {
 	if (
 		typeof name !== 'string' ||
 		name.trim().length === 0 ||
-		name.length > 64 ||
+		name.length > MAX_PASSKEY_NAME_LENGTH ||
 		typeof encodedAttestationObject !== 'string' ||
 		typeof encodedClientDataJSON !== 'string'
 	) {

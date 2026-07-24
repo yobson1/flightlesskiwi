@@ -50,9 +50,7 @@ export function createPasswordResetSession(
 	return session;
 }
 
-export function validatePasswordResetSessionToken(
-	token: string
-): PasswordResetSessionValidationResult {
+function validatePasswordResetSessionToken(token: string): PasswordResetSessionValidationResult {
 	const tokenParts = token.split('.');
 	if (tokenParts.length !== 2 || !tokenParts[0] || !tokenParts[1]) {
 		return { session: null, user: null };
@@ -105,10 +103,7 @@ export function invalidateUserPasswordResetSessions(userId: string): void {
 	db.delete(sessionTable).where(eq(sessionTable.userId, userId)).run();
 }
 
-export function getPasswordResetStage(
-	session: PasswordResetSession,
-	user: AuthUser
-): PasswordResetStage {
+function getPasswordResetStage(session: PasswordResetSession, user: AuthUser): PasswordResetStage {
 	if (!session.emailVerified) return 'email-code';
 	if (user.registered2FA && !session.twoFactorVerified) return 'two-factor';
 	return 'password';
@@ -182,7 +177,7 @@ export type PasswordResetSessionValidationResult =
 
 export type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';
 
-export interface PasswordResetState {
+interface PasswordResetState {
 	stage: PasswordResetStage;
 	email: string;
 	registeredTOTP: boolean;

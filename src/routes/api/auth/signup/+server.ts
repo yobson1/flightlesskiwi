@@ -1,4 +1,5 @@
 import { error as logError } from '$lib/logger';
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '$lib/auth-constants';
 import { createSessionAndSetCookie, type SessionFlags } from '$lib/server/auth';
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
 import { sendVerificationEmail } from '$lib/server/auth/email';
@@ -44,7 +45,10 @@ export async function POST(event: RequestEvent) {
 	if (!verifyEmailInput(email)) return authError(400, 'Invalid email');
 	if (!verifyUsernameInput(username)) return authError(400, 'Invalid username');
 	if (!verifyPasswordStrength(password)) {
-		return authError(400, 'Password must be between 12 and 255 characters');
+		return authError(
+			400,
+			`Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`
+		);
 	}
 	if (!ipBucket.consume(clientIP, 1)) return authError(429, 'Too many requests');
 	if (!checkEmailAvailability(email)) return authError(400, 'Email is already used');

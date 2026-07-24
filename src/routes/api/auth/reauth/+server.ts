@@ -1,6 +1,7 @@
+import { TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
 import { rotateSessionAfterReauthentication } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
-import { verifyPasswordHash } from '$lib/server/auth/password';
+import { isPasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import { getUserPasswordHash } from '$lib/server/auth/user';
@@ -17,7 +18,7 @@ export async function POST(event: RequestEvent) {
 	}
 	const formData = await event.request.formData();
 	const password = formData.get('password');
-	if (typeof password !== 'string' || password.length === 0 || password.length > 255) {
+	if (!isPasswordInput(password)) {
 		return authError(400, 'Enter your password');
 	}
 	if (!reauthenticationBucket.consume(session.id, 1)) {
@@ -41,7 +42,7 @@ export async function PUT(event: RequestEvent) {
 	const formData = await event.request.formData();
 	const code = formData.get('code');
 	if (!isTOTPCode(code)) {
-		return authError(400, 'Enter the six-digit code');
+		return authError(400, `Enter the ${TOTP_CODE_LENGTH_WORD}-digit code`);
 	}
 	if (!reauthenticationBucket.consume(session.id, 1)) {
 		return authError(429, 'Too many requests');
