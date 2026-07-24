@@ -642,7 +642,7 @@
 					/>
 				</Field.Field>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+					<AlertDialog.Cancel type="button">Cancel</AlertDialog.Cancel>
 					<Button
 						type="submit"
 						variant="destructive"
