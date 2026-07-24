@@ -25,7 +25,7 @@
 	}
 </script>
 
-<div class="min-w-0 rounded-xl border bg-card p-4 text-card-foreground">
+<div class="min-w-0 rounded-xl border bg-card p-3 text-card-foreground">
 	<div class="flex min-w-0 items-center gap-2">
 		<FileIcon class="size-4 shrink-0 text-primary" />
 		<h3 class="truncate text-sm font-semibold" title={run.originalName}>
@@ -34,20 +34,18 @@
 	</div>
 
 	{#if run.mangoHud}
-		<dl class="mt-4 space-y-2.5 text-sm">
+		<dl class="mt-3 space-y-1.5 text-sm">
 			<div class="flex min-w-0 items-center gap-2">
 				<CpuIcon class="size-4 shrink-0 text-muted-foreground" />
-				<dt class="sr-only">CPU</dt>
+				<dt class="sr-only">CPU and memory</dt>
 				<dd
-					class="truncate"
-					title={`${run.mangoHud.cpu || 'Unknown CPU'}${run.mangoHud.cpuScheduler ? ` · ${run.mangoHud.cpuScheduler}` : ''}`}
+					class="flex min-w-0 flex-1 items-center gap-1.5"
+					title={`${run.mangoHud.cpu || 'Unknown CPU'} · ${formatMemory(run.mangoHud.ramKiB)}`}
 				>
-					{run.mangoHud.cpu || 'Unknown CPU'}
-					{#if run.mangoHud.cpuScheduler}
-						<span class="text-muted-foreground">
-							· {run.mangoHud.cpuScheduler}
-						</span>
-					{/if}
+					<span class="truncate">{run.mangoHud.cpu || 'Unknown CPU'}</span>
+					<span class="shrink-0 text-muted-foreground">·</span>
+					<MemoryStickIcon class="size-3.5 shrink-0 text-muted-foreground" />
+					<span class="shrink-0">{formatMemory(run.mangoHud.ramKiB)}</span>
 				</dd>
 			</div>
 
@@ -66,21 +64,18 @@
 			</div>
 
 			<div class="flex min-w-0 items-center gap-2">
-				<MemoryStickIcon class="size-4 shrink-0 text-muted-foreground" />
-				<dt class="sr-only">Memory</dt>
-				<dd>{formatMemory(run.mangoHud.ramKiB)}</dd>
-			</div>
-
-			<div class="flex min-w-0 items-center gap-2">
 				<LaptopIcon class="size-4 shrink-0 text-muted-foreground" />
 				<dt class="sr-only">Operating system</dt>
 				<dd
 					class="truncate"
-					title={`${run.mangoHud.os || 'Unknown OS'}${run.mangoHud.kernel ? ` · ${run.mangoHud.kernel}` : ''}`}
+					title={`${run.mangoHud.os || 'Unknown OS'}${run.mangoHud.kernel ? ` · ${run.mangoHud.kernel}` : ''}${run.mangoHud.cpuScheduler ? ` · ${run.mangoHud.cpuScheduler}` : ''}`}
 				>
 					{run.mangoHud.os || 'Unknown OS'}
 					{#if run.mangoHud.kernel}
 						<span class="text-muted-foreground"> · {run.mangoHud.kernel}</span>
+					{/if}
+					{#if run.mangoHud.cpuScheduler}
+						<span class="text-muted-foreground"> · {run.mangoHud.cpuScheduler}</span>
 					{/if}
 				</dd>
 			</div>

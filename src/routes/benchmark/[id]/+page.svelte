@@ -50,8 +50,7 @@
 	</article>
 </div>
 
-<section class="mt-8" aria-labelledby="included-runs-heading">
-	<h2 id="included-runs-heading" class="mb-3 text-lg font-semibold">Included runs</h2>
+<section class="mt-4" aria-label="Included benchmark runs">
 	<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
 		{#each data.runs as run (run.id)}
 			<BenchmarkRunCard {run} />
