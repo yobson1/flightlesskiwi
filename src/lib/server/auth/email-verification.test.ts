@@ -1,18 +1,10 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { Database } from 'bun:sqlite';
 import { eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
-import { generateSQLiteDrizzleJson, generateSQLiteMigration } from 'drizzle-kit/api';
 import * as schema from '$lib/server/db/schema';
+import { createTestDatabase } from '$lib/server/test-db';
 
-const sqlite = new Database(':memory:');
-sqlite.run('PRAGMA foreign_keys = ON');
-const emptySchema = await generateSQLiteDrizzleJson({});
-const currentSchema = await generateSQLiteDrizzleJson(schema);
-const schemaStatements = await generateSQLiteMigration(emptySchema, currentSchema);
-for (const statement of schemaStatements) sqlite.run(statement);
-
-const testDb = drizzle(sqlite, { schema });
+const testDatabase = await createTestDatabase();
+const testDb = testDatabase.db;
 
 mock.module('$app/environment', () => ({ dev: true }));
 mock.module('$lib/server/db', () => ({ db: testDb }));
@@ -40,7 +32,7 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-	sqlite.close();
+	testDatabase.close();
 });
 
 describe('email changes', () => {

@@ -1,6 +1,8 @@
-import { afterEach, describe, expect, mock, setSystemTime, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, mock, setSystemTime, test } from 'bun:test';
+import { createTestDatabase } from '$lib/server/test-db';
 
-mock.module('$env/static/private', () => ({ DATABASE_URL: 'local.db' }));
+const testDatabase = await createTestDatabase();
+mock.module('$lib/server/db', () => ({ db: testDatabase.db }));
 
 const { ExpiringMultiWindowTokenBucket } = await import('./rate-limit');
 
@@ -17,6 +19,10 @@ const bucket = new ExpiringMultiWindowTokenBucket<string>(
 afterEach(() => {
 	bucket.reset(key);
 	setSystemTime();
+});
+
+afterAll(() => {
+	testDatabase.close();
 });
 
 describe('multi-window rate limits', () => {
