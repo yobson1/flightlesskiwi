@@ -9,7 +9,6 @@ import {
 } from '$lib/server/db/schema';
 import { verifyRecoveryCodeHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import type { AuthUser } from '$lib/server/auth/user';
 
 export const recoveryCodeBucket = new ExpiringTokenBucket<string>('recovery-code', 3, 60 * 60);
 
@@ -46,14 +45,4 @@ export async function resetUser2FAWithRecoveryCode(
 		tx.delete(passkeyCredential).where(eq(passkeyCredential.userId, userId)).run();
 		return true;
 	});
-}
-
-export function getPasswordReset2FARedirect(user: AuthUser): string {
-	if (user.registeredTOTP) {
-		return '/reset-password/2fa/totp';
-	}
-	if (user.registeredPasskey) {
-		return '/reset-password/2fa/passkey';
-	}
-	return '/reset-password';
 }

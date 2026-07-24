@@ -14,10 +14,17 @@
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		onSwitchToSignup?: () => void;
+		onForgotPassword?: () => void;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	let { class: className, onSwitchToSignup, onComplete, ...restProps }: Props = $props();
+	let {
+		class: className,
+		onSwitchToSignup,
+		onForgotPassword,
+		onComplete,
+		...restProps
+	}: Props = $props();
 
 	const id = $props.id();
 	let email = $state('');
@@ -100,7 +107,16 @@
 						/>
 					</Field.Field>
 					<Field.Field>
-						<Field.Label for="login-password-{id}">Password</Field.Label>
+						<div class="flex items-center justify-between gap-3">
+							<Field.Label for="login-password-{id}">Password</Field.Label>
+							<button
+								type="button"
+								class="text-sm font-medium underline underline-offset-4 hover:text-primary"
+								onclick={onForgotPassword}
+							>
+								Forgot password?
+							</button>
+						</div>
 						<Input
 							id="login-password-{id}"
 							name="password"

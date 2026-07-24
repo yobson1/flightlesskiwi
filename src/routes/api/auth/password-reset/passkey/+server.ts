@@ -1,4 +1,5 @@
 import { error as logError } from '$lib/logger';
+import { authError, authSuccess } from '$lib/server/auth/api';
 import {
 	setPasswordResetSessionAs2FAVerified,
 	validatePasswordResetSessionRequest
@@ -12,22 +13,25 @@ import {
 import type { RequestEvent } from './$types';
 
 export async function POST(event: RequestEvent) {
+	if (event.locals.session !== null) {
+		return authError(409, 'You are already signed in');
+	}
 	const { session, user } = validatePasswordResetSessionRequest(event);
 	if (
 		session === null ||
 		!session.emailVerified ||
-		!user.registeredPasskey ||
-		session.twoFactorVerified
+		session.twoFactorVerified ||
+		!user.registeredPasskey
 	) {
-		return new Response('Forbidden', { status: 403 });
+		return authError(403, 'Passkey verification is not available');
 	}
 	const assertion = await parseAssertionRequest(event.request);
 	if (assertion === null) {
-		return new Response('Invalid or missing fields', { status: 400 });
+		return authError(400, 'Invalid or missing passkey response');
 	}
 	const credential = getUserPasskeyCredential(user.id, assertion.credentialId);
 	if (credential === null) {
-		return new Response('Invalid credential', { status: 400 });
+		return authError(400, 'Invalid credential');
 	}
 	try {
 		verifyWebAuthnAssertion(
@@ -40,11 +44,16 @@ export async function POST(event: RequestEvent) {
 		);
 	} catch (cause) {
 		if (cause instanceof WebAuthnVerificationError) {
-			return new Response('Invalid passkey assertion', { status: 400 });
+			return authError(400, 'Invalid passkey assertion');
 		}
 		logError('Unexpected password-reset passkey failure', cause);
-		return new Response('Internal error', { status: 500 });
+		return authError(500, 'Unable to verify passkey');
 	}
 	setPasswordResetSessionAs2FAVerified(session.id);
-	return new Response(null, { status: 204 });
+	return authSuccess('password-reset', {
+		stage: 'password',
+		email: session.email,
+		registeredTOTP: false,
+		registeredPasskey: false
+	});
 }

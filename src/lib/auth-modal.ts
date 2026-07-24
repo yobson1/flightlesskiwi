@@ -3,6 +3,7 @@ import { AUTH_MODAL_VIEWS, type AuthModalView } from '$lib/types/auth';
 
 const AUTH_MODAL_CONTEXT = Symbol('auth-modal');
 const AUTH_MODAL_DATA_ENDPOINTS: Partial<Record<AuthModalView, string>> = {
+	'password-reset': '/api/auth/password-reset',
 	'totp-setup': '/api/auth/totp-setup',
 	'passkey-register': '/api/auth/passkey-registration'
 };
@@ -50,4 +51,8 @@ export function authModalHash(view: AuthModalView): string {
 
 export function authModalDataEndpoint(view: AuthModalView): string | null {
 	return AUTH_MODAL_DATA_ENDPOINTS[view] ?? null;
+}
+
+export function authModalDataMethod(view: AuthModalView): 'GET' | 'POST' {
+	return view === 'password-reset' ? 'GET' : 'POST';
 }

@@ -1,6 +1,7 @@
 export const AUTH_MODAL_VIEWS = [
 	'login',
 	'login-totp',
+	'password-reset',
 	'signup',
 	'verify-email',
 	'setup',

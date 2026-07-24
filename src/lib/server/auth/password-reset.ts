@@ -105,6 +105,15 @@ export function invalidateUserPasswordResetSessions(userId: string): void {
 	db.delete(sessionTable).where(eq(sessionTable.userId, userId)).run();
 }
 
+export function getPasswordResetStage(
+	session: PasswordResetSession,
+	user: AuthUser
+): PasswordResetStage {
+	if (!session.emailVerified) return 'email-code';
+	if (user.registered2FA && !session.twoFactorVerified) return 'two-factor';
+	return 'password';
+}
+
 export function validatePasswordResetSessionRequest(
 	event: RequestEvent
 ): PasswordResetSessionValidationResult {
@@ -157,3 +166,5 @@ export interface PasswordResetSessionWithTokenAndCode extends Omit<
 
 export type PasswordResetSessionValidationResult =
 	{ session: PasswordResetSession; user: AuthUser } | { session: null; user: null };
+
+export type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';

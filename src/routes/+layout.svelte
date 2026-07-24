@@ -11,6 +11,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import {
 		authModalDataEndpoint,
+		authModalDataMethod,
 		authModalHash,
 		parseAuthModalHash,
 		provideAuthModal,
@@ -85,7 +86,9 @@
 		const required = requiredAuthModal(auth);
 		if (required !== null) return required;
 		if (view === 'login-totp') return auth === null ? view : null;
-		if (view === 'login' || view === 'signup') return auth === null ? view : null;
+		if (view === 'login' || view === 'signup' || view === 'password-reset') {
+			return auth === null ? view : null;
+		}
 		if (auth === null) return 'login';
 		if (view === 'verify-email') return null;
 		if (view === 'recovery-code') return null;
@@ -158,8 +161,9 @@
 	async function loadAuthModalData(view: AuthModalView): Promise<unknown> {
 		const endpoint = authModalDataEndpoint(view);
 		if (endpoint === null) return null;
-		const response = await authRequest(endpoint, { method: 'POST' });
+		const response = await authRequest(endpoint, { method: authModalDataMethod(view) });
 		if (view === 'totp-setup') return response;
+		if (view === 'password-reset') return response;
 		return passkeyViewData(response);
 	}
 

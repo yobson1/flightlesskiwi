@@ -8,6 +8,7 @@
 	import LoginForm from '$lib/components/login-form.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
 	import PasskeySetupForm from '$lib/components/passkey-setup-form.svelte';
+	import PasswordResetForm from '$lib/components/password-reset-form.svelte';
 	import ReauthenticationForm from '$lib/components/reauthentication-form.svelte';
 	import RecoveryCode from '$lib/components/recovery-code.svelte';
 	import SignupForm from '$lib/components/signup-form.svelte';
@@ -51,6 +52,8 @@
 				return 'Two-factor authentication';
 			case 'signup':
 				return 'Create your account';
+			case 'password-reset':
+				return 'Reset your password';
 			case 'verify-email':
 				return 'Verify your email';
 			case 'setup':
@@ -187,9 +190,19 @@
 
 			{#key view}
 				{#if view === 'login'}
-					<LoginForm onSwitchToSignup={() => switchView('signup')} {onComplete} />
+					<LoginForm
+						onSwitchToSignup={() => switchView('signup')}
+						onForgotPassword={() => switchView('password-reset')}
+						{onComplete}
+					/>
 				{:else if view === 'login-totp'}
 					<OTPForm kind="login-totp" onBack={() => switchView('login')} {onComplete} />
+				{:else if view === 'password-reset'}
+					<PasswordResetForm
+						initialState={viewData}
+						onBack={() => switchView('login')}
+						{onComplete}
+					/>
 				{:else if view === 'signup'}
 					<SignupForm onSwitchToLogin={() => switchView('login')} {onComplete} />
 				{:else if view === 'verify-email'}
