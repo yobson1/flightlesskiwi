@@ -1,9 +1,18 @@
+<script lang="ts" module>
+	function truncateMiddle(value: string, maximumCharacters: number): string {
+		if (value.length <= maximumCharacters) return value;
+		const visibleCharacters = Math.max(2, maximumCharacters - 1);
+		const startLength = Math.ceil(visibleCharacters / 2);
+		const endLength = Math.floor(visibleCharacters / 2);
+		return `${value.slice(0, startLength)}…${value.slice(-endLength)}`;
+	}
+</script>
+
 <script lang="ts">
-	import { BarChart } from 'layerchart';
-	import { formatMetricValue, getBenchmarkChartBottomLayout } from '$lib/benchmark-chart';
+	import { formatMetricValue } from '$lib/benchmark-chart';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
-	import BenchmarkChartTooltip from '$lib/components/benchmark-chart-tooltip.svelte';
-	import type { ChartConfig } from '$lib/components/ui/chart';
+	import BenchmarkEChart from '$lib/components/benchmark-echart.svelte';
+	import type { BenchmarkEChartOption, BenchmarkEChartTheme } from '$lib/benchmark-echart';
 
 	interface BenchmarkBarDatum {
 		run: string;
@@ -14,7 +23,7 @@
 		key: string;
 		label: string;
 		value: string;
-		color: string;
+		colorIndex: number;
 	}
 
 	interface Props {
@@ -22,7 +31,6 @@
 		description: string;
 		data: BenchmarkBarDatum[];
 		series: BenchmarkBarSeries[];
-		config: ChartConfig;
 		unit?: string;
 		chartClass?: string;
 		leftPadding?: number;
@@ -36,7 +44,6 @@
 		description,
 		data,
 		series,
-		config,
 		unit = '',
 		chartClass = 'h-64',
 		leftPadding = 144,
@@ -45,45 +52,80 @@
 		showLegend = false
 	}: Props = $props();
 
-	const xAccessor = $derived(
-		series.length === 1 ? (series[0]?.value ?? series[0]?.key) : series.map(({ value }) => value)
-	);
-	const bottomLayout = $derived(getBenchmarkChartBottomLayout(showLegend));
-</script>
-
-<BenchmarkChartCard {title} {description} {config} {chartClass}>
-	<BarChart
-		{data}
-		orientation="horizontal"
-		x={xAccessor}
-		y="run"
-		{series}
-		seriesLayout={series.length > 1 ? 'group' : 'overlap'}
-		legend={showLegend ? { variant: 'swatches' } : false}
-		labels={{
-			placement: 'outside',
-			offset: 6,
-			format: (value) => formatMetricValue(value, unit)
-		}}
-		padding={{
+	const createOption = $derived((theme: BenchmarkEChartTheme): BenchmarkEChartOption => ({
+		animation: false,
+		aria: { enabled: true },
+		color: series.map(
+			({ colorIndex }) => theme.colors[colorIndex % theme.colors.length] ?? theme.foreground
+		),
+		grid: {
+			bottom: showLegend ? 52 : 40,
+			containLabel: false,
 			left: leftPadding,
 			right: rightPadding,
-			bottom: bottomLayout.padding
-		}}
-		props={{
-			xAxis: {
-				label: unit || title,
-				labelProps: bottomLayout.xAxisLabelProps
+			top: 8
+		},
+		legend: {
+			bottom: 0,
+			icon: 'roundRect',
+			itemHeight: 10,
+			itemWidth: 10,
+			show: showLegend,
+			textStyle: { color: theme.mutedForeground }
+		},
+		tooltip: {
+			appendToBody: true,
+			axisPointer: {
+				type: 'shadow',
+				shadowStyle: { color: theme.border, opacity: 0.35 }
 			},
-			yAxis: {
-				tickLabelProps: {
-					truncate: { maxChars: maxLabelCharacters, position: 'middle' }
-				}
-			}
-		}}
-	>
-		{#snippet tooltip({ context })}
-			<BenchmarkChartTooltip {unit} label={context.tooltip.data?.run ?? 'Benchmark run'} />
-		{/snippet}
-	</BarChart>
+			backgroundColor: theme.background,
+			borderColor: theme.border,
+			confine: true,
+			textStyle: { color: theme.foreground },
+			trigger: 'axis',
+			valueFormatter: (value: unknown) =>
+				typeof value === 'number' ? formatMetricValue(value, unit) : String(value)
+		},
+		xAxis: {
+			axisLabel: { color: theme.mutedForeground },
+			axisLine: { show: false },
+			axisTick: { show: false },
+			name: unit || title,
+			nameGap: 24,
+			nameLocation: 'middle',
+			nameTextStyle: { color: theme.mutedForeground },
+			splitLine: { lineStyle: { color: theme.border } },
+			type: 'value'
+		},
+		yAxis: {
+			axisLabel: {
+				color: theme.mutedForeground,
+				formatter: (value: string) => truncateMiddle(value, maxLabelCharacters)
+			},
+			axisLine: { show: false },
+			axisTick: { show: false },
+			data: data.map(({ run }) => run),
+			inverse: true,
+			type: 'category'
+		},
+		series: series.map(({ label, value }) => ({
+			barMaxWidth: 28,
+			data: data.map((datum) => datum[value]),
+			emphasis: { focus: 'series' },
+			label: {
+				color: theme.foreground,
+				formatter: ({ value: labelValue }: { value: unknown }) =>
+					typeof labelValue === 'number' ? formatMetricValue(labelValue, unit) : String(labelValue),
+				position: 'right',
+				show: true
+			},
+			name: label,
+			type: 'bar'
+		}))
+	}));
+</script>
+
+<BenchmarkChartCard {title} {description} {chartClass}>
+	<BenchmarkEChart ariaLabel={`${title} chart`} class="h-full" {createOption} />
 </BenchmarkChartCard>

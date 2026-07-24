@@ -27,15 +27,10 @@
 		})
 	);
 	const series = [
-		{ key: 'low', label: '1st percentile', value: 'low', color: 'var(--chart-3)' },
-		{ key: 'average', label: 'Average', value: 'average', color: 'var(--chart-1)' },
-		{ key: 'high', label: '97th percentile', value: 'high', color: 'var(--chart-2)' }
+		{ key: 'low', label: '1st percentile', value: 'low', colorIndex: 2 },
+		{ key: 'average', label: 'Average', value: 'average', colorIndex: 0 },
+		{ key: 'high', label: '97th percentile', value: 'high', colorIndex: 1 }
 	];
-	const config = {
-		low: { label: '1st percentile', color: 'var(--chart-3)' },
-		average: { label: 'Average', color: 'var(--chart-1)' },
-		high: { label: '97th percentile', color: 'var(--chart-2)' }
-	};
 </script>
 
 <BenchmarkHorizontalBarChart
@@ -43,7 +38,6 @@
 	description="Low, average, and high frame rates for each run."
 	data={chartData}
 	{series}
-	{config}
 	unit="FPS"
 	chartClass="h-80"
 	leftPadding={168}

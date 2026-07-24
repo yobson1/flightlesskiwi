@@ -3,7 +3,6 @@ import {
 	averageMetricValues,
 	buildSharedMetricChartData,
 	formatBenchmarkMetricName,
-	getBenchmarkChartBottomLayout,
 	getBenchmarkMetricUnit,
 	hasNonZeroMetricValues,
 	percentileMetricValue
@@ -21,17 +20,6 @@ describe('benchmark chart metric helpers', () => {
 		expect(getBenchmarkMetricUnit('frametime')).toBe('ms');
 		expect(getBenchmarkMetricUnit('gpu_temp')).toBe('°C');
 		expect(getBenchmarkMetricUnit('unknown_metric')).toBe('');
-	});
-
-	test('reserves a separate row for bottom legends', () => {
-		expect(getBenchmarkChartBottomLayout(false)).toEqual({
-			padding: 44,
-			xAxisLabelProps: undefined
-		});
-		expect(getBenchmarkChartBottomLayout(true)).toEqual({
-			padding: 76,
-			xAxisLabelProps: { dy: -24 }
-		});
 	});
 
 	test('calculates averages and interpolated percentiles while ignoring missing samples', () => {

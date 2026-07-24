@@ -31,32 +31,6 @@ const METRIC_UNITS: Record<string, string> = {
 	cpu_mhz: 'MHz'
 };
 
-export const BENCHMARK_CHART_COLORS = [
-	'var(--chart-1)',
-	'var(--chart-2)',
-	'var(--chart-3)',
-	'var(--chart-4)',
-	'var(--chart-5)',
-	'color-mix(in oklch, var(--chart-1), var(--chart-4) 45%)',
-	'color-mix(in oklch, var(--chart-2), var(--chart-5) 45%)',
-	'color-mix(in oklch, var(--chart-3), var(--chart-4) 45%)'
-] as const;
-
-const BOTTOM_LAYOUT = {
-	withoutLegend: {
-		padding: 44,
-		xAxisLabelProps: undefined
-	},
-	withLegend: {
-		padding: 76,
-		xAxisLabelProps: { dy: -24 }
-	}
-} as const;
-
-export function getBenchmarkChartBottomLayout(hasLegend: boolean) {
-	return hasLegend ? BOTTOM_LAYOUT.withLegend : BOTTOM_LAYOUT.withoutLegend;
-}
-
 export function formatBenchmarkMetricName(key: string): string {
 	return key
 		.split(/[_\s-]+/)

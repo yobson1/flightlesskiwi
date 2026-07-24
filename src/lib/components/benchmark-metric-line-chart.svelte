@@ -1,18 +1,52 @@
+<script lang="ts" module>
+	interface LineTooltipItem {
+		axisValue?: unknown;
+		marker?: string;
+		seriesName?: string;
+		value?: unknown;
+	}
+
+	function formatLineTooltip(params: unknown, unit: string): string {
+		const items = (Array.isArray(params) ? params : [params]).filter(
+			(item): item is LineTooltipItem => typeof item === 'object' && item !== null
+		);
+		const firstItem = items[0];
+		const time =
+			typeof firstItem?.axisValue === 'number'
+				? `${formatMetricValue(firstItem.axisValue)} seconds`
+				: String(firstItem?.axisValue ?? '');
+		const rows = items
+			.map((item) => {
+				const value = Array.isArray(item.value) ? item.value[1] : item.value;
+				return `<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">${item.marker ?? ''}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${escapeHtml(item.seriesName ?? '')}</span><strong style="font-family:monospace">${typeof value === 'number' ? escapeHtml(formatMetricValue(value, unit)) : escapeHtml(String(value ?? ''))}</strong></div>`;
+			})
+			.join('');
+
+		return `<div style="font-weight:500;margin-bottom:.375rem">${escapeHtml(time)}</div><div style="display:grid;gap:.25rem">${rows}</div>`;
+	}
+
+	function escapeHtml(value: string): string {
+		return value
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('"', '&quot;')
+			.replaceAll("'", '&#039;');
+	}
+</script>
+
 <script lang="ts">
-	import { LineChart } from 'layerchart';
 	import {
-		BENCHMARK_CHART_COLORS,
 		buildSharedMetricChartData,
 		formatBenchmarkMetricName,
 		formatMetricValue,
-		getBenchmarkChartBottomLayout,
 		getBenchmarkMetricUnit,
 		hasNonZeroMetricValues,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
-	import BenchmarkChartTooltip from '$lib/components/benchmark-chart-tooltip.svelte';
-	import * as Chart from '$lib/components/ui/chart';
+	import BenchmarkEChart from '$lib/components/benchmark-echart.svelte';
+	import type { BenchmarkEChartOption, BenchmarkEChartTheme } from '$lib/benchmark-echart';
 
 	interface Props {
 		runs: BenchmarkChartRun[];
@@ -25,7 +59,7 @@
 	const unit = $derived(getBenchmarkMetricUnit(metricKey));
 	const title = $derived(formatBenchmarkMetricName(metricKey));
 	const metricSeries = $derived.by(() =>
-		runs.flatMap((run, index) => {
+		runs.flatMap((run) => {
 			const metric = run.mangoHudData?.metrics.find(({ key }) => key === metricKey);
 			if (!metric || !run.mangoHudData || !hasNonZeroMetricValues(metric.values)) return [];
 
@@ -40,63 +74,121 @@
 				{
 					key: run.id,
 					label: run.originalName,
-					points,
-					color: BENCHMARK_CHART_COLORS[index % BENCHMARK_CHART_COLORS.length]
+					points
 				}
 			];
 		})
 	);
-	const series = $derived(
-		metricSeries.map(({ key, label, color }) => ({
-			key,
-			label,
-			color
-		}))
-	);
+	const hasLegend = $derived(metricSeries.length > 1);
 	const chartData = $derived(buildSharedMetricChartData(metricSeries));
-	const config = $derived(
-		Object.fromEntries(
-			series.map(({ key, label, color }) => [key, { label, color }])
-		) satisfies Chart.ChartConfig
-	);
-	const hasLegend = $derived(series.length > 1);
-	const bottomLayout = $derived(getBenchmarkChartBottomLayout(hasLegend));
+	const createOption = $derived((theme: BenchmarkEChartTheme): BenchmarkEChartOption => ({
+		animation: false,
+		aria: { enabled: true },
+		color: metricSeries.map(
+			(_, index) => theme.colors[index % theme.colors.length] ?? theme.foreground
+		),
+		dataZoom: [
+			{
+				filterMode: 'none',
+				moveOnMouseMove: true,
+				moveOnMouseWheel: false,
+				type: 'inside',
+				xAxisIndex: 0,
+				zoomOnMouseWheel: true
+			},
+			{
+				borderColor: theme.border,
+				bottom: hasLegend ? 28 : 4,
+				dataBackground: {
+					areaStyle: { color: theme.border, opacity: 0.25 },
+					lineStyle: { color: theme.mutedForeground, opacity: 0.55 }
+				},
+				fillerColor: theme.border,
+				handleStyle: {
+					borderColor: theme.mutedForeground,
+					color: theme.background
+				},
+				height: 16,
+				moveHandleStyle: { color: theme.mutedForeground },
+				selectedDataBackground: {
+					areaStyle: { color: theme.mutedForeground, opacity: 0.2 },
+					lineStyle: { color: theme.mutedForeground }
+				},
+				showDetail: false,
+				type: 'slider',
+				xAxisIndex: 0
+			}
+		],
+		grid: {
+			bottom: hasLegend ? 88 : 64,
+			left: 60,
+			right: 16,
+			top: 12
+		},
+		legend: {
+			bottom: 0,
+			icon: 'roundRect',
+			itemHeight: 10,
+			itemWidth: 10,
+			show: hasLegend,
+			textStyle: { color: theme.mutedForeground },
+			type: 'scroll'
+		},
+		series: metricSeries.map(({ key, label }) => ({
+			data: chartData.map((row) => [row.timeSeconds, row[key]]),
+			emphasis: { focus: 'series' },
+			lineStyle: { width: 1.75 },
+			name: label,
+			showSymbol: false,
+			type: 'line'
+		})),
+		tooltip: {
+			appendToBody: true,
+			axisPointer: {
+				lineStyle: { color: theme.mutedForeground },
+				snap: true,
+				type: 'line'
+			},
+			backgroundColor: theme.background,
+			borderColor: theme.border,
+			confine: true,
+			formatter: (params: unknown) => formatLineTooltip(params, unit),
+			textStyle: { color: theme.foreground },
+			trigger: 'axis'
+		},
+		xAxis: {
+			axisLabel: {
+				color: theme.mutedForeground,
+				formatter: (value: number) => formatMetricValue(value)
+			},
+			axisLine: { show: false },
+			axisTick: { show: false },
+			name: 'Time (seconds)',
+			nameGap: 28,
+			nameLocation: 'middle',
+			nameTextStyle: { color: theme.mutedForeground },
+			splitLine: { lineStyle: { color: theme.border } },
+			type: 'value'
+		},
+		yAxis: {
+			axisLabel: { color: theme.mutedForeground },
+			axisLine: { show: false },
+			axisTick: { show: false },
+			name: unit || title,
+			nameGap: 42,
+			nameLocation: 'middle',
+			nameRotate: 90,
+			nameTextStyle: { color: theme.mutedForeground },
+			splitLine: { lineStyle: { color: theme.border } },
+			type: 'value'
+		}
+	}));
 </script>
 
 <BenchmarkChartCard
 	{title}
 	description={description ?? `${title} throughout each benchmark run${unit ? ` (${unit})` : ''}.`}
-	{config}
 	chartClass="h-72"
 >
-	<LineChart
-		data={chartData}
-		x="timeSeconds"
-		{series}
-		brush
-		transform={{ mode: 'domain', axis: 'x' }}
-		tooltipContext={{ mode: 'bisect-x' }}
-		legend={hasLegend ? { variant: 'swatches' } : false}
-		padding={{
-			left: 52,
-			right: 12,
-			bottom: bottomLayout.padding
-		}}
-		props={{
-			xAxis: {
-				label: 'Time (seconds)',
-				labelProps: bottomLayout.xAxisLabelProps
-			},
-			yAxis: { label: unit || title },
-			spline: { strokeWidth: 1.75 }
-		}}
-	>
-		{#snippet tooltip()}
-			<BenchmarkChartTooltip
-				{unit}
-				labelFormatter={(value) =>
-					typeof value === 'number' ? `${formatMetricValue(value)} seconds` : String(value)}
-			/>
-		{/snippet}
-	</LineChart>
+	<BenchmarkEChart ariaLabel={`${title} over time chart`} class="h-full" {createOption} />
 </BenchmarkChartCard>

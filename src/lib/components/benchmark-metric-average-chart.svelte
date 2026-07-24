@@ -25,18 +25,12 @@
 			return average === null ? [] : [{ run: run.originalName, average }];
 		})
 	);
-	const config = $derived({
-		average: {
-			label: `Average ${title}`,
-			color: 'var(--chart-1)'
-		}
-	});
 	const series = $derived([
 		{
 			key: 'average',
 			label: `Average ${title}`,
 			value: 'average',
-			color: 'var(--chart-1)'
+			colorIndex: 0
 		}
 	]);
 </script>
@@ -46,6 +40,5 @@
 	description={`Average per run${unit ? ` (${unit})` : ''}.`}
 	data={chartData}
 	{series}
-	{config}
 	{unit}
 />
