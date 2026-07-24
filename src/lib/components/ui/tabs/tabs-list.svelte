@@ -6,7 +6,9 @@
 		variants: {
 			variant: {
 				default: 'cn-tabs-list-variant-default bg-muted',
-				line: 'cn-tabs-list-variant-line gap-1 bg-transparent'
+				line: 'cn-tabs-list-variant-line gap-1 bg-transparent',
+				connected:
+					'cn-tabs-list-variant-connected h-10 w-full justify-start rounded-none border-b bg-transparent p-0'
 			}
 		},
 		defaultVariants: {

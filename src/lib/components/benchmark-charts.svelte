@@ -44,8 +44,8 @@
 			No MangoHud performance data could be read from the included files.
 		</div>
 	{:else}
-		<Tabs.Root value="performance">
-			<Tabs.List variant="line">
+		<Tabs.Root value="performance" class="gap-0">
+			<Tabs.List variant="connected">
 				<Tabs.Trigger value="performance">Performance</Tabs.Trigger>
 				<Tabs.Trigger value="summary">Summary</Tabs.Trigger>
 				<Tabs.Trigger value="all-data">All data</Tabs.Trigger>
