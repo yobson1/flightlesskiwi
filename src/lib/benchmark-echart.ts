@@ -4,6 +4,7 @@ import {
 	DataZoomComponent,
 	GridComponent,
 	LegendComponent,
+	ToolboxComponent,
 	TooltipComponent
 } from 'echarts/components';
 import { init, use, type EChartsCoreOption, type EChartsType } from 'echarts/core';
@@ -19,6 +20,7 @@ use([
 	LabelLayout,
 	LegendComponent,
 	LineChart,
+	ToolboxComponent,
 	TooltipComponent
 ]);
 

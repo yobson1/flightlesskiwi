@@ -9,9 +9,17 @@
 		chartClass: string;
 		ariaLabel: string;
 		createOption: (theme: BenchmarkEChartTheme) => BenchmarkEChartOption;
+		dragZoom?: boolean;
 	}
 
-	let { title, description, chartClass, ariaLabel, createOption }: Props = $props();
+	let {
+		title,
+		description,
+		chartClass,
+		ariaLabel,
+		createOption,
+		dragZoom = false
+	}: Props = $props();
 </script>
 
 <article class="rounded-xl border bg-card p-4">
@@ -19,6 +27,6 @@
 	<p class="text-sm text-muted-foreground">{description}</p>
 
 	<div class={cn('mt-4 w-full', chartClass)}>
-		<BenchmarkEChart {ariaLabel} class="h-full" {createOption} />
+		<BenchmarkEChart {ariaLabel} class="h-full" {createOption} {dragZoom} />
 	</div>
 </article>

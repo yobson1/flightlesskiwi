@@ -139,6 +139,22 @@
 				show: hasLegend,
 				type: 'scroll'
 			},
+			toolbox: {
+				feature: {
+					dataZoom: {
+						brushStyle: {
+							borderColor: theme.mutedForeground,
+							borderWidth: 1,
+							color: theme.border
+						},
+						xAxisIndex: 0,
+						yAxisIndex: false
+					}
+				},
+				itemSize: 0,
+				show: true,
+				showTitle: false
+			},
 			series: metricSeries.map(({ key, label }) => ({
 				data: chartData.map((row) => [row.timeSeconds, row[key]]),
 				emphasis: { focus: 'series' },
@@ -182,4 +198,5 @@
 	chartClass="h-72"
 	ariaLabel={`${title} over time chart`}
 	{createOption}
+	dragZoom
 />

@@ -13,9 +13,10 @@
 		ariaLabel: string;
 		class?: string;
 		createOption: (theme: BenchmarkEChartTheme) => BenchmarkEChartOption;
+		dragZoom?: boolean;
 	}
 
-	let { ariaLabel, class: className, createOption }: Props = $props();
+	let { ariaLabel, class: className, createOption, dragZoom = false }: Props = $props();
 	let container: HTMLDivElement;
 	let chart = $state.raw<BenchmarkEChartInstance>();
 	let theme = $state.raw<BenchmarkEChartTheme>();
@@ -24,6 +25,13 @@
 	$effect(() => {
 		if (chart && option) {
 			chart.setOption(option, { notMerge: true });
+			if (dragZoom) {
+				chart.dispatchAction({
+					type: 'takeGlobalCursor',
+					key: 'dataZoomSelect',
+					dataZoomSelectActive: true
+				});
+			}
 		}
 	});
 
