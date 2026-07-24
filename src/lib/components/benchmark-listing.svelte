@@ -1,12 +1,15 @@
 <script lang="ts">
+	import CpuIcon from '@lucide/svelte/icons/cpu';
 	import GamepadIcon from '@lucide/svelte/icons/gamepad-2';
+	import GpuIcon from '@lucide/svelte/icons/gpu';
 	import { resolve } from '$app/paths';
 	import { constructImageUrl } from '$lib/igdb';
 
 	interface BenchmarkListing {
 		id: string;
 		title: string;
-		description: string | null;
+		cpus: string[];
+		gpus: string[];
 		createdAt: Date;
 		username: string;
 		gameName: string | null;
@@ -23,8 +26,6 @@
 		dateStyle: 'medium',
 		timeZone: 'UTC'
 	});
-
-	let description = $derived(benchmark.description?.split(/\r?\n/, 1)[0]?.trim() ?? '');
 </script>
 
 <div class="pb-3">
@@ -48,14 +49,33 @@
 
 		<div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:justify-between">
 			<div class="min-w-0 flex-1">
-				<h2 class="truncate text-base font-semibold group-hover:underline">
+				<h2 class="truncate text-base leading-tight font-semibold group-hover:underline">
 					{benchmark.title}
 				</h2>
-				<p class="truncate text-sm font-medium text-muted-foreground">
+				<p class="truncate text-sm leading-tight font-medium text-muted-foreground">
 					{benchmark.gameName ?? 'Unknown game'}
 				</p>
-				{#if description}
-					<p class="mt-1 truncate text-sm text-muted-foreground">{description}</p>
+				{#if benchmark.cpus.length || benchmark.gpus.length}
+					<div class="mt-2">
+						{#if benchmark.cpus.length}
+							<p
+								class="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
+								title={benchmark.cpus.join(' · ')}
+							>
+								<CpuIcon class="size-3.5 shrink-0" />
+								<span class="truncate">{benchmark.cpus.join(' · ')}</span>
+							</p>
+						{/if}
+						{#if benchmark.gpus.length}
+							<p
+								class="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
+								title={benchmark.gpus.join(' · ')}
+							>
+								<GpuIcon class="size-3.5 shrink-0" />
+								<span class="truncate">{benchmark.gpus.join(' · ')}</span>
+							</p>
+						{/if}
+					</div>
 				{/if}
 			</div>
 

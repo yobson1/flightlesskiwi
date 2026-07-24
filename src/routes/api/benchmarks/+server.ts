@@ -2,13 +2,13 @@ import { json } from '@sveltejs/kit';
 import { getPublicBenchmarksPage, type PublicBenchmarkCursor } from '$lib/server/benchmarks';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = ({ url }) => {
+export const GET: RequestHandler = async ({ url }) => {
 	const cursor = parseCursor(url.searchParams);
 	if (cursor === false) {
 		return json({ message: 'Invalid benchmark cursor' }, { status: 400 });
 	}
 
-	return json(getPublicBenchmarksPage(cursor));
+	return json(await getPublicBenchmarksPage(cursor));
 };
 
 function parseCursor(searchParams: URLSearchParams): PublicBenchmarkCursor | undefined | false {

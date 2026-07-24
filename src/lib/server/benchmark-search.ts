@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { getBenchmarkHardwareNames } from '$lib/server/benchmarks';
 import { db } from '$lib/server/db';
 import { benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
 import {
@@ -122,14 +123,13 @@ function getSearchDocuments(benchmarkIds: string[]) {
 	return [...documents.values()];
 }
 
-function getBenchmarkListings(benchmarkIds: string[]) {
+async function getBenchmarkListings(benchmarkIds: string[]) {
 	if (benchmarkIds.length === 0) return [];
 
 	const rows = db
 		.select({
 			id: benchmarkResult.id,
 			title: benchmarkResult.title,
-			description: benchmarkResult.description,
 			createdAt: benchmarkResult.createdAt,
 			username: user.username,
 			gameName: gameName.name,
@@ -142,12 +142,22 @@ function getBenchmarkListings(benchmarkIds: string[]) {
 		.where(inArray(benchmarkResult.id, benchmarkIds))
 		.all();
 	const rank = new Map(benchmarkIds.map((id, position) => [id, position]));
+	const hardwareNames = await getBenchmarkHardwareNames(rows.map(({ id }) => id));
 
-	return rows.sort(
-		(left, right) =>
-			(rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-			(rank.get(right.id) ?? Number.MAX_SAFE_INTEGER)
-	);
+	return rows
+		.sort(
+			(left, right) =>
+				(rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+				(rank.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+		)
+		.map((benchmark) => {
+			const hardware = hardwareNames.get(benchmark.id);
+			return {
+				...benchmark,
+				cpus: [...(hardware?.cpus ?? [])],
+				gpus: [...(hardware?.gpus ?? [])]
+			};
+		});
 }
 
 export async function prepareBenchmarkSearch() {
@@ -197,5 +207,5 @@ export async function searchBenchmarks(query: string) {
 		limit: SEARCH_LIMIT,
 		attributesToRetrieve: DISPLAYED_ATTRIBUTES
 	});
-	return getBenchmarkListings(response.hits.map(({ id }) => id));
+	return await getBenchmarkListings(response.hits.map(({ id }) => id));
 }
