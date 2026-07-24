@@ -2,6 +2,7 @@
 	import {
 		averageMetricValues,
 		hasNonZeroMetricValues,
+		percentagesRelativeToMinimum,
 		percentileMetricValue,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -31,6 +32,21 @@
 		{ key: 'average', label: 'Average', value: 'average', colorIndex: 0 },
 		{ key: 'high', label: '97th percentile', value: 'high', colorIndex: 1 }
 	];
+	const relativeAverageData = $derived.by(() => {
+		const percentages = percentagesRelativeToMinimum(chartData.map(({ average }) => average));
+		return percentages.map((percentage, index) => ({
+			run: chartData[index]!.run,
+			percentage
+		}));
+	});
+	const relativeAverageSeries = [
+		{
+			key: 'percentage',
+			label: 'Relative average FPS',
+			value: 'percentage',
+			colorIndex: 0
+		}
+	];
 </script>
 
 <BenchmarkHorizontalBarChart
@@ -44,4 +60,14 @@
 	rightPadding={72}
 	maxLabelCharacters={24}
 	showLegend
+/>
+
+<BenchmarkHorizontalBarChart
+	title="Average FPS comparison (%)"
+	description="Average FPS relative to the slowest run, which is the 100% baseline."
+	data={relativeAverageData}
+	series={relativeAverageSeries}
+	unit="%"
+	leftPadding={168}
+	maxLabelCharacters={24}
 />

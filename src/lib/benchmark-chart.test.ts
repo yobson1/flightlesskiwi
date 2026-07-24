@@ -3,8 +3,10 @@ import {
 	averageMetricValues,
 	buildSharedMetricChartData,
 	formatBenchmarkMetricName,
+	formatMetricValue,
 	getBenchmarkMetricUnit,
 	hasNonZeroMetricValues,
+	percentagesRelativeToMinimum,
 	percentileMetricValue
 } from './benchmark-chart';
 
@@ -20,6 +22,7 @@ describe('benchmark chart metric helpers', () => {
 		expect(getBenchmarkMetricUnit('frametime')).toBe('ms');
 		expect(getBenchmarkMetricUnit('gpu_temp')).toBe('°C');
 		expect(getBenchmarkMetricUnit('unknown_metric')).toBe('');
+		expect(formatMetricValue(110, '%')).toBe('110%');
 	});
 
 	test('calculates averages and interpolated percentiles while ignoring missing samples', () => {
@@ -33,6 +36,15 @@ describe('benchmark chart metric helpers', () => {
 		expect(hasNonZeroMetricValues([null, 0, 0])).toBe(false);
 		expect(hasNonZeroMetricValues([null, 0, 0.01])).toBe(true);
 		expect(hasNonZeroMetricValues([-1, 0])).toBe(true);
+	});
+
+	test('expresses values relative to the lowest 100% baseline', () => {
+		const percentages = percentagesRelativeToMinimum([60, 66]);
+
+		expect(percentages[0]).toBe(100);
+		expect(percentages[1]).toBeCloseTo(110);
+		expect(percentagesRelativeToMinimum([])).toEqual([]);
+		expect(percentagesRelativeToMinimum([0, 60])).toEqual([]);
 	});
 
 	test('aligns independently sampled runs onto one shared time grid', () => {

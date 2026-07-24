@@ -65,6 +65,15 @@ export function hasNonZeroMetricValues(values: Array<number | null>): boolean {
 	return values.some((value) => value !== null && value !== 0);
 }
 
+export function percentagesRelativeToMinimum(values: readonly number[]): number[] {
+	if (values.length === 0 || values.some((value) => !Number.isFinite(value) || value <= 0)) {
+		return [];
+	}
+
+	const baseline = Math.min(...values);
+	return values.map((value) => (value / baseline) * 100);
+}
+
 export function buildSharedMetricChartData(
 	series: BenchmarkMetricSeries[]
 ): Array<{ timeSeconds: number } & Record<string, number | undefined>> {
@@ -107,7 +116,8 @@ export function percentileMetricValue(
 export function formatMetricValue(value: number, unit = ''): string {
 	const maximumFractionDigits = Math.abs(value) >= 100 ? 1 : 2;
 	const formatted = new Intl.NumberFormat('en', { maximumFractionDigits }).format(value);
-	return unit ? `${formatted} ${unit}` : formatted;
+	if (!unit) return formatted;
+	return unit === '%' ? `${formatted}%` : `${formatted} ${unit}`;
 }
 
 function interpolateMetricValue(
