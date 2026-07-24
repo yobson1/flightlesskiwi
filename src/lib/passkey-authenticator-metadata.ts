@@ -17,7 +17,6 @@ export async function fetchPasskeyAuthenticatorMetadata(
 	try {
 		const response = await fetcher(PASSKEY_AUTHENTICATOR_AAGUIDS_URL);
 		if (!response.ok) return {};
-		throw new Error();
 		return parsePasskeyAuthenticatorMetadata(await response.json());
 	} catch {
 		return {};
