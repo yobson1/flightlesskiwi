@@ -1,11 +1,13 @@
 <script lang="ts">
 	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
+	import ScanEyeIcon from '@lucide/svelte/icons/scan-eye';
 	import UploadIcon from '@lucide/svelte/icons/upload';
 	import { enhance } from '$app/forms';
 	import { MAX_BENCHMARK_DESCRIPTION_LENGTH, MAX_BENCHMARK_TITLE_LENGTH } from '$lib/benchmark';
 	import BenchmarkFileInput from '$lib/components/benchmark-file-input.svelte';
 	import GameInline from '$lib/components/game-inline.svelte';
 	import GameSearch from '$lib/components/game-search.svelte';
+	import MarkdownPreview from '$lib/components/markdown-preview.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -23,6 +25,8 @@
 	let selectedFiles = $state<FileList>();
 	let submitting = $state(false);
 	let gameSearchKey = $state(0);
+	let description = $state(initialValues?.description ?? '');
+	let descriptionPreviewOpen = $state(false);
 
 	const uploadSubmit: SubmitFunction = () => {
 		submitting = true;
@@ -43,6 +47,7 @@
 				toast.success(getMessage(result.data, 'Benchmark uploaded'));
 				selectedGameId = null;
 				selectedFiles = undefined;
+				description = '';
 				gameSearchKey++;
 			}
 			await update({ reset: result.type === 'success' });
@@ -155,7 +160,7 @@
 						<Textarea
 							id="benchmark-description"
 							name="description"
-							value={getSubmittedValues(form)?.description ?? ''}
+							bind:value={description}
 							maxlength={MAX_BENCHMARK_DESCRIPTION_LENGTH}
 							rows={5}
 							placeholder="Optional notes about settings, hardware, or the run..."
@@ -176,7 +181,16 @@
 						</p>
 					{/if}
 
-					<div class="flex justify-end">
+					<div class="flex justify-end gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="lg"
+							onclick={() => (descriptionPreviewOpen = true)}
+						>
+							<ScanEyeIcon />
+							Preview
+						</Button>
 						<Button type="submit" size="lg" disabled={submitting}>
 							{#if submitting}
 								<LoaderIcon class="animate-spin" />
@@ -192,3 +206,5 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<MarkdownPreview bind:open={descriptionPreviewOpen} source={description} />

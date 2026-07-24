@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DownloadIcon from '@lucide/svelte/icons/download';
+	import ExpandIcon from '@lucide/svelte/icons/expand';
 	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { enhance } from '$app/forms';
@@ -10,6 +11,7 @@
 	import BenchmarkCharts from '$lib/components/benchmark-charts.svelte';
 	import BenchmarkRunCard from '$lib/components/benchmark-run-card.svelte';
 	import Game from '$lib/components/game.svelte';
+	import MarkdownPreview from '$lib/components/markdown-preview.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { toast } from 'svelte-sonner';
@@ -18,6 +20,7 @@
 
 	let { data }: PageProps = $props();
 	let deleting = $state(false);
+	let descriptionPreviewOpen = $state(false);
 
 	const dateFormatter = new Intl.DateTimeFormat('en', {
 		dateStyle: 'long',
@@ -126,19 +129,38 @@
 			</div>
 
 			{#if data.benchmark.description}
-				<div
-					class="wrap-break-words prose prose-sm mt-6 max-w-none lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pr-3 dark:prose-invert"
-				>
-					<SvelteMarkdown
-						source={data.benchmark.description}
-						options={{ gfm: true }}
-						renderers={markdownRenderers}
-					/>
+				<div class="relative mt-6 lg:min-h-0 lg:flex-1">
+					<Button
+						variant="outline"
+						size="icon-sm"
+						class="absolute top-0 right-3"
+						aria-label="Open description preview"
+						onclick={() => (descriptionPreviewOpen = true)}
+					>
+						<ExpandIcon />
+					</Button>
+					<div
+						class="wrap-break-words prose prose-sm max-w-none pr-12 lg:h-full lg:overflow-y-auto lg:overscroll-contain lg:pr-14 dark:prose-invert"
+					>
+						<SvelteMarkdown
+							source={data.benchmark.description}
+							options={{ gfm: true }}
+							renderers={markdownRenderers}
+						/>
+					</div>
 				</div>
 			{/if}
 		</article>
 	</div>
 </div>
+
+{#if data.benchmark.description}
+	<MarkdownPreview
+		bind:open={descriptionPreviewOpen}
+		source={data.benchmark.description}
+		title={`${data.benchmark.title} description`}
+	/>
+{/if}
 
 <section class="mt-4" aria-label="Included benchmark runs">
 	<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
