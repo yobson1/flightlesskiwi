@@ -4,6 +4,10 @@
 	import GpuIcon from '@lucide/svelte/icons/gpu';
 	import LaptopIcon from '@lucide/svelte/icons/laptop';
 	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
+	import SvelteMarkdown, {
+		buildUnsupportedHTML,
+		defaultRenderers
+	} from '@humanspeak/svelte-markdown';
 	import Game from '$lib/components/game.svelte';
 	import type { PageProps } from './$types';
 
@@ -13,6 +17,10 @@
 		dateStyle: 'long',
 		timeZone: 'UTC'
 	});
+	const markdownRenderers = {
+		...defaultRenderers,
+		html: buildUnsupportedHTML()
+	};
 
 	function formatMemory(ramKiB: number | null): string {
 		if (ramKiB === null) return 'Unknown memory';
@@ -28,6 +36,15 @@
 <div class="grid items-start gap-8 lg:grid-cols-2">
 	<div class="min-w-0">
 		<Game gameId={data.benchmark.gameId} />
+		{#if data.benchmark.description}
+			<div class="wrap-break-words prose prose-sm mt-6 max-w-none dark:prose-invert">
+				<SvelteMarkdown
+					source={data.benchmark.description}
+					options={{ gfm: true }}
+					renderers={markdownRenderers}
+				/>
+			</div>
+		{/if}
 	</div>
 
 	<article class="min-w-0 lg:border-l lg:pl-8">
@@ -111,9 +128,5 @@
 				{/each}
 			</div>
 		</section>
-
-		{#if data.benchmark.description}
-			<p class="mt-4 whitespace-pre-wrap text-muted-foreground">{data.benchmark.description}</p>
-		{/if}
 	</article>
 </div>

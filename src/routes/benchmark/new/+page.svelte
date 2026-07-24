@@ -161,7 +161,8 @@
 							placeholder="Optional notes about settings, hardware, or the run..."
 						/>
 						<Field.Description>
-							Optional. Maximum {MAX_BENCHMARK_DESCRIPTION_LENGTH.toLocaleString()} characters.
+							Optional. GitHub Flavored Markdown is supported. Maximum {MAX_BENCHMARK_DESCRIPTION_LENGTH.toLocaleString()}
+							characters.
 						</Field.Description>
 					</Field.Field>
 

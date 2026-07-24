@@ -29,7 +29,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.1.0",
 		"@eslint/js": "^10.0.1",
-		"@humanspeak/svelte-markdown": "^1.8.4",
+		"@humanspeak/svelte-markdown": "^1.8.5",
 		"@humanspeak/svelte-virtual-list": "^0.5.13",
 		"@iconify-json/line-md": "^1.2.16",
 		"@iconify-json/simple-icons": "^1.2.91",
