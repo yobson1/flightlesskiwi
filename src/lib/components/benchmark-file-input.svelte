@@ -10,6 +10,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	interface Props {
 		files?: FileList;
@@ -17,6 +18,8 @@
 		id?: string;
 		name?: string;
 	}
+
+	const MAX_DISPLAY_BASENAME_LENGTH = 8;
 
 	let {
 		files = $bindable(),
@@ -33,6 +36,23 @@
 			if (index !== indexToRemove) remainingFiles.items.add(file);
 		}
 		files = remainingFiles.files;
+	}
+
+	function displayFileName(fileName: string) {
+		const extensionStart = fileName.lastIndexOf('.');
+		const hasExtension = extensionStart > 0;
+		const basename = hasExtension ? fileName.slice(0, extensionStart) : fileName;
+		const extension = hasExtension ? fileName.slice(extensionStart) : '';
+
+		if (basename.length <= MAX_DISPLAY_BASENAME_LENGTH) {
+			return { basename, extension, truncated: false };
+		}
+
+		return {
+			basename: basename.slice(0, MAX_DISPLAY_BASENAME_LENGTH),
+			extension,
+			truncated: true
+		};
 	}
 </script>
 
@@ -61,33 +81,51 @@
 			bind:files
 		/>
 		{#if files?.length}
-			<ul
-				class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5"
-				aria-label="Selected benchmark files"
-			>
-				{#each Array.from(files) as file, index (`${file.name}-${file.size}-${file.lastModified}-${index}`)}
-					<li
-						class="relative flex min-h-24 min-w-0 flex-col items-center justify-center rounded-md border bg-muted/30 p-2 text-center"
-					>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-xs"
-							class="absolute top-1 right-1"
-							aria-label={`Remove ${file.name}`}
-							onclick={() => removeFile(index)}
-							{disabled}
+			<Tooltip.Provider>
+				<ul class="mt-3 flex flex-wrap gap-2" aria-label="Selected benchmark files">
+					{#each Array.from(files) as file, index (`${file.name}-${file.size}-${file.lastModified}-${index}`)}
+						{@const displayedName = displayFileName(file.name)}
+						<li
+							class="relative flex size-24 shrink-0 flex-col items-center justify-center rounded-md border bg-muted/30 p-2 text-center"
 						>
-							<XIcon />
-						</Button>
-						<FileIcon class="mb-1 size-6 text-muted-foreground" />
-						<p class="w-full truncate text-xs font-medium" title={file.name}>
-							{file.name}
-						</p>
-						<p class="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
-					</li>
-				{/each}
-			</ul>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-xs"
+								class="absolute top-1 right-1"
+								aria-label={`Remove ${file.name}`}
+								onclick={() => removeFile(index)}
+								{disabled}
+							>
+								<XIcon />
+							</Button>
+							<FileIcon class="mb-1 size-6 text-muted-foreground" />
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									{#snippet child({ props })}
+										<button
+											type="button"
+											class="flex max-w-full cursor-default items-baseline text-xs font-medium outline-none"
+											{...props}
+										>
+											<span class="overflow-hidden whitespace-nowrap">{displayedName.basename}</span
+											>
+											{#if displayedName.truncated}
+												<span class="shrink-0 text-muted-foreground">...</span>
+											{/if}
+											<span class="shrink-0">{displayedName.extension}</span>
+										</button>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content side="bottom" sideOffset={6} class="break-all">
+									{file.name}
+								</Tooltip.Content>
+							</Tooltip.Root>
+							<p class="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+						</li>
+					{/each}
+				</ul>
+			</Tooltip.Provider>
 		{/if}
 	</div>
 	<Field.Description>
