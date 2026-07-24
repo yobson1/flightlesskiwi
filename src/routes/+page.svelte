@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Game from '$lib/components/Game.svelte';
-	import GameSearch from '$lib/components/GameSearch.svelte';
+	import Game from '$lib/components/game.svelte';
+	import GameSearch from '$lib/components/game-search.svelte';
 
 	let selectedGameId = $state<number | null>(null);
 

@@ -3,7 +3,7 @@
 	import { constructImageUrl } from '$lib/igdb';
 	import type { GameSearchResult } from '$lib/types/game';
 	import { fly } from 'svelte/transition';
-	import LineMdSearchTwotone from '$lib/components/icons/LineMdSearchTwotone.svelte';
+	import LineMdSearchTwotone from '$lib/components/icons/line-md-search-twotone.svelte';
 	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 

@@ -17,8 +17,8 @@
 		type AuthModalOpenOptions
 	} from '$lib/auth-modal';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import AuthModal from '$lib/components/AuthModal.svelte';
-	import Nav from '$lib/components/Nav.svelte';
+	import AuthModal from '$lib/components/auth-modal.svelte';
+	import Nav from '$lib/components/nav.svelte';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
 	import { ModeWatcher } from 'mode-watcher';
