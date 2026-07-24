@@ -7,7 +7,8 @@ import {
 	getBenchmarkMetricUnit,
 	hasNonZeroMetricValues,
 	percentagesRelativeToMinimum,
-	percentileMetricValue
+	percentileMetricValue,
+	sortBenchmarkChartRunsByAverageFps
 } from './benchmark-chart';
 
 describe('benchmark chart metric helpers', () => {
@@ -45,6 +46,39 @@ describe('benchmark chart metric helpers', () => {
 		expect(percentages[1]).toBeCloseTo(110);
 		expect(percentagesRelativeToMinimum([])).toEqual([]);
 		expect(percentagesRelativeToMinimum([0, 60])).toEqual([]);
+	});
+
+	test('orders chart runs by ascending average FPS and leaves missing FPS last', () => {
+		const runs = [
+			{
+				id: 'slow',
+				originalName: 'Slow',
+				mangoHudData: {
+					timeSeconds: [0, 1],
+					metrics: [{ key: 'fps', values: [59, 61] }]
+				}
+			},
+			{
+				id: 'missing',
+				originalName: 'Missing',
+				mangoHudData: null
+			},
+			{
+				id: 'fast',
+				originalName: 'Fast',
+				mangoHudData: {
+					timeSeconds: [0, 1],
+					metrics: [{ key: 'fps', values: [65, 67] }]
+				}
+			}
+		];
+
+		expect(sortBenchmarkChartRunsByAverageFps(runs).map(({ id }) => id)).toEqual([
+			'slow',
+			'fast',
+			'missing'
+		]);
+		expect(runs.map(({ id }) => id)).toEqual(['slow', 'missing', 'fast']);
 	});
 
 	test('aligns independently sampled runs onto one shared time grid', () => {

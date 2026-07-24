@@ -74,6 +74,30 @@ export function percentagesRelativeToMinimum(values: readonly number[]): number[
 	return values.map((value) => (value / baseline) * 100);
 }
 
+export function sortBenchmarkChartRunsByAverageFps(
+	runs: readonly BenchmarkChartRun[]
+): BenchmarkChartRun[] {
+	return runs
+		.map((run, index) => {
+			const fps = run.mangoHudData?.metrics.find(({ key }) => key === 'fps');
+			const average =
+				fps && hasNonZeroMetricValues(fps.values) ? averageMetricValues(fps.values) : null;
+			return {
+				run,
+				index,
+				average: average !== null && Number.isFinite(average) && average > 0 ? average : null
+			};
+		})
+		.toSorted((first, second) => {
+			if (first.average === null) {
+				return second.average === null ? first.index - second.index : 1;
+			}
+			if (second.average === null) return -1;
+			return first.average - second.average || first.index - second.index;
+		})
+		.map(({ run }) => run);
+}
+
 export function buildSharedMetricChartData(
 	series: BenchmarkMetricSeries[]
 ): Array<{ timeSeconds: number } & Record<string, number | undefined>> {
