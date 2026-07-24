@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { getBenchmarkHardwareNames } from '$lib/server/benchmarks';
+import { getBenchmarkRunMetadata } from '$lib/server/benchmarks';
 import { db } from '$lib/server/db';
 import { benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
 import {
@@ -14,13 +14,18 @@ const INDEX_NAME = 'benchmarks';
 const INDEX_BATCH_SIZE = 1_000;
 const SEARCH_LIMIT = 100;
 const TASK_TIMEOUT_MS = 300_000;
-const SEARCHABLE_ATTRIBUTES = ['title', 'gameNames'];
-const DISPLAYED_ATTRIBUTES = ['id'];
+const INDEX_DOCUMENT_VERSION = 2;
+const SEARCHABLE_ATTRIBUTES = ['title', 'gameNames', 'runMetadata'];
+const DISPLAYED_ATTRIBUTES = ['id', 'cpus', 'gpus'];
 
 interface BenchmarkSearchDocument {
+	schemaVersion: number;
 	id: string;
 	title: string;
 	gameNames: string[];
+	cpus: string[];
+	gpus: string[];
+	runMetadata: string[];
 }
 
 const client = new Meilisearch({
@@ -92,7 +97,7 @@ function getReadyIndex() {
 	return preparation;
 }
 
-function getSearchDocuments(benchmarkIds: string[]) {
+async function getSearchDocuments(benchmarkIds: string[]) {
 	if (benchmarkIds.length === 0) return [];
 
 	const rows = db
@@ -113,18 +118,33 @@ function getSearchDocuments(benchmarkIds: string[]) {
 			existing.gameNames.push(row.gameName);
 		} else {
 			documents.set(row.id, {
+				schemaVersion: INDEX_DOCUMENT_VERSION,
 				id: row.id,
 				title: row.title,
-				gameNames: [row.gameName]
+				gameNames: [row.gameName],
+				cpus: [],
+				gpus: [],
+				runMetadata: []
 			});
 		}
+	}
+
+	const metadata = await getBenchmarkRunMetadata([...documents.keys()]);
+	for (const document of documents.values()) {
+		const benchmarkMetadata = metadata.get(document.id);
+		document.cpus = [...(benchmarkMetadata?.cpus ?? [])];
+		document.gpus = [...(benchmarkMetadata?.gpus ?? [])];
+		document.runMetadata = [...(benchmarkMetadata?.searchableValues ?? [])];
 	}
 
 	return [...documents.values()];
 }
 
-async function getBenchmarkListings(benchmarkIds: string[]) {
-	if (benchmarkIds.length === 0) return [];
+function getBenchmarkListings(
+	searchDocuments: Array<Pick<BenchmarkSearchDocument, 'id' | 'cpus' | 'gpus'>>
+) {
+	if (searchDocuments.length === 0) return [];
+	const benchmarkIds = searchDocuments.map(({ id }) => id);
 
 	const rows = db
 		.select({
@@ -142,7 +162,7 @@ async function getBenchmarkListings(benchmarkIds: string[]) {
 		.where(inArray(benchmarkResult.id, benchmarkIds))
 		.all();
 	const rank = new Map(benchmarkIds.map((id, position) => [id, position]));
-	const hardwareNames = await getBenchmarkHardwareNames(rows.map(({ id }) => id));
+	const metadata = new Map(searchDocuments.map((document) => [document.id, document]));
 
 	return rows
 		.sort(
@@ -151,11 +171,11 @@ async function getBenchmarkListings(benchmarkIds: string[]) {
 				(rank.get(right.id) ?? Number.MAX_SAFE_INTEGER)
 		)
 		.map((benchmark) => {
-			const hardware = hardwareNames.get(benchmark.id);
+			const document = metadata.get(benchmark.id);
 			return {
 				...benchmark,
-				cpus: [...(hardware?.cpus ?? [])],
-				gpus: [...(hardware?.gpus ?? [])]
+				cpus: document?.cpus ?? [],
+				gpus: document?.gpus ?? []
 			};
 		});
 }
@@ -165,14 +185,25 @@ export async function prepareBenchmarkSearch() {
 
 	const databaseCount = db.select({ count: count() }).from(benchmarkResult).get()?.count ?? 0;
 	const { numberOfDocuments } = await index.getStats();
-	if (databaseCount === numberOfDocuments) return 0;
+	const indexedDocuments =
+		numberOfDocuments === 0
+			? []
+			: (
+					await index.getDocuments<Pick<BenchmarkSearchDocument, 'schemaVersion'>>({
+						fields: ['schemaVersion'],
+						limit: 1
+					})
+				).results;
+	const schemaIsCurrent =
+		numberOfDocuments === 0 || indexedDocuments[0]?.schemaVersion === INDEX_DOCUMENT_VERSION;
+	if (databaseCount === numberOfDocuments && schemaIsCurrent) return 0;
 
 	if (numberOfDocuments > 0) await waitForTask(index.deleteAllDocuments());
 	const benchmarkIds = db.select({ id: benchmarkResult.id }).from(benchmarkResult).all();
 	let indexedBenchmarks = 0;
 
 	for (let offset = 0; offset < benchmarkIds.length; offset += INDEX_BATCH_SIZE) {
-		const documents = getSearchDocuments(
+		const documents = await getSearchDocuments(
 			benchmarkIds.slice(offset, offset + INDEX_BATCH_SIZE).map(({ id }) => id)
 		);
 		if (documents.length > 0) {
@@ -188,7 +219,7 @@ export async function indexBenchmarks(benchmarkIds: string[]) {
 	if (benchmarkIds.length === 0) return;
 	await getReadyIndex();
 
-	const documents = getSearchDocuments(benchmarkIds);
+	const documents = await getSearchDocuments(benchmarkIds);
 	if (documents.length > 0) {
 		await waitForTask(index.addDocuments(documents, { primaryKey: 'id' }));
 	}
@@ -207,5 +238,5 @@ export async function searchBenchmarks(query: string) {
 		limit: SEARCH_LIMIT,
 		attributesToRetrieve: DISPLAYED_ATTRIBUTES
 	});
-	return await getBenchmarkListings(response.hits.map(({ id }) => id));
+	return getBenchmarkListings(response.hits);
 }

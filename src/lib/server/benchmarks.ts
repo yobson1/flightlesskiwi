@@ -11,14 +11,21 @@ export interface PublicBenchmarkCursor {
 	id: string;
 }
 
-export async function getBenchmarkHardwareNames(benchmarkIds: string[]) {
-	const hardwareNames = new Map<string, { cpus: Set<string>; gpus: Set<string> }>();
-	if (benchmarkIds.length === 0) return hardwareNames;
+export interface BenchmarkRunMetadata {
+	cpus: Set<string>;
+	gpus: Set<string>;
+	searchableValues: Set<string>;
+}
+
+export async function getBenchmarkRunMetadata(benchmarkIds: string[]) {
+	const benchmarkMetadata = new Map<string, BenchmarkRunMetadata>();
+	if (benchmarkIds.length === 0) return benchmarkMetadata;
 
 	const files = db
 		.select({
 			id: benchmarkFile.id,
-			benchmarkId: benchmarkFile.benchmarkId
+			benchmarkId: benchmarkFile.benchmarkId,
+			originalName: benchmarkFile.originalName
 		})
 		.from(benchmarkFile)
 		.where(inArray(benchmarkFile.benchmarkId, benchmarkIds))
@@ -30,28 +37,52 @@ export async function getBenchmarkHardwareNames(benchmarkIds: string[]) {
 			try {
 				const contents = await readBenchmarkFilePrefix(file.id);
 				const systemInfo = parseMangoHudSystemInfo(contents);
-				const cpu = systemInfo?.cpu.trim();
-				const gpu = systemInfo?.gpu.trim();
-				return cpu || gpu ? { benchmarkId: file.benchmarkId, cpu, gpu } : null;
+				return { ...file, systemInfo };
 			} catch {
 				// A missing or unreadable upload should not prevent the benchmark listing from loading.
-				return null;
+				return { ...file, systemInfo: null };
 			}
 		})
 	);
 
 	for (const parsedFile of parsedFiles) {
-		if (!parsedFile) continue;
-		const names = hardwareNames.get(parsedFile.benchmarkId) ?? {
+		const metadata = benchmarkMetadata.get(parsedFile.benchmarkId) ?? {
 			cpus: new Set<string>(),
-			gpus: new Set<string>()
+			gpus: new Set<string>(),
+			searchableValues: new Set<string>()
 		};
-		if (parsedFile.cpu) names.cpus.add(parsedFile.cpu);
-		if (parsedFile.gpu) names.gpus.add(parsedFile.gpu);
-		hardwareNames.set(parsedFile.benchmarkId, names);
+		const { systemInfo } = parsedFile;
+		metadata.searchableValues.add(parsedFile.originalName);
+		if (!systemInfo) {
+			benchmarkMetadata.set(parsedFile.benchmarkId, metadata);
+			continue;
+		}
+
+		const cpu = systemInfo.cpu.trim();
+		const gpu = systemInfo.gpu.trim();
+		if (cpu) metadata.cpus.add(cpu);
+		if (gpu) metadata.gpus.add(gpu);
+
+		const ram =
+			systemInfo.ramKiB === null
+				? ''
+				: `${(systemInfo.ramKiB / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')} GiB`;
+		for (const value of [
+			systemInfo.os,
+			cpu,
+			gpu,
+			ram,
+			systemInfo.kernel,
+			systemInfo.driver,
+			systemInfo.cpuScheduler
+		]) {
+			const normalized = value.trim();
+			if (normalized) metadata.searchableValues.add(normalized);
+		}
+		benchmarkMetadata.set(parsedFile.benchmarkId, metadata);
 	}
 
-	return hardwareNames;
+	return benchmarkMetadata;
 }
 
 export async function getPublicBenchmarksPage(cursor?: PublicBenchmarkCursor) {
@@ -85,13 +116,13 @@ export async function getPublicBenchmarksPage(cursor?: PublicBenchmarkCursor) {
 
 	const hasMore = rows.length > PUBLIC_BENCHMARK_PAGE_SIZE;
 	const pageRows = hasMore ? rows.slice(0, PUBLIC_BENCHMARK_PAGE_SIZE) : rows;
-	const hardwareNames = await getBenchmarkHardwareNames(pageRows.map(({ id }) => id));
+	const runMetadata = await getBenchmarkRunMetadata(pageRows.map(({ id }) => id));
 	const benchmarks = pageRows.map((benchmark) => {
-		const hardware = hardwareNames.get(benchmark.id);
+		const metadata = runMetadata.get(benchmark.id);
 		return {
 			...benchmark,
-			cpus: [...(hardware?.cpus ?? [])],
-			gpus: [...(hardware?.gpus ?? [])]
+			cpus: [...(metadata?.cpus ?? [])],
+			gpus: [...(metadata?.gpus ?? [])]
 		};
 	});
 	const lastBenchmark = benchmarks.at(-1);
