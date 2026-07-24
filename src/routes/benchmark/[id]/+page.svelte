@@ -3,6 +3,7 @@
 		buildUnsupportedHTML,
 		defaultRenderers
 	} from '@humanspeak/svelte-markdown';
+	import BenchmarkCharts from '$lib/components/benchmark-charts.svelte';
 	import BenchmarkRunCard from '$lib/components/benchmark-run-card.svelte';
 	import Game from '$lib/components/game.svelte';
 	import type { PageProps } from './$types';
@@ -65,3 +66,5 @@
 		{/each}
 	</div>
 </section>
+
+<BenchmarkCharts runs={data.runs} />

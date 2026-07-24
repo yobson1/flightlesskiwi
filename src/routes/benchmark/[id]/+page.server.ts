@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { error as logError } from '$lib/logger';
-import { parseMangoHudSystemInfo } from '$lib/mangohud';
-import { readBenchmarkFilePrefix } from '$lib/server/benchmark-files';
+import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from '$lib/mangohud';
+import { readBenchmarkFile } from '$lib/server/benchmark-files';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, user } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
@@ -37,14 +37,15 @@ export const load: PageServerLoad = async ({ params }) => {
 	const runs = await Promise.all(
 		files.map(async (file) => {
 			try {
-				const prefix = await readBenchmarkFilePrefix(file.id);
+				const contents = await readBenchmarkFile(file.id);
 				return {
 					...file,
-					mangoHud: parseMangoHudSystemInfo(prefix)
+					mangoHud: parseMangoHudSystemInfo(contents),
+					mangoHudData: parseMangoHudBenchmarkData(contents)
 				};
 			} catch (cause) {
 				logError(`Failed to read benchmark file ${file.id}`, cause);
-				return { ...file, mangoHud: null };
+				return { ...file, mangoHud: null, mangoHudData: null };
 			}
 		})
 	);

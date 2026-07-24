@@ -22,6 +22,10 @@ export async function readBenchmarkFilePrefix(
 	return Bun.file(getBenchmarkFilePath(fileId)).slice(0, maximumBytes).text();
 }
 
+export async function readBenchmarkFile(fileId: string): Promise<string> {
+	return Bun.file(getBenchmarkFilePath(fileId)).text();
+}
+
 export async function writeBenchmarkFiles(files: Array<{ id: string; file: File }>): Promise<void> {
 	await mkdir(getUploadDirectory(), { recursive: true });
 	const writtenFileIds: string[] = [];

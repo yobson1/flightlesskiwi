@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { parseMangoHudSystemInfo } from './mangohud';
+import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from './mangohud';
 
 describe('MangoHud system information parsing', () => {
 	test('parses the system header and values from a MangoHud CSV', () => {
@@ -41,5 +41,51 @@ describe('MangoHud system information parsing', () => {
 			parseMangoHudSystemInfo('Application,ProcessID,SwapChainAddress\nGame.exe,123,0x1')
 		).toBe(null);
 		expect(parseMangoHudSystemInfo('os,cpu,gpu,ram,kernel')).toBe(null);
+	});
+});
+
+describe('MangoHud benchmark data parsing', () => {
+	test('parses time-series metrics and normalizes elapsed nanoseconds', () => {
+		const csv = [
+			'os,cpu,gpu,ram,kernel,driver,cpuscheduler',
+			'Arch Linux,Example CPU,Example GPU,32771172,6.16.7,,performance',
+			'fps,frametime,cpu_load,gpu_power,elapsed',
+			'114.136,8.7615,23.2298,81,254636156',
+			'122.986,8.13101,,82,279919926'
+		].join('\n');
+
+		expect(parseMangoHudBenchmarkData(csv)).toEqual({
+			timeSeconds: [0, 0.02528377],
+			metrics: [
+				{ key: 'fps', values: [114.136, 122.986] },
+				{ key: 'frametime', values: [8.7615, 8.13101] },
+				{ key: 'cpu_load', values: [23.2298, null] },
+				{ key: 'gpu_power', values: [81, 82] }
+			]
+		});
+	});
+
+	test('falls back to frametime when elapsed is missing and omits empty metrics', () => {
+		const csv = [
+			'os,cpu,gpu,ram,kernel',
+			'Linux,Example CPU,Example GPU,16777216,6.12',
+			'fps,frametime,gpu_load',
+			'60,16.67,',
+			'50,20,'
+		].join('\n');
+
+		expect(parseMangoHudBenchmarkData(csv)).toEqual({
+			timeSeconds: [0, 0.02],
+			metrics: [
+				{ key: 'fps', values: [60, 50] },
+				{ key: 'frametime', values: [16.67, 20] }
+			]
+		});
+	});
+
+	test('does not parse unrelated CSV data as benchmark metrics', () => {
+		expect(
+			parseMangoHudBenchmarkData('Application,ProcessID,SwapChainAddress\nGame.exe,123,0x1')
+		).toBe(null);
 	});
 });
