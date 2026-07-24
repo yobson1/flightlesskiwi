@@ -11,14 +11,13 @@
 		MAX_BENCHMARK_TOTAL_SIZE,
 		formatFileSize
 	} from '$lib/benchmark';
+	import GameInline from '$lib/components/game-inline.svelte';
 	import GameSearch from '$lib/components/game-search.svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import type { GameSearchResult } from '$lib/types/game';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -28,7 +27,6 @@
 
 	const initialValues = untrack(() => getSubmittedValues(form));
 	let selectedGameId = $state<number | null>(initialValues?.gameId ?? null);
-	let selectedGameName = $state('');
 	let selectedFiles = $state<FileList>();
 	let submitting = $state(false);
 	let gameSearchKey = $state(0);
@@ -51,7 +49,6 @@
 			if (result.type === 'success') {
 				toast.success(getMessage(result.data, 'Benchmark uploaded'));
 				selectedGameId = null;
-				selectedGameName = '';
 				selectedFiles = undefined;
 				gameSearchKey++;
 			}
@@ -59,9 +56,8 @@
 		};
 	};
 
-	function selectGame(gameId: number, game: GameSearchResult) {
+	function selectGame(gameId: number) {
 		selectedGameId = gameId;
-		selectedGameName = game.name;
 	}
 
 	function getMessage(value: unknown, fallback: string): string {
@@ -140,10 +136,7 @@
 						{/key}
 						<input type="hidden" name="game_id" value={selectedGameId ?? ''} />
 						{#if selectedGameId !== null}
-							<div class="flex items-center gap-2 text-sm text-muted-foreground">
-								<span>Selected:</span>
-								<Badge variant="secondary">{selectedGameName || `Game #${selectedGameId}`}</Badge>
-							</div>
+							<GameInline gameId={selectedGameId} />
 						{:else}
 							<Field.Description>Select a game from the search results.</Field.Description>
 						{/if}
