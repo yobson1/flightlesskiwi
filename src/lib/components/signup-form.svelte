@@ -8,7 +8,7 @@
 		MIN_USERNAME_LENGTH
 	} from '$lib/auth-constants';
 	import { authFormRequest, AuthAPIError } from '$lib/client/auth-api';
-	import favicon from '$lib/assets/favicon.svg';
+	import AuthSidePanel from '$lib/components/auth-side-panel.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -174,24 +174,7 @@
 				</Field.Group>
 			</form>
 
-			<div
-				class="relative hidden min-h-full overflow-hidden border-l bg-[radial-gradient(circle_at_bottom_left,var(--color-primary),transparent_55%),linear-gradient(145deg,var(--color-muted),var(--color-background))] md:flex md:flex-col md:justify-between"
-				aria-hidden="true"
-			>
-				<div
-					class="absolute -bottom-20 -left-20 size-64 rounded-full border border-foreground/10"
-				></div>
-				<div
-					class="absolute top-16 right-12 size-28 rounded-full border border-foreground/10"
-				></div>
-				<div class="relative flex items-center gap-3 p-8">
-					<img src={favicon} alt="" class="size-10" />
-					<span class="text-lg font-semibold">flightlesskiwi</span>
-				</div>
-				<p class="relative max-w-xs p-8 text-lg leading-relaxed font-medium text-balance">
-					Keep the games you care about close, searchable, and ready to compare.
-				</p>
-			</div>
+			<AuthSidePanel flip />
 		</Card.Content>
 	</Card.Root>
 </div>
