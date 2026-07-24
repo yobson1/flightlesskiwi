@@ -14,9 +14,16 @@
 		class?: string;
 		createOption: (theme: BenchmarkEChartTheme) => BenchmarkEChartOption;
 		dragZoom?: boolean;
+		imageExporter?: () => void;
 	}
 
-	let { ariaLabel, class: className, createOption, dragZoom = false }: Props = $props();
+	let {
+		ariaLabel,
+		class: className,
+		createOption,
+		dragZoom = false,
+		imageExporter = $bindable()
+	}: Props = $props();
 	let container: HTMLDivElement;
 	let chart = $state.raw<BenchmarkEChartInstance>();
 	let theme = $state.raw<BenchmarkEChartTheme>();
@@ -28,6 +35,27 @@
 			key: 'dataZoomSelect',
 			dataZoomSelectActive: true
 		});
+	}
+
+	function saveChartImage() {
+		if (!chart || !theme) return;
+
+		const imageUrl = chart.getDataURL({
+			type: 'png',
+			pixelRatio: 2,
+			backgroundColor: theme.background,
+			excludeComponents: ['toolbox']
+		});
+		const fileName =
+			ariaLabel
+				.trim()
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, '-')
+				.replace(/^-|-$/g, '') || 'benchmark-chart';
+		const link = document.createElement('a');
+		link.href = imageUrl;
+		link.download = `${fileName}.png`;
+		link.click();
 	}
 
 	$effect(() => {
@@ -47,6 +75,7 @@
 			if (!chart) {
 				theme = readBenchmarkEChartTheme();
 				chart = createBenchmarkEChart(container);
+				imageExporter = saveChartImage;
 				if (dragZoom) {
 					resetZoom = (event: unknown) => {
 						const pointer = event as { offsetX?: number; offsetY?: number };
@@ -85,6 +114,7 @@
 			if (resetZoom) chart?.getZr().off('click', resetZoom);
 			chart?.dispose();
 			chart = undefined;
+			imageExporter = undefined;
 		};
 	});
 </script>

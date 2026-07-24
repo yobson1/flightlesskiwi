@@ -1,13 +1,3 @@
-<script lang="ts" module>
-	function truncateMiddle(value: string, maximumCharacters: number): string {
-		if (value.length <= maximumCharacters) return value;
-		const visibleCharacters = Math.max(2, maximumCharacters - 1);
-		const startLength = Math.ceil(visibleCharacters / 2);
-		const endLength = Math.floor(visibleCharacters / 2);
-		return `${value.slice(0, startLength)}…${value.slice(-endLength)}`;
-	}
-</script>
-
 <script lang="ts">
 	import { formatMetricValue } from '$lib/benchmark-chart';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
@@ -39,9 +29,7 @@
 		series: BenchmarkBarSeries[];
 		unit?: string;
 		chartClass?: string;
-		leftPadding?: number;
 		rightPadding?: number;
-		maxLabelCharacters?: number;
 		showLegend?: boolean;
 	}
 
@@ -52,9 +40,7 @@
 		series,
 		unit = '',
 		chartClass = 'h-64',
-		leftPadding = 144,
 		rightPadding = 88,
-		maxLabelCharacters = 20,
 		showLegend = false
 	}: Props = $props();
 
@@ -65,8 +51,8 @@
 			color: series.map(({ colorIndex }) => getBenchmarkEChartSeriesColor(theme, colorIndex)),
 			grid: {
 				bottom: showLegend ? 64 : 40,
-				containLabel: false,
-				left: leftPadding,
+				containLabel: true,
+				left: 16,
 				right: rightPadding,
 				top: 8
 			},
@@ -93,9 +79,7 @@
 				type: 'value'
 			},
 			yAxis: {
-				...getBenchmarkEChartAxis(theme, (value: string) =>
-					truncateMiddle(value, maxLabelCharacters)
-				),
+				...getBenchmarkEChartAxis(theme),
 				data: data.map(({ run }) => run),
 				inverse: true,
 				type: 'category'

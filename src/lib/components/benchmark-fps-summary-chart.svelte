@@ -58,9 +58,7 @@
 	{series}
 	unit="FPS"
 	chartClass="h-80"
-	leftPadding={168}
 	rightPadding={72}
-	maxLabelCharacters={24}
 	showLegend
 />
 
@@ -70,6 +68,4 @@
 	data={relativeAverageData}
 	series={relativeAverageSeries}
 	unit="%"
-	leftPadding={168}
-	maxLabelCharacters={24}
 />
