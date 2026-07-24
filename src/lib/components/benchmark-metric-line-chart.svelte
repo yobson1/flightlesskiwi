@@ -78,7 +78,13 @@
 			bottom: hasLegend ? 76 : 44
 		}}
 		props={{
-			xAxis: { label: 'Time (seconds)' },
+			xAxis: {
+				label: 'Time (seconds)',
+				// LayerChart anchors both the bottom legend and the X-axis label to the
+				// bottom of the chart. Lift the label into the reserved padding so the
+				// swatches have their own row.
+				labelProps: hasLegend ? { dy: -24 } : undefined
+			},
 			yAxis: { label: unit || title },
 			spline: { strokeWidth: 1.75 }
 		}}
