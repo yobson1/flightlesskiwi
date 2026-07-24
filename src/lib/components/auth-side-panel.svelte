@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ChartNoAxesCombinedIcon from '@lucide/svelte/icons/chart-no-axes-combined';
-	import favicon from '$lib/assets/favicon.svg';
 	import ShaderRenderer from '$lib/components/shader-renderer.svelte';
+	import Wordmark from '$lib/components/wordmark.svelte';
 	import fragShaderSource from '$lib/shaders/isovalues/frag.glsl?raw';
 	import vertShaderSource from '$lib/shaders/isovalues/vert.glsl?raw';
 	import { cn, type WithElementRef } from '$lib/utils.js';
@@ -40,9 +40,8 @@
 		<ShaderRenderer {vertShaderSource} {fragShaderSource} class="absolute inset-0 size-full" />
 	</div>
 
-	<div class="relative flex items-center gap-3 p-8">
-		<img src={favicon} alt="" class="size-10" />
-		<span class="text-lg font-semibold">flightlesskiwi</span>
+	<div class="relative p-8">
+		<Wordmark size="large" />
 	</div>
 
 	<div class="relative mx-8 rounded-xl border bg-card p-4 ring-1 ring-foreground/10">

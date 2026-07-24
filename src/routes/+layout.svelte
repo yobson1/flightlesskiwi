@@ -21,6 +21,7 @@
 	import AuthModal from '$lib/components/auth-modal.svelte';
 	import Nav from '$lib/components/nav.svelte';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
+	import Wordmark from '$lib/components/wordmark.svelte';
 	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutProps } from './$types';
@@ -258,9 +259,8 @@
 <div class="flex min-h-screen flex-col">
 	<header class="flex w-full justify-center border-b bg-background/90 backdrop-blur">
 		<nav class="mx-2 flex w-full max-w-7xl min-w-80 items-center justify-between py-2">
-			<a href="/" class="flex items-center gap-2">
-				<img src={favicon} alt="" class="h-8 w-8" />
-				<span class="font-semibold">flightlesskiwi</span>
+			<a href="/">
+				<Wordmark />
 			</a>
 			<Nav auth={visibleAuth} />
 		</nav>
