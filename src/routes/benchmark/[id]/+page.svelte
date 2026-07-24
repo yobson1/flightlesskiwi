@@ -28,26 +28,34 @@
 		<Game gameId={data.benchmark.gameId} />
 	</div>
 
-	<article class="min-w-0 lg:border-l lg:pl-8">
-		<p class="text-sm font-medium text-primary">Benchmark result</p>
-		<h1 class="text-3xl font-bold tracking-tight">{data.benchmark.title}</h1>
-		<p class="mt-2 text-sm text-muted-foreground">
-			Uploaded by {data.benchmark.username} on
-			<time datetime={data.benchmark.createdAt.toISOString()}>
-				{dateFormatter.format(data.benchmark.createdAt)}
-			</time>
-		</p>
-
-		{#if data.benchmark.description}
-			<div class="wrap-break-words prose prose-sm mt-6 max-w-none dark:prose-invert">
-				<SvelteMarkdown
-					source={data.benchmark.description}
-					options={{ gfm: true }}
-					renderers={markdownRenderers}
-				/>
+	<div class="relative min-w-0">
+		<article
+			class="min-w-0 lg:absolute lg:inset-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-l lg:pl-8"
+		>
+			<div class="shrink-0">
+				<p class="text-sm font-medium text-primary">Benchmark result</p>
+				<h1 class="text-3xl font-bold tracking-tight">{data.benchmark.title}</h1>
+				<p class="mt-2 text-sm text-muted-foreground">
+					Uploaded by {data.benchmark.username} on
+					<time datetime={data.benchmark.createdAt.toISOString()}>
+						{dateFormatter.format(data.benchmark.createdAt)}
+					</time>
+				</p>
 			</div>
-		{/if}
-	</article>
+
+			{#if data.benchmark.description}
+				<div
+					class="wrap-break-words prose prose-sm mt-6 max-w-none lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pr-3 dark:prose-invert"
+				>
+					<SvelteMarkdown
+						source={data.benchmark.description}
+						options={{ gfm: true }}
+						renderers={markdownRenderers}
+					/>
+				</div>
+			{/if}
+		</article>
+	</div>
 </div>
 
 <section class="mt-4" aria-label="Included benchmark runs">
