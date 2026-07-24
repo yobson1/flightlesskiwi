@@ -7,7 +7,6 @@
 	import type { MangoHudSystemInfo } from '$lib/mangohud';
 
 	interface BenchmarkRun {
-		id: string;
 		originalName: string;
 		mangoHud: MangoHudSystemInfo | null;
 	}
