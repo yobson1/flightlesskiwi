@@ -2,6 +2,7 @@
 	import {
 		averageMetricValues,
 		formatBenchmarkMetricName,
+		getBenchmarkChartColorIndex,
 		getBenchmarkMetricUnit,
 		hasNonZeroMetricValues,
 		type BenchmarkChartRun
@@ -9,11 +10,12 @@
 	import BenchmarkHorizontalBarChart from '$lib/components/benchmark-horizontal-bar-chart.svelte';
 
 	interface Props {
+		benchmarkId: string;
 		runs: BenchmarkChartRun[];
 		metricKey: string;
 	}
 
-	let { runs, metricKey }: Props = $props();
+	let { benchmarkId, runs, metricKey }: Props = $props();
 
 	const title = $derived(formatBenchmarkMetricName(metricKey));
 	const unit = $derived(getBenchmarkMetricUnit(metricKey));
@@ -30,7 +32,7 @@
 			key: 'average',
 			label: `Average ${title}`,
 			value: 'average',
-			colorIndex: 0
+			colorIndex: getBenchmarkChartColorIndex(benchmarkId, `summary:${metricKey}`)
 		}
 	]);
 </script>

@@ -11,6 +11,7 @@ export interface BenchmarkMetricSeries {
 	points: Array<{ timeSeconds: number; value: number }>;
 }
 
+const BENCHMARK_CHART_COLOR_COUNT = 8;
 const ACRONYMS = new Set(['cpu', 'fps', 'gpu', 'mhz', 'ram', 'rss', 'vram']);
 
 const METRIC_UNITS: Record<string, string> = {
@@ -72,6 +73,18 @@ export function percentagesRelativeToMinimum(values: readonly number[]): number[
 
 	const baseline = Math.min(...values);
 	return values.map((value) => (value / baseline) * 100);
+}
+
+export function getBenchmarkChartColorIndex(benchmarkId: string, chartKey: string): number {
+	const seed = `${benchmarkId}:${chartKey}`;
+	let hash = 2_166_136_261;
+
+	for (let index = 0; index < seed.length; index++) {
+		hash ^= seed.charCodeAt(index);
+		hash = Math.imul(hash, 16_777_619);
+	}
+
+	return (hash >>> 0) % BENCHMARK_CHART_COLOR_COUNT;
 }
 
 export function sortBenchmarkChartRunsByAverageFps(

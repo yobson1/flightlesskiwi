@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		averageMetricValues,
+		getBenchmarkChartColorIndex,
 		hasNonZeroMetricValues,
 		percentagesRelativeToMinimum,
 		percentileMetricValue,
@@ -9,10 +10,11 @@
 	import BenchmarkHorizontalBarChart from '$lib/components/benchmark-horizontal-bar-chart.svelte';
 
 	interface Props {
+		benchmarkId: string;
 		runs: BenchmarkChartRun[];
 	}
 
-	let { runs }: Props = $props();
+	let { benchmarkId, runs }: Props = $props();
 
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
@@ -39,14 +41,14 @@
 			percentage
 		}));
 	});
-	const relativeAverageSeries = [
+	const relativeAverageSeries = $derived([
 		{
 			key: 'percentage',
 			label: 'Relative average FPS',
 			value: 'percentage',
-			colorIndex: 0
+			colorIndex: getBenchmarkChartColorIndex(benchmarkId, 'performance:relative-average-fps')
 		}
-	];
+	]);
 </script>
 
 <BenchmarkHorizontalBarChart

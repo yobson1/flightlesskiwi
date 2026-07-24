@@ -67,4 +67,4 @@
 	</div>
 </section>
 
-<BenchmarkCharts runs={data.runs} />
+<BenchmarkCharts benchmarkId={data.benchmark.id} runs={data.runs} />

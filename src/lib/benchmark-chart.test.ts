@@ -4,6 +4,7 @@ import {
 	buildSharedMetricChartData,
 	formatBenchmarkMetricName,
 	formatMetricValue,
+	getBenchmarkChartColorIndex,
 	getBenchmarkMetricUnit,
 	hasNonZeroMetricValues,
 	percentagesRelativeToMinimum,
@@ -46,6 +47,15 @@ describe('benchmark chart metric helpers', () => {
 		expect(percentages[1]).toBeCloseTo(110);
 		expect(percentagesRelativeToMinimum([])).toEqual([]);
 		expect(percentagesRelativeToMinimum([0, 60])).toEqual([]);
+	});
+
+	test('derives stable chart palette indexes from the benchmark and chart keys', () => {
+		const colorIndex = getBenchmarkChartColorIndex('benchmark-123', 'summary:fps');
+
+		expect(getBenchmarkChartColorIndex('benchmark-123', 'summary:fps')).toBe(colorIndex);
+		expect(colorIndex).toBeGreaterThanOrEqual(0);
+		expect(colorIndex).toBeLessThan(8);
+		expect(getBenchmarkChartColorIndex('benchmark-123', 'summary:frametime')).not.toBe(colorIndex);
 	});
 
 	test('orders chart runs by ascending average FPS and leaves missing FPS last', () => {

@@ -11,10 +11,11 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 
 	interface Props {
+		benchmarkId: string;
 		runs: BenchmarkChartRun[];
 	}
 
-	let { runs }: Props = $props();
+	let { benchmarkId, runs }: Props = $props();
 
 	const orderedRuns = $derived(sortBenchmarkChartRunsByAverageFps(runs));
 	const metricKeys = $derived.by(() => {
@@ -52,7 +53,7 @@
 
 			<Tabs.Content value="performance" class="mt-4 space-y-4">
 				{#if hasFps}
-					<BenchmarkFpsSummaryChart runs={orderedRuns} />
+					<BenchmarkFpsSummaryChart {benchmarkId} runs={orderedRuns} />
 				{/if}
 				{#if hasFrametime}
 					<BenchmarkMetricLineChart
@@ -65,7 +66,7 @@
 
 			<Tabs.Content value="summary" class="mt-4 grid gap-4 lg:grid-cols-2">
 				{#each metricKeys as metricKey (metricKey)}
-					<BenchmarkMetricAverageChart runs={orderedRuns} {metricKey} />
+					<BenchmarkMetricAverageChart {benchmarkId} runs={orderedRuns} {metricKey} />
 				{/each}
 			</Tabs.Content>
 
