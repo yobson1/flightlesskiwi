@@ -1,13 +1,13 @@
 import { error as logError } from '$lib/logger';
-import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
-import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/server/auth/2fa';
-import { authError, authSuccess } from '$lib/server/auth/api';
+import { createSessionAndSetCookie } from '$lib/server/auth';
+import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
+import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
 import { sendPasswordResetEmail } from '$lib/server/auth/email';
 import { verifyPasswordStrength } from '$lib/server/auth/password';
 import {
 	createPasswordResetSession,
 	deletePasswordResetSessionTokenCookie,
-	getPasswordResetStage,
+	getPasswordResetState,
 	invalidateUserPasswordResetSessions,
 	setPasswordResetSessionAs2FAVerified,
 	setPasswordResetSessionAsEmailVerified,
@@ -17,8 +17,7 @@ import {
 	type PasswordResetSession
 } from '$lib/server/auth/password-reset';
 import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { getClientIP } from '$lib/server/auth/routes';
-import { totpBucket, verifyAndConsumeUserTOTP } from '$lib/server/auth/totp';
+import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import {
 	getUserFromEmail,
 	normalizeEmail,
@@ -39,9 +38,9 @@ export function GET(event: RequestEvent) {
 	}
 	const { session, user } = validatePasswordResetSessionRequest(event);
 	if (session === null) {
-		return noStore(authSuccess('password-reset', { stage: 'request' }));
+		return authSuccess('password-reset', { stage: 'request' });
 	}
-	return noStore(stateResponse(session, user));
+	return stateResponse(session, user);
 }
 
 export async function POST(event: RequestEvent) {
@@ -142,16 +141,16 @@ function verifyTOTP(event: RequestEvent, formData: FormData): Response {
 		return authError(403, 'Authenticator verification is not available');
 	}
 	const code = formData.get('code');
-	if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+	if (!isTOTPCode(code)) {
 		return authError(400, 'Enter the six-digit authenticator code');
 	}
-	if (!totpBucket.consume(session.userId, 1)) {
+	const verification = verifyUserTOTP(session.userId, code);
+	if (verification === 'rate-limited') {
 		return authError(429, 'Too many attempts. Try again later.');
 	}
-	if (!verifyAndConsumeUserTOTP(session.userId, code)) {
+	if (verification === 'invalid') {
 		return authError(400, 'Invalid authenticator code');
 	}
-	totpBucket.reset(session.userId);
 	setPasswordResetSessionAs2FAVerified(session.id);
 	return stateResponse({ ...session, twoFactorVerified: true }, user);
 }
@@ -168,16 +167,16 @@ async function verifyRecoveryCode(event: RequestEvent, formData: FormData): Prom
 		return authError(403, 'Recovery-code verification is not available');
 	}
 	const code = formData.get('code');
-	if (typeof code !== 'string' || code.trim().length === 0 || code.length > 64) {
+	if (!isRecoveryCode(code)) {
 		return authError(400, 'Enter your recovery code');
 	}
-	if (!recoveryCodeBucket.consume(session.userId, 1)) {
+	const verification = await verifyUserRecoveryCode(session.userId, code);
+	if (verification === 'rate-limited') {
 		return authError(429, 'Too many attempts. Try again later.');
 	}
-	if (!(await resetUser2FAWithRecoveryCode(session.userId, code))) {
+	if (verification === 'invalid') {
 		return authError(400, 'Invalid recovery code');
 	}
-	recoveryCodeBucket.reset(session.userId);
 	setPasswordResetSessionAs2FAVerified(session.id);
 	return stateResponse({ ...session, twoFactorVerified: true }, user);
 }
@@ -205,24 +204,11 @@ async function updatePassword(event: RequestEvent, formData: FormData): Promise<
 
 	await updateUserPassword(user.id, password);
 	invalidateUserPasswordResetSessions(user.id);
-	const token = generateSessionToken();
-	const newSession = createSession(token, user.id, { twoFactorVerified: true });
-	setSessionTokenCookie(event, token, newSession.expiresAt);
+	createSessionAndSetCookie(event, user.id, { twoFactorVerified: true });
 	deletePasswordResetSessionTokenCookie(event);
 	return authSuccess(null, { message: 'Your password has been updated.' });
 }
 
 function stateResponse(session: PasswordResetSession, user: AuthUser): Response {
-	const stage = getPasswordResetStage(session, user);
-	return authSuccess('password-reset', {
-		stage,
-		email: session.email,
-		registeredTOTP: stage === 'two-factor' && user.registeredTOTP,
-		registeredPasskey: stage === 'two-factor' && user.registeredPasskey
-	});
-}
-
-function noStore(response: Response): Response {
-	response.headers.set('cache-control', 'no-store');
-	return response;
+	return authSuccess('password-reset', getPasswordResetState(session, user));
 }

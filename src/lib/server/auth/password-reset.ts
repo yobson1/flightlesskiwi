@@ -3,6 +3,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { passwordResetSession as sessionTable } from '$lib/server/db/schema';
+import { EMAIL_CODE_TTL_MS } from '$lib/server/auth/email';
 import { hashAuthCode } from '$lib/server/auth/encryption';
 import { getUserById, type AuthUser } from '$lib/server/auth/user';
 import {
@@ -12,7 +13,6 @@ import {
 	hashSecret
 } from '$lib/server/auth/utils';
 
-const SESSION_TTL_MS = 10 * 60 * 1000;
 const cookieName = 'password_reset_session';
 
 export function createPasswordResetSession(
@@ -25,7 +25,7 @@ export function createPasswordResetSession(
 		id,
 		userId,
 		email,
-		expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+		expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MS),
 		emailVerified: false,
 		twoFactorVerified: false,
 		token: `${id}.${secret}`,
@@ -114,6 +114,19 @@ export function getPasswordResetStage(
 	return 'password';
 }
 
+export function getPasswordResetState(
+	session: PasswordResetSession,
+	user: AuthUser
+): PasswordResetState {
+	const stage = getPasswordResetStage(session, user);
+	return {
+		stage,
+		email: session.email,
+		registeredTOTP: stage === 'two-factor' && user.registeredTOTP,
+		registeredPasskey: stage === 'two-factor' && user.registeredPasskey
+	};
+}
+
 export function validatePasswordResetSessionRequest(
 	event: RequestEvent
 ): PasswordResetSessionValidationResult {
@@ -168,3 +181,10 @@ export type PasswordResetSessionValidationResult =
 	{ session: PasswordResetSession; user: AuthUser } | { session: null; user: null };
 
 export type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';
+
+export interface PasswordResetState {
+	stage: PasswordResetStage;
+	email: string;
+	registeredTOTP: boolean;
+	registeredPasskey: boolean;
+}

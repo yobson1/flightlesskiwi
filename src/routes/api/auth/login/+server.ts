@@ -1,6 +1,6 @@
-import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
-import { authError, authSuccess } from '$lib/server/auth/api';
-import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/server/auth/2fa';
+import { createSessionAndSetCookie } from '$lib/server/auth';
+import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
+import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
 import {
 	consumeLoginAttemptRequest,
 	createLoginAttempt,
@@ -9,8 +9,7 @@ import {
 } from '$lib/server/auth/login-attempt';
 import { hashPassword, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { getClientIP } from '$lib/server/auth/routes';
-import { totpBucket, verifyAndConsumeUserTOTP } from '$lib/server/auth/totp';
+import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import {
 	getUserById,
 	getUserFromEmail,
@@ -80,7 +79,7 @@ export async function PUT(event: RequestEvent) {
 	}
 	const formData = await event.request.formData();
 	const code = formData.get('code');
-	if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+	if (!isTOTPCode(code)) {
 		return authError(400, 'Invalid or missing fields');
 	}
 	if (!ipBucket.consume(clientIP, 1)) {
@@ -99,10 +98,11 @@ export async function PUT(event: RequestEvent) {
 			modal: 'login'
 		});
 	}
-	if (!totpBucket.consume(user.id, 1)) {
+	const verification = verifyUserTOTP(user.id, code);
+	if (verification === 'rate-limited') {
 		return authError(429, 'Too many requests');
 	}
-	if (!verifyAndConsumeUserTOTP(user.id, code)) {
+	if (verification === 'invalid') {
 		return authError(400, 'Invalid authenticator code');
 	}
 	if (!consumeLoginAttemptRequest(event, attempt.id)) {
@@ -110,7 +110,6 @@ export async function PUT(event: RequestEvent) {
 			modal: 'login'
 		});
 	}
-	totpBucket.reset(user.id);
 	return completeLogin(event, user);
 }
 
@@ -124,7 +123,7 @@ export async function PATCH(event: RequestEvent) {
 	}
 	const formData = await event.request.formData();
 	const code = formData.get('code');
-	if (typeof code !== 'string' || code.trim().length === 0 || code.length > 64) {
+	if (!isRecoveryCode(code)) {
 		return authError(400, 'Invalid or missing fields');
 	}
 	if (!ipBucket.consume(clientIP, 1)) {
@@ -140,13 +139,13 @@ export async function PATCH(event: RequestEvent) {
 	if (!user.registered2FA || !user.recoveryCodeConfigured) {
 		return authError(400, 'Recovery code is not available. Sign in again.', { modal: 'login' });
 	}
-	if (!recoveryCodeBucket.consume(user.id, 1)) {
+	const verification = await verifyUserRecoveryCode(user.id, code);
+	if (verification === 'rate-limited') {
 		return authError(429, 'Too many requests');
 	}
-	if (!(await resetUser2FAWithRecoveryCode(user.id, code))) {
+	if (verification === 'invalid') {
 		return authError(400, 'Invalid recovery code');
 	}
-	recoveryCodeBucket.reset(user.id);
 	invalidateLoginAttemptRequest(event);
 
 	const recoveredUser = getUserById(user.id);
@@ -157,8 +156,6 @@ export async function PATCH(event: RequestEvent) {
 }
 
 function completeLogin(event: RequestEvent, user: AuthUser): Response {
-	const sessionToken = generateSessionToken();
-	const session = createSession(sessionToken, user.id, { twoFactorVerified: true });
-	setSessionTokenCookie(event, sessionToken, session.expiresAt);
+	createSessionAndSetCookie(event, user.id, { twoFactorVerified: true });
 	return authSuccess(!user.emailVerified ? 'verify-email' : !user.registeredTOTP ? 'setup' : null);
 }

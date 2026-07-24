@@ -1,4 +1,5 @@
 import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from '$env/static/private';
+import { decodeBase64 } from '@oslojs/encoding';
 import {
 	ECDSAPublicKey,
 	decodePKIXECDSASignature,
@@ -24,6 +25,8 @@ import {
 	parseClientDataJSON
 } from '@oslojs/webauthn';
 import {
+	getPasskeyCredential,
+	getUserPasskeyCredential,
 	updatePasskeyCounter,
 	verifyWebAuthnChallenge,
 	type WebAuthnUserCredential
@@ -31,6 +34,40 @@ import {
 import { hashSecret } from '$lib/server/auth/utils';
 import { formatAAGUID } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+
+export async function verifyWebAuthnAssertionRequest(
+	request: Request,
+	userId: string | null,
+	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
+): Promise<WebAuthnUserCredential> {
+	const assertion = await parseAssertionRequest(request);
+	if (assertion === null) {
+		throw new WebAuthnAssertionRequestError('Invalid or missing fields');
+	}
+	const credential =
+		userId === null
+			? getPasskeyCredential(assertion.credentialId)
+			: getUserPasskeyCredential(userId, assertion.credentialId);
+	if (credential === null) {
+		throw new WebAuthnAssertionRequestError('Invalid credential');
+	}
+	try {
+		verifyWebAuthnAssertion(
+			assertion.authenticatorData,
+			assertion.clientDataJSON,
+			assertion.signature,
+			credential,
+			userId,
+			purpose
+		);
+	} catch (cause) {
+		if (cause instanceof WebAuthnVerificationError) {
+			throw new WebAuthnAssertionRequestError('Invalid passkey assertion');
+		}
+		throw cause;
+	}
+	return credential;
+}
 
 export function verifyWebAuthnRegistration(
 	attestationObjectBytes: Uint8Array,
@@ -158,3 +195,48 @@ function verifyAuthenticatorData(
 }
 
 export class WebAuthnVerificationError extends Error {}
+
+export class WebAuthnAssertionRequestError extends Error {}
+
+async function parseAssertionRequest(request: Request): Promise<ParsedAssertion | null> {
+	let data: unknown;
+	try {
+		data = await request.json();
+	} catch {
+		return null;
+	}
+	if (!isRecord(data)) return null;
+	const authenticatorData = data.authenticator_data;
+	const clientDataJSON = data.client_data_json;
+	const credentialId = data.credential_id;
+	const signature = data.signature;
+	if (
+		typeof authenticatorData !== 'string' ||
+		typeof clientDataJSON !== 'string' ||
+		typeof credentialId !== 'string' ||
+		typeof signature !== 'string'
+	) {
+		return null;
+	}
+	try {
+		return {
+			authenticatorData: decodeBase64(authenticatorData),
+			clientDataJSON: decodeBase64(clientDataJSON),
+			credentialId: decodeBase64(credentialId),
+			signature: decodeBase64(signature)
+		};
+	} catch {
+		return null;
+	}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+interface ParsedAssertion {
+	authenticatorData: Uint8Array;
+	clientDataJSON: Uint8Array;
+	credentialId: Uint8Array;
+	signature: Uint8Array;
+}

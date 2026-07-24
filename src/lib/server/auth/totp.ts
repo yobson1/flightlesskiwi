@@ -14,13 +14,24 @@ export const totpUpdateBucket = new RefillingTokenBucket<string>('totp-update', 
 const TOTP_INTERVAL_SECONDS = 30;
 const TOTP_DIGITS = 6;
 
+export function isTOTPCode(value: unknown): value is string {
+	return typeof value === 'string' && /^\d{6}$/.test(value);
+}
+
 export function generateTOTPKey(): Uint8Array {
 	const key = new Uint8Array(20);
 	crypto.getRandomValues(key);
 	return key;
 }
 
-export function verifyAndConsumeUserTOTP(userId: string, code: string): boolean {
+export function verifyUserTOTP(userId: string, code: string): TOTPVerificationResult {
+	if (!totpBucket.consume(userId, 1)) return 'rate-limited';
+	if (!verifyAndConsumeUserTOTP(userId, code)) return 'invalid';
+	totpBucket.reset(userId);
+	return 'valid';
+}
+
+function verifyAndConsumeUserTOTP(userId: string, code: string): boolean {
 	const row = db
 		.select({
 			encryptedKey: totpCredential.encryptedKey,
@@ -52,6 +63,8 @@ export function verifyAndConsumeUserTOTP(userId: string, code: string): boolean 
 		.get();
 	return consumed !== undefined;
 }
+
+export type TOTPVerificationResult = 'valid' | 'invalid' | 'rate-limited';
 
 export function verifyTOTPKey(key: Uint8Array, code: string): number | null {
 	const counter = Math.floor(Date.now() / (TOTP_INTERVAL_SECONDS * 1000));

@@ -10,7 +10,6 @@ import { setUserRecoveryCodeHash } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
 
 export function POST(event: RequestEvent) {
-	event.setHeaders({ 'cache-control': 'no-store' });
 	const guarded = requireVerifiedSession(event);
 	if (guarded.response) return guarded.response;
 	const { user } = guarded.authenticated;
@@ -26,7 +25,6 @@ export function POST(event: RequestEvent) {
 }
 
 export async function PUT(event: RequestEvent) {
-	event.setHeaders({ 'cache-control': 'no-store' });
 	const guarded = requireVerifiedSession(event);
 	if (guarded.response) return guarded.response;
 	const { user } = guarded.authenticated;

@@ -14,7 +14,6 @@ import {
 import type { RequestEvent } from './$types';
 
 export function POST(event: RequestEvent) {
-	event.setHeaders({ 'cache-control': 'no-store' });
 	const guarded = requireVerifiedSession(event, { recentlyReauthenticated: true });
 	if (guarded.response) return guarded.response;
 	const { user } = guarded.authenticated;

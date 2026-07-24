@@ -50,6 +50,17 @@ export function createSession(token: string, userId: string, flags: SessionFlags
 	return session;
 }
 
+export function createSessionAndSetCookie(
+	event: RequestEvent,
+	userId: string,
+	flags: SessionFlags
+): Session {
+	const token = generateSessionToken();
+	const session = createSession(token, userId, flags);
+	setSessionTokenCookie(event, token, session.expiresAt);
+	return session;
+}
+
 export function validateSessionToken(token: string): SessionValidationResult {
 	const tokenParts = parseSessionToken(token);
 	if (tokenParts === null) {

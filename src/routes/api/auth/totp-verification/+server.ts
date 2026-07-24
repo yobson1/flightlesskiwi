@@ -1,8 +1,7 @@
-import { setSessionAs2FAVerified } from '$lib/server/auth';
+import { createSessionAndSetCookie, setSessionAs2FAVerified } from '$lib/server/auth';
 import { authError, authSuccess, requireAuthenticated } from '$lib/server/auth/api';
-import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/server/auth/2fa';
-import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
-import { totpBucket, verifyAndConsumeUserTOTP } from '$lib/server/auth/totp';
+import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
+import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import type { RequestEvent } from './$types';
 
 export async function POST(event: RequestEvent) {
@@ -17,12 +16,12 @@ export async function POST(event: RequestEvent) {
 	}
 	const formData = await event.request.formData();
 	const code = formData.get('code');
-	if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+	if (!isTOTPCode(code)) {
 		return authError(400, 'Enter the six-digit code');
 	}
-	if (!totpBucket.consume(user.id, 1)) return authError(429, 'Too many requests');
-	if (!verifyAndConsumeUserTOTP(user.id, code)) return authError(400, 'Invalid code');
-	totpBucket.reset(user.id);
+	const verification = verifyUserTOTP(user.id, code);
+	if (verification === 'rate-limited') return authError(429, 'Too many requests');
+	if (verification === 'invalid') return authError(400, 'Invalid code');
 	setSessionAs2FAVerified(session.id);
 	return authSuccess(null);
 }
@@ -39,18 +38,12 @@ export async function PATCH(event: RequestEvent) {
 	}
 	const formData = await event.request.formData();
 	const code = formData.get('code');
-	if (typeof code !== 'string' || code.length === 0) {
+	if (!isRecoveryCode(code)) {
 		return authError(400, 'Enter your recovery code');
 	}
-	if (
-		!recoveryCodeBucket.consume(user.id, 1) ||
-		!(await resetUser2FAWithRecoveryCode(user.id, code))
-	) {
-		return authError(400, 'Invalid recovery code');
-	}
-	recoveryCodeBucket.reset(user.id);
-	const sessionToken = generateSessionToken();
-	const newSession = createSession(sessionToken, user.id, { twoFactorVerified: true });
-	setSessionTokenCookie(event, sessionToken, newSession.expiresAt);
+	const verification = await verifyUserRecoveryCode(user.id, code);
+	if (verification === 'rate-limited') return authError(429, 'Too many requests');
+	if (verification === 'invalid') return authError(400, 'Invalid recovery code');
+	createSessionAndSetCookie(event, user.id, { twoFactorVerified: true });
 	return authSuccess('setup');
 }

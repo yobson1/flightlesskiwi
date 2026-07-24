@@ -1,11 +1,6 @@
 import { error as logError } from '$lib/logger';
-import {
-	createSession,
-	generateSessionToken,
-	setSessionTokenCookie,
-	type SessionFlags
-} from '$lib/server/auth';
-import { authError, authSuccess } from '$lib/server/auth/api';
+import { createSessionAndSetCookie, type SessionFlags } from '$lib/server/auth';
+import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
 import { sendVerificationEmail } from '$lib/server/auth/email';
 import {
 	createEmailVerificationRequest,
@@ -13,7 +8,6 @@ import {
 } from '$lib/server/auth/email-verification';
 import { verifyPasswordStrength } from '$lib/server/auth/password';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { getClientIP } from '$lib/server/auth/routes';
 import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
@@ -72,10 +66,8 @@ export async function POST(event: RequestEvent) {
 
 	const verificationRequest = createEmailVerificationRequest(user.id, user.email);
 	setEmailVerificationRequestCookie(event, verificationRequest);
-	const sessionToken = generateSessionToken();
 	const flags: SessionFlags = { twoFactorVerified: false };
-	const session = createSession(sessionToken, user.id, flags);
-	setSessionTokenCookie(event, sessionToken, session.expiresAt);
+	createSessionAndSetCookie(event, user.id, flags);
 	try {
 		await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
 	} catch (cause) {

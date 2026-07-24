@@ -3,6 +3,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { emailVerificationRequest as requestTable } from '$lib/server/db/schema';
+import { EMAIL_CODE_TTL_MS } from '$lib/server/auth/email';
 import { hashAuthCode } from '$lib/server/auth/encryption';
 import {
 	constantTimeEqual,
@@ -11,7 +12,6 @@ import {
 } from '$lib/server/auth/utils';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 
-const REQUEST_TTL_MS = 10 * 60 * 1000;
 const cookieName = 'email_verification';
 
 export function createEmailVerificationRequest(
@@ -25,7 +25,7 @@ export function createEmailVerificationRequest(
 		email,
 		code,
 		codeHash: hashAuthCode(code),
-		expiresAt: new Date(Date.now() + REQUEST_TTL_MS)
+		expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MS)
 	};
 
 	db.transaction((tx) => {
@@ -106,7 +106,7 @@ export function getUserEmailVerificationRequestFromRequest(
 export const sendVerificationEmailBucket = new ExpiringTokenBucket<string>(
 	'email-verification-send',
 	3,
-	10 * 60
+	EMAIL_CODE_TTL_MS / 1000
 );
 
 export interface EmailVerificationRequest {

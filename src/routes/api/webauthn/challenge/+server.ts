@@ -1,9 +1,9 @@
 import { encodeBase64 } from '@oslojs/encoding';
 import { json } from '@sveltejs/kit';
 import { isSessionRecentlyReauthenticated } from '$lib/server/auth';
+import { getClientIP } from '$lib/server/auth/api';
 import { validatePasswordResetSessionRequest } from '$lib/server/auth/password-reset';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { getClientIP } from '$lib/server/auth/routes';
 import { createWebAuthnChallenge } from '$lib/server/auth/webauthn';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 import type { RequestEvent } from './$types';

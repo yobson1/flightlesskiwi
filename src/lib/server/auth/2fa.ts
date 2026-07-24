@@ -10,9 +10,23 @@ import {
 import { verifyRecoveryCodeHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 
-export const recoveryCodeBucket = new ExpiringTokenBucket<string>('recovery-code', 3, 60 * 60);
+const recoveryCodeBucket = new ExpiringTokenBucket<string>('recovery-code', 3, 60 * 60);
 
-export async function resetUser2FAWithRecoveryCode(
+export function isRecoveryCode(value: unknown): value is string {
+	return typeof value === 'string' && value.trim().length > 0 && value.length <= 64;
+}
+
+export async function verifyUserRecoveryCode(
+	userId: string,
+	recoveryCode: string
+): Promise<RecoveryCodeVerificationResult> {
+	if (!recoveryCodeBucket.consume(userId, 1)) return 'rate-limited';
+	if (!(await resetUser2FAWithRecoveryCode(userId, recoveryCode))) return 'invalid';
+	recoveryCodeBucket.reset(userId);
+	return 'valid';
+}
+
+async function resetUser2FAWithRecoveryCode(
 	userId: string,
 	recoveryCode: string
 ): Promise<boolean> {
@@ -46,3 +60,5 @@ export async function resetUser2FAWithRecoveryCode(
 		return true;
 	});
 }
+
+export type RecoveryCodeVerificationResult = 'valid' | 'invalid' | 'rate-limited';

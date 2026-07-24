@@ -3,11 +3,9 @@ import { fail } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
 import { fetchPasskeyAuthenticatorMetadata } from '$lib/passkey-authenticator-metadata';
 import {
-	createSession,
+	createSessionAndSetCookie,
 	deleteSessionTokenCookie,
-	generateSessionToken,
-	isSessionRecentlyReauthenticated,
-	setSessionTokenCookie
+	isSessionRecentlyReauthenticated
 } from '$lib/server/auth';
 import { requireVerifiedPage } from '$lib/server/auth/api';
 import { sendVerificationEmail } from '$lib/server/auth/email';
@@ -152,11 +150,9 @@ async function updatePassword(event: RequestEvent) {
 	await updateUserPassword(event.locals.user.id, newPassword);
 	invalidateUserPasswordResetSessions(event.locals.user.id);
 
-	const token = generateSessionToken();
-	const session = createSession(token, event.locals.user.id, {
+	createSessionAndSetCookie(event, event.locals.user.id, {
 		twoFactorVerified: event.locals.session.twoFactorVerified
 	});
-	setSessionTokenCookie(event, token, session.expiresAt);
 	return { password: { message: 'Updated password' } };
 }
 
