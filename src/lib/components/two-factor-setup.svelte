@@ -4,11 +4,12 @@
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import type { AuthModalView } from '$lib/types/auth';
 
 	interface Props {
 		registeredPasskey: boolean;
 		registeredTOTP: boolean;
-		onSelect: (location: '/2fa/passkey/register' | '/2fa/totp/setup') => void | Promise<void>;
+		onSelect: (view: AuthModalView) => void | Promise<void>;
 		onComplete: () => void | Promise<void>;
 	}
 
@@ -42,7 +43,7 @@
 			<Button
 				size="lg"
 				class="h-auto w-full justify-start px-4 py-3 text-left"
-				onclick={() => onSelect('/2fa/totp/setup')}
+				onclick={() => onSelect('totp-setup')}
 			>
 				<KeyRoundIcon class="size-5" />
 				<span class="flex flex-col items-start">
@@ -58,7 +59,7 @@
 				variant={registeredTOTP ? 'default' : 'outline'}
 				size="lg"
 				class="h-auto w-full justify-start px-4 py-3 text-left"
-				onclick={() => onSelect('/2fa/passkey/register')}
+				onclick={() => onSelect('passkey-register')}
 			>
 				<FingerprintIcon class="size-5" />
 				<span class="flex flex-col items-start">

@@ -48,16 +48,6 @@ export async function resetUser2FAWithRecoveryCode(
 	});
 }
 
-export function get2FARedirect(user: AuthUser): string {
-	if (user.registeredTOTP) {
-		return '/2fa/totp';
-	}
-	if (user.registeredPasskey) {
-		return '/2fa/passkey';
-	}
-	return '/2fa/setup';
-}
-
 export function getPasswordReset2FARedirect(user: AuthUser): string {
 	if (user.registeredTOTP) {
 		return '/reset-password/2fa/totp';

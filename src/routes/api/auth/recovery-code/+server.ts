@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
 import { hashRecoveryCode } from '$lib/server/auth/password';
 import {
 	deletePendingRecoveryCodeCookie,
@@ -11,44 +11,34 @@ import type { RequestEvent } from './$types';
 
 export function POST(event: RequestEvent) {
 	event.setHeaders({ 'cache-control': 'no-store' });
-	if (event.locals.session === null || event.locals.user === null) {
-		return new Response('Not authenticated', { status: 401 });
+	const guarded = requireVerifiedSession(event);
+	if (guarded.response) return guarded.response;
+	const { user } = guarded.authenticated;
+	if (!user.registeredTOTP || user.recoveryCodeConfigured) {
+		return authError(403, 'Recovery-code setup is not available');
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		!event.locals.session.twoFactorVerified ||
-		!event.locals.user.registeredTOTP ||
-		event.locals.user.recoveryCodeConfigured
-	) {
-		return new Response('Forbidden', { status: 403 });
-	}
-	let recoveryCode = getPendingRecoveryCode(event, event.locals.user.id);
+	let recoveryCode = getPendingRecoveryCode(event, user.id);
 	if (recoveryCode === null) {
 		recoveryCode = generateRandomRecoveryCode();
-		setPendingRecoveryCodeCookie(event, event.locals.user.id, recoveryCode);
+		setPendingRecoveryCodeCookie(event, user.id, recoveryCode);
 	}
-	return json({ recoveryCode });
+	return authSuccess('recovery-code', { recoveryCode });
 }
 
 export async function PUT(event: RequestEvent) {
 	event.setHeaders({ 'cache-control': 'no-store' });
-	if (event.locals.session === null || event.locals.user === null) {
-		return new Response('Not authenticated', { status: 401 });
+	const guarded = requireVerifiedSession(event);
+	if (guarded.response) return guarded.response;
+	const { user } = guarded.authenticated;
+	if (!user.registeredTOTP || user.recoveryCodeConfigured) {
+		return authError(403, 'Recovery-code setup is not available');
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		!event.locals.session.twoFactorVerified ||
-		!event.locals.user.registeredTOTP ||
-		event.locals.user.recoveryCodeConfigured
-	) {
-		return new Response('Forbidden', { status: 403 });
-	}
-	const recoveryCode = getPendingRecoveryCode(event, event.locals.user.id);
+	const recoveryCode = getPendingRecoveryCode(event, user.id);
 	if (recoveryCode === null) {
-		return new Response('Recovery code setup expired', { status: 400 });
+		return authError(400, 'Recovery code setup expired');
 	}
 	const recoveryCodeHash = await hashRecoveryCode(recoveryCode);
-	setUserRecoveryCodeHash(event.locals.user.id, recoveryCodeHash);
+	setUserRecoveryCodeHash(user.id, recoveryCodeHash);
 	deletePendingRecoveryCodeCookie(event);
-	return new Response(null, { status: 204 });
+	return authSuccess(user.registeredPasskey ? null : 'setup');
 }

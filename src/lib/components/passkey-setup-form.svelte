@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
-	import { deserialize } from '$app/forms';
+	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnRegistration, type WebAuthnRegistration } from '$lib/client/webauthn';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -13,10 +13,12 @@
 		username: string;
 		credentialUserId: Uint8Array;
 		excludedCredentialIds: Uint8Array[];
-		onRedirect?: (location: string) => void | Promise<void>;
+		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	let { rpName, username, credentialUserId, excludedCredentialIds, onRedirect }: Props = $props();
+	import type { AuthModalView } from '$lib/types/auth';
+
+	let { rpName, username, credentialUserId, excludedCredentialIds, onComplete }: Props = $props();
 
 	let registration = $state<WebAuthnRegistration | null>(null);
 	let name = $state('');
@@ -56,27 +58,14 @@
 				attestation_object: registration.attestation_object,
 				client_data_json: registration.client_data_json
 			});
-			const response = await fetch('/2fa/passkey/register', {
-				method: 'POST',
-				headers: {
-					accept: 'application/json',
-					'content-type': 'application/x-www-form-urlencoded',
-					'x-sveltekit-action': 'true'
-				},
+			const result = await authRequest('/api/auth/passkey-registration', {
+				method: 'PUT',
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
 				body
 			});
-			const result = deserialize(await response.text());
-			if (result.type === 'failure') {
-				message =
-					typeof result.data?.message === 'string'
-						? result.data.message
-						: 'Unable to register passkey';
-			} else if (result.type === 'redirect') {
-				await onRedirect?.(result.location);
-			} else if (result.type === 'error') {
-				message = 'Something went wrong. Please try again.';
-			}
+			await onComplete?.(result.next);
 		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
 			message = cause instanceof Error ? cause.message : 'Unable to save passkey';
 		} finally {
 			pending = false;

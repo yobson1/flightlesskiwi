@@ -4,20 +4,20 @@
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import QRCode from 'qrcode';
-	import { enhance } from '$app/forms';
+	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
 	import { cn } from '$lib/utils.js';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import type { AuthModalView } from '$lib/types/auth';
 
 	interface Props {
 		keyURI: string;
-		onRedirect?: (location: string) => void | Promise<void>;
+		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	let { keyURI, onRedirect }: Props = $props();
+	let { keyURI, onComplete }: Props = $props();
 	const secret = $derived(getSecret(keyURI));
 	let code = $state('');
 	let message = $state('');
@@ -37,20 +37,23 @@
 		});
 	});
 
-	const submit: SubmitFunction = () => {
+	async function submit(event: SubmitEvent) {
+		event.preventDefault();
 		message = '';
 		pending = true;
-		return async ({ result }) => {
+		try {
+			const result = await authRequest('/api/auth/totp-setup', {
+				method: 'PUT',
+				body: new FormData(event.currentTarget as HTMLFormElement)
+			});
+			await onComplete?.(result.next);
+		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
+			message = cause instanceof Error ? cause.message : 'Invalid code';
+		} finally {
 			pending = false;
-			if (result.type === 'failure') {
-				message = typeof result.data?.message === 'string' ? result.data.message : 'Invalid code';
-			} else if (result.type === 'redirect') {
-				await onRedirect?.(result.location);
-			} else if (result.type === 'error') {
-				message = 'Something went wrong. Please try again.';
-			}
-		};
-	};
+		}
+	}
 
 	async function copySecret() {
 		await navigator.clipboard.writeText(secret);
@@ -112,7 +115,7 @@
 				</Button>
 			</div>
 		</div>
-		<form method="POST" action="/2fa/totp/setup" use:enhance={submit}>
+		<form onsubmit={submit}>
 			<Field.Group>
 				<Field.Field class="items-center">
 					<Field.Label for="totp-setup-code" class="sr-only">Authenticator code</Field.Label>

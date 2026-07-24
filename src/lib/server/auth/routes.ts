@@ -1,22 +1,5 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { decodeBase64 } from '@oslojs/encoding';
-import { get2FARedirect } from '$lib/server/auth/2fa';
-
-export function getAuthenticatedRedirect(event: RequestEvent): string | null {
-	if (event.locals.session === null || event.locals.user === null) {
-		return null;
-	}
-	if (!event.locals.user.emailVerified) {
-		return '/verify-email';
-	}
-	if (!event.locals.user.registered2FA) {
-		return '/2fa/setup';
-	}
-	if (!event.locals.session.twoFactorVerified) {
-		return get2FARedirect(event.locals.user);
-	}
-	return '/';
-}
 
 export function getClientIP(event: RequestEvent): string {
 	try {

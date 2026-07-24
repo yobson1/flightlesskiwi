@@ -4,11 +4,13 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { onMount } from 'svelte';
+	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import type { AuthModalView } from '$lib/types/auth';
 
 	interface Props {
-		onDone: () => void | Promise<void>;
+		onDone: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
 	let { onDone }: Props = $props();
@@ -25,13 +27,15 @@
 	async function loadRecoveryCode(signal?: AbortSignal) {
 		message = '';
 		try {
-			const response = await fetch('/api/auth/recovery-code', { method: 'POST', signal });
-			if (!response.ok) throw new Error(await response.text());
-			const data = (await response.json()) as { recoveryCode?: unknown };
+			const data = await authRequest('/api/auth/recovery-code', { method: 'POST', signal });
 			if (typeof data.recoveryCode !== 'string') throw new Error('Invalid recovery code response');
 			code = data.recoveryCode;
 		} catch (cause) {
 			if (cause instanceof DOMException && cause.name === 'AbortError') return;
+			if (cause instanceof AuthAPIError && cause.modal) {
+				await onDone(cause.modal);
+				return;
+			}
 			message = cause instanceof Error ? cause.message : 'Unable to load recovery code';
 		}
 	}
@@ -45,10 +49,10 @@
 	async function confirmSaved() {
 		message = '';
 		try {
-			const response = await fetch('/api/auth/recovery-code', { method: 'PUT' });
-			if (!response.ok) throw new Error(await response.text());
-			await onDone();
+			const result = await authRequest('/api/auth/recovery-code', { method: 'PUT' });
+			await onDone(result.next);
 		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) await onDone(cause.modal);
 			message = cause instanceof Error ? cause.message : 'Unable to save recovery code';
 		}
 	}

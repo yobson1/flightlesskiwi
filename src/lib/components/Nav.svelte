@@ -6,16 +6,24 @@
 	import UserKeyIcon from '@lucide/svelte/icons/user-key';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import { toggleMode } from 'mode-watcher';
+	import { invalidateAll } from '$app/navigation';
+	import { getAuthModal } from '$lib/auth-modal';
+	import { authRequest } from '$lib/client/auth-api';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import type { ClientAuthState } from '$lib/types/auth';
 
 	interface Props {
 		auth: ClientAuthState | null;
-		onOpenLogin: () => void;
-		onOpenSignup: () => void;
 	}
 
-	let { auth, onOpenLogin, onOpenSignup }: Props = $props();
+	let { auth }: Props = $props();
+	const authModal = getAuthModal();
+
+	async function logout() {
+		await authRequest('/api/auth/logout', { method: 'POST' });
+		await invalidateAll();
+		await authModal.open('login');
+	}
 </script>
 
 <div class="flex items-center gap-1.5">
@@ -26,20 +34,18 @@
 		<Button href="/settings" variant="ghost" size="icon" aria-label="Settings">
 			<SettingsIcon />
 		</Button>
-		<form method="POST" action="/logout">
-			<Button type="submit" variant="outline">
-				<LogOutIcon />
-				<span class="hidden sm:inline">Logout</span>
-				<span class="sr-only sm:hidden">Logout</span>
-			</Button>
-		</form>
+		<Button variant="outline" onclick={logout}>
+			<LogOutIcon />
+			<span class="hidden sm:inline">Logout</span>
+			<span class="sr-only sm:hidden">Logout</span>
+		</Button>
 	{:else}
-		<Button variant="ghost" onclick={onOpenLogin}>
+		<Button variant="ghost" onclick={() => void authModal.open('login')}>
 			<UserKeyIcon />
 			<span class="hidden sm:inline">Login</span>
 			<span class="sr-only sm:hidden">Login</span>
 		</Button>
-		<Button onclick={onOpenSignup}>
+		<Button onclick={() => void authModal.open('signup')}>
 			<UserPlusIcon />
 			<span class="hidden sm:inline">Sign up</span>
 			<span class="sr-only sm:hidden">Sign up</span>

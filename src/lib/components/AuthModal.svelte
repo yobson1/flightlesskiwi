@@ -3,10 +3,12 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
+	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
 	import LoginForm from '$lib/components/login-form.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
 	import PasskeySetupForm from '$lib/components/passkey-setup-form.svelte';
+	import ReauthenticationForm from '$lib/components/reauthentication-form.svelte';
 	import RecoveryCode from '$lib/components/recovery-code.svelte';
 	import SignupForm from '$lib/components/signup-form.svelte';
 	import TOTPSetupForm from '$lib/components/totp-setup-form.svelte';
@@ -17,35 +19,32 @@
 	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
 
 	interface Props {
-		view?: AuthModalView | null;
+		view: AuthModalView | null;
 		auth: ClientAuthState | null;
 		webAuthnRPName: string;
-		routeData?: unknown;
+		viewData?: unknown;
+		required?: boolean;
+		onViewChange?: (view: AuthModalView) => void | Promise<void>;
 		onClose?: () => void | Promise<void>;
-		onRedirect?: (location: string) => void | Promise<void>;
+		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
 	let {
-		view = $bindable(null),
+		view,
 		auth,
 		webAuthnRPName,
-		routeData,
+		viewData,
+		required = false,
+		onViewChange,
 		onClose,
-		onRedirect
+		onComplete
 	}: Props = $props();
 	let passkeyPending = $state(false);
 	let passkeyMessage = $state('');
 
 	const wide = $derived(view === 'login' || view === 'signup');
-	const pendingRecoveryCode = $derived(
-		auth !== null &&
-			auth.user.registeredTOTP &&
-			auth.twoFactorVerified &&
-			!auth.user.recoveryCodeConfigured
-	);
-	const required = $derived(view === 'verify-email' || pendingRecoveryCode);
-	const totpKeyURI = $derived(getStringProperty(routeData, 'keyURI'));
-	const passkeyOptions = $derived(getPasskeyOptions(routeData));
+	const totpKeyURI = $derived(getStringProperty(viewData, 'keyURI'));
+	const passkeyOptions = $derived(getPasskeyOptions(viewData));
 	const title = $derived.by(() => {
 		switch (view) {
 			case 'login-totp':
@@ -66,6 +65,8 @@
 				return 'Two-factor authentication';
 			case 'passkey':
 				return 'Use your passkey';
+			case 'reauth':
+				return 'Confirm it’s you';
 			default:
 				return 'Sign in';
 		}
@@ -73,16 +74,11 @@
 
 	function switchView(nextView: AuthModalView) {
 		passkeyMessage = '';
-		view = nextView;
+		void onViewChange?.(nextView);
 	}
 
 	async function close() {
-		view = null;
 		await onClose?.();
-	}
-
-	function requestLoginTOTP() {
-		view = 'login-totp';
 	}
 
 	async function verifyWithPasskey() {
@@ -90,16 +86,14 @@
 		passkeyPending = true;
 		try {
 			const assertion = await createWebAuthnAssertion('passkey-2fa');
-			const response = await fetch('/2fa/passkey', {
+			const result = await authRequest('/api/auth/passkey-verification', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(assertion)
 			});
-			if (!response.ok) {
-				throw new Error(await response.text());
-			}
-			await onRedirect?.('/');
+			await onComplete?.(result.next);
 		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
 			if (cause instanceof DOMException && cause.name === 'NotAllowedError') {
 				passkeyMessage = 'Passkey verification was cancelled.';
 			} else {
@@ -193,27 +187,23 @@
 
 			{#key view}
 				{#if view === 'login'}
-					<LoginForm
-						onSwitchToSignup={() => switchView('signup')}
-						onTOTPRequired={requestLoginTOTP}
-						{onRedirect}
-					/>
+					<LoginForm onSwitchToSignup={() => switchView('signup')} {onComplete} />
 				{:else if view === 'login-totp'}
-					<OTPForm kind="login-totp" onBack={() => switchView('login')} {onRedirect} />
+					<OTPForm kind="login-totp" onBack={() => switchView('login')} {onComplete} />
 				{:else if view === 'signup'}
-					<SignupForm onSwitchToLogin={() => switchView('login')} {onRedirect} />
+					<SignupForm onSwitchToLogin={() => switchView('login')} {onComplete} />
 				{:else if view === 'verify-email'}
-					<OTPForm kind="email" email={auth?.user.email} {onRedirect} />
+					<OTPForm kind="email" email={auth?.user.email} {onComplete} />
 				{:else if view === 'setup'}
 					<TwoFactorSetup
 						registeredPasskey={auth?.user.registeredPasskey ?? false}
 						registeredTOTP={auth?.user.registeredTOTP ?? false}
-						onSelect={(location) => onRedirect?.(location)}
-						onComplete={() => onRedirect?.('/')}
+						onSelect={switchView}
+						onComplete={() => onComplete?.(null)}
 					/>
 				{:else if view === 'totp-setup'}
 					{#if totpKeyURI}
-						<TOTPSetupForm keyURI={totpKeyURI} {onRedirect} />
+						<TOTPSetupForm keyURI={totpKeyURI} {onComplete} />
 					{:else}
 						<Card.Root>
 							<Card.Content class="flex items-center justify-center gap-2 py-12">
@@ -229,7 +219,7 @@
 							username={passkeyOptions.username}
 							credentialUserId={passkeyOptions.credentialUserId}
 							excludedCredentialIds={passkeyOptions.excludedCredentialIds}
-							{onRedirect}
+							{onComplete}
 						/>
 					{:else}
 						<Card.Root>
@@ -240,11 +230,9 @@
 						</Card.Root>
 					{/if}
 				{:else if view === 'recovery-code'}
-					<RecoveryCode
-						onDone={() => onRedirect?.(auth?.user.registeredPasskey ? '/' : '/2fa/setup')}
-					/>
+					<RecoveryCode onDone={(next) => onComplete?.(next)} />
 				{:else if view === 'totp'}
-					<OTPForm kind="totp" {onRedirect} />
+					<OTPForm kind="totp" {onComplete} />
 				{:else if view === 'passkey'}
 					<Card.Root>
 						<Card.Header class="items-center text-center">
@@ -286,6 +274,8 @@
 							{/if}
 						</Card.Content>
 					</Card.Root>
+				{:else if view === 'reauth' && auth !== null}
+					<ReauthenticationForm {auth} onComplete={(next) => onComplete?.(next)} />
 				{/if}
 			{/key}
 		</Dialog.Content>

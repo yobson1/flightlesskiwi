@@ -1,26 +1,72 @@
 <script lang="ts">
 	import '../app.css';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { browser } from '$app/environment';
+	import { invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { decodeBase64 } from '@oslojs/encoding';
+	import { onMount, untrack } from 'svelte';
+	import { SvelteURL } from 'svelte/reactivity';
+	import { toast } from 'svelte-sonner';
 	import favicon from '$lib/assets/favicon.svg';
+	import {
+		authModalDataEndpoint,
+		authModalHash,
+		parseAuthModalHash,
+		provideAuthModal,
+		type AuthModalOpenOptions
+	} from '$lib/auth-modal';
+	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import AuthModal from '$lib/components/AuthModal.svelte';
 	import Nav from '$lib/components/Nav.svelte';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
-	import type { AuthModalView } from '$lib/types/auth';
+	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutProps } from './$types';
 
+	type ModalSource = 'hash' | 'programmatic' | 'required';
+
 	let { children, data }: LayoutProps = $props();
-	let authView = $derived<AuthModalView | null>(
-		requiredAuthModal(data.auth) ?? routeModal(page.url.pathname)
-	);
+	const initialView = untrack(() => requiredAuthModal(data.auth));
+	let authView = $state<AuthModalView | null>(initialView);
+	let requestedView = $state<AuthModalView | null>(initialView);
+	let authViewData = $state<unknown>(null);
+	let authRequired = $state(initialView !== null);
+	let modalOptions = $state<AuthModalOpenOptions>({});
+	let returnHash = $state('');
+	let modalRequestId = 0;
 	let visibleAuth = $derived(data.auth);
 
-	function requiredAuthModal(auth: typeof data.auth): AuthModalView | null {
-		if (auth !== null && !auth.user.emailVerified) {
-			return 'verify-email';
+	provideAuthModal({
+		open: (view, options) => openAuthModal(view, options),
+		close: closeAuthModal
+	});
+
+	$effect(() => {
+		const requiredView = requiredAuthModal(data.auth);
+		if (requiredView !== null) {
+			if (authView !== requiredView || !authRequired) {
+				void openAuthModal(requiredView, { required: true }, 'required');
+			}
+		} else if (authRequired && authView !== 'reauth') {
+			authRequired = false;
 		}
+	});
+
+	onMount(() => {
+		const fragmentView = parseAuthModalHash(window.location.hash);
+		if (fragmentView === null && authRequired && authView !== null) {
+			returnHash = window.location.hash;
+			setModalFragment(authView);
+		} else {
+			syncModalFromHash();
+		}
+		window.addEventListener('hashchange', syncModalFromHash);
+		return () => window.removeEventListener('hashchange', syncModalFromHash);
+	});
+
+	function requiredAuthModal(auth: ClientAuthState | null): AuthModalView | null {
+		if (auth !== null && !auth.user.emailVerified) return 'verify-email';
 		if (
 			auth !== null &&
 			auth.user.registeredTOTP &&
@@ -32,84 +78,170 @@
 		return null;
 	}
 
-	function routeModal(pathname: string): AuthModalView | null {
-		switch (pathname) {
-			case '/login':
-				return 'login';
-			case '/signup':
-				return 'signup';
-			case '/verify-email':
-				return 'verify-email';
-			case '/2fa/setup':
-				return 'setup';
-			case '/2fa/totp/setup':
-				return 'totp-setup';
-			case '/2fa/passkey/register':
-				return 'passkey-register';
-			case '/recovery-code':
-				return 'recovery-code';
-			case '/2fa/totp':
-				return 'totp';
-			case '/2fa/passkey':
-				return 'passkey';
-			default:
-				return null;
+	function normalizeRequestedView(
+		view: AuthModalView,
+		auth: ClientAuthState | null
+	): AuthModalView | null {
+		const required = requiredAuthModal(auth);
+		if (required !== null) return required;
+		if (view === 'login-totp') return auth === null ? view : null;
+		if (view === 'login' || view === 'signup') return auth === null ? view : null;
+		if (auth === null) return 'login';
+		if (view === 'verify-email') return null;
+		if (view === 'recovery-code') return null;
+		if (view === 'totp' && !auth.user.registeredTOTP) {
+			return auth.user.registeredPasskey ? 'passkey' : 'setup';
+		}
+		if (view === 'passkey' && !auth.user.registeredPasskey) {
+			return auth.user.registeredTOTP ? 'totp' : 'setup';
+		}
+		return view;
+	}
+
+	function syncModalFromHash() {
+		const fragmentView = parseAuthModalHash(window.location.hash);
+		if (fragmentView !== null) {
+			void openAuthModal(fragmentView, {}, 'hash');
+		} else if (!authRequired) {
+			clearModalState(false);
 		}
 	}
 
-	async function handleAuthRedirect(location: string) {
+	async function openAuthModal(
+		requested: AuthModalView,
+		options: AuthModalOpenOptions = {},
+		source: ModalSource = 'programmatic'
+	) {
+		const view = normalizeRequestedView(requested, data.auth);
+		if (view === null) {
+			await closeAuthModal();
+			return;
+		}
+		const requestId = ++modalRequestId;
+		if (
+			browser &&
+			source !== 'hash' &&
+			authView === null &&
+			parseAuthModalHash(window.location.hash) === null
+		) {
+			returnHash = window.location.hash;
+		}
+
+		requestedView = view;
+		authView = view;
+		authViewData = options.data ?? null;
+		authRequired = options.required ?? view === requiredAuthModal(data.auth);
+		modalOptions = options;
+		if (source !== 'hash' || view !== requested) setModalFragment(view);
+		if (options.data !== undefined || !needsViewData(view)) return;
+
+		try {
+			const loadedData = await loadAuthModalData(view);
+			if (requestId === modalRequestId && authView === view) authViewData = loadedData;
+		} catch (cause) {
+			if (requestId !== modalRequestId) return;
+			if (cause instanceof AuthAPIError && cause.modal !== null) {
+				await openAuthModal(cause.modal);
+				return;
+			}
+			if (cause instanceof AuthAPIError && cause.reauthenticationRequired) {
+				authView = 'reauth';
+				authViewData = null;
+				authRequired = false;
+				return;
+			}
+			clearModalState();
+			toast.error(cause instanceof Error ? cause.message : 'Unable to open authentication');
+		}
+	}
+
+	async function loadAuthModalData(view: AuthModalView): Promise<unknown> {
+		const endpoint = authModalDataEndpoint(view);
+		if (endpoint === null) return null;
+		const response = await authRequest(endpoint, { method: 'POST' });
+		if (view === 'totp-setup') return response;
+		return passkeyViewData(response);
+	}
+
+	function passkeyViewData(value: unknown): unknown {
+		if (typeof value !== 'object' || value === null) {
+			throw new Error('Invalid passkey registration response');
+		}
+		const values = value as Record<string, unknown>;
+		if (
+			typeof values.username !== 'string' ||
+			typeof values.credentialUserId !== 'string' ||
+			!Array.isArray(values.excludedCredentialIds) ||
+			!values.excludedCredentialIds.every((id) => typeof id === 'string')
+		) {
+			throw new Error('Invalid passkey registration response');
+		}
+		return {
+			user: { username: values.username },
+			credentialUserId: decodeBase64(values.credentialUserId),
+			credentials: values.excludedCredentialIds.map((id) => ({
+				id: decodeBase64(id as string)
+			}))
+		};
+	}
+
+	function needsViewData(view: AuthModalView): boolean {
+		return authModalDataEndpoint(view) !== null;
+	}
+
+	async function handleComplete(next: AuthModalView | null) {
+		const completedView = authView;
+		const continuation = modalOptions.onComplete;
 		await invalidateAll();
-		const pathname = new URL(location, page.url).pathname;
-		const nextView = routeModal(pathname);
-
-		if (pathname === '/') {
-			const requiredView = requiredAuthModal(data.auth);
-			if (requiredView !== null) {
-				authView = requiredView;
-				if (requiredView === 'recovery-code') {
-					await goto(resolve('/recovery-code'), { replaceState: true });
-				}
-				return;
-			}
-			authView = null;
-			if (routeModal(page.url.pathname) !== null) {
-				await goto(resolve('/'), { replaceState: true });
-			}
+		if (
+			completedView === 'reauth' &&
+			next === null &&
+			requestedView !== null &&
+			needsViewData(requestedView)
+		) {
+			await openAuthModal(requestedView, modalOptions);
 			return;
 		}
-		if (nextView !== null) {
-			if (pathname === '/2fa/setup') {
-				authView = nextView;
-				await goto(resolve('/2fa/setup'));
-				return;
-			}
-			if (pathname === '/2fa/totp/setup') {
-				authView = nextView;
-				await goto(resolve('/2fa/totp/setup'));
-				return;
-			}
-			if (pathname === '/2fa/passkey/register') {
-				authView = nextView;
-				await goto(resolve('/2fa/passkey/register'));
-				return;
-			}
-			if (pathname === '/recovery-code') {
-				authView = nextView;
-				await goto(resolve('/recovery-code'));
-				return;
-			}
-			authView = nextView;
+		if (next !== null) {
+			await openAuthModal(next);
 			return;
+		} else {
+			clearModalState();
 		}
-
-		authView = null;
-		await goto(resolve('/'));
+		if (completedView === 'reauth') await continuation?.();
 	}
 
-	async function handleModalClose() {
-		if (routeModal(page.url.pathname) !== null) {
-			await goto(resolve('/'), { replaceState: true });
-		}
+	async function handleViewChange(view: AuthModalView) {
+		await openAuthModal(view, {
+			required: modalOptions.required,
+			onClose: modalOptions.onClose,
+			onComplete: modalOptions.onComplete
+		});
+	}
+
+	async function closeAuthModal() {
+		if (authRequired) return;
+		const onClose = modalOptions.onClose;
+		clearModalState();
+		await onClose?.();
+	}
+
+	function clearModalState(updateFragment = true) {
+		modalRequestId++;
+		authView = null;
+		requestedView = null;
+		authViewData = null;
+		authRequired = false;
+		modalOptions = {};
+		if (updateFragment) setModalFragment(null);
+	}
+
+	function setModalFragment(view: AuthModalView | null) {
+		if (!browser) return;
+		const url = new SvelteURL(window.location.href);
+		url.hash = view === null ? returnHash : authModalHash(view);
+		replaceState(resolve(`${url.pathname}${url.search}${url.hash}` as '/'), page.state);
+		if (view === null) returnHash = '';
 	}
 </script>
 
@@ -126,11 +258,7 @@
 				<img src={favicon} alt="" class="h-8 w-8" />
 				<span class="font-semibold">flightlesskiwi</span>
 			</a>
-			<Nav
-				auth={visibleAuth}
-				onOpenLogin={() => (authView = 'login')}
-				onOpenSignup={() => (authView = 'signup')}
-			/>
+			<Nav auth={visibleAuth} />
 		</nav>
 	</header>
 	<main class="flex flex-1 justify-center px-4 py-8">
@@ -144,10 +272,12 @@
 </div>
 
 <AuthModal
-	bind:view={authView}
+	view={authView}
 	auth={visibleAuth}
 	webAuthnRPName={data.webAuthnRPName}
-	routeData={page.data}
-	onClose={handleModalClose}
-	onRedirect={handleAuthRedirect}
+	viewData={authViewData}
+	required={authRequired}
+	onViewChange={handleViewChange}
+	onClose={closeAuthModal}
+	onComplete={handleComplete}
 />

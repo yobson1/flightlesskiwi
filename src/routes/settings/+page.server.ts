@@ -1,15 +1,14 @@
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
 import {
 	createSession,
 	deleteSessionTokenCookie,
 	generateSessionToken,
 	isSessionRecentlyReauthenticated,
-	rotateSessionAfterReauthentication,
 	setSessionTokenCookie
 } from '$lib/server/auth';
-import { get2FARedirect } from '$lib/server/auth/2fa';
+import { requireVerifiedPage } from '$lib/server/auth/api';
 import { sendVerificationEmail } from '$lib/server/auth/email';
 import {
 	createEmailVerificationRequest,
@@ -17,25 +16,18 @@ import {
 	sendVerificationEmailBucket,
 	setEmailVerificationRequestCookie
 } from '$lib/server/auth/email-verification';
-import { verifyPasswordHash, verifyPasswordStrength } from '$lib/server/auth/password';
+import { verifyPasswordStrength } from '$lib/server/auth/password';
 import {
 	deletePasswordResetSessionTokenCookie,
 	invalidateUserPasswordResetSessions
 } from '$lib/server/auth/password-reset';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { deletePendingRecoveryCodeCookie } from '$lib/server/auth/recovery-code';
-import {
-	deleteUserTOTPKey,
-	deleteTOTPSetupCookie,
-	totpBucket,
-	totpUpdateBucket,
-	verifyAndConsumeUserTOTP
-} from '$lib/server/auth/totp';
+import { deleteUserTOTPKey, deleteTOTPSetupCookie, totpUpdateBucket } from '$lib/server/auth/totp';
 import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
 	deleteUser,
-	getUserPasswordHash,
 	isUserUniqueConstraintError,
 	normalizeEmail,
 	resetUserRecoveryCode,
@@ -48,30 +40,16 @@ import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/ser
 import type { Actions, RequestEvent } from './$types';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>('password-update', 5, 30 * 60);
-const settingsReauthBucket = new ExpiringTokenBucket<string>('settings-reauth', 5, 15 * 60);
-const reauthenticationDestinations = new Set(['/2fa/totp/setup', '/2fa/passkey/register']);
 
 export function load(event: RequestEvent) {
 	event.setHeaders({ 'cache-control': 'no-store' });
-	if (event.locals.session === null || event.locals.user === null) {
-		redirect(302, '/login');
-	}
-	if (!event.locals.user.emailVerified) {
-		redirect(302, '/verify-email');
-	}
-	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
-		redirect(302, get2FARedirect(event.locals.user));
-	}
-	const requestedDestination = event.url.searchParams.get('next');
+	const { session, user } = requireVerifiedPage(event);
+	const passkeyCredentials = getUserPasskeyCredentials(user.id);
 	return {
-		user: event.locals.user,
-		recoveryCodeConfigured: event.locals.user.recoveryCodeConfigured,
-		recentlyReauthenticated: isSessionRecentlyReauthenticated(event.locals.session),
-		reauthenticationDestination:
-			requestedDestination !== null && reauthenticationDestinations.has(requestedDestination)
-				? requestedDestination
-				: null,
-		passkeyCredentials: getUserPasskeyCredentials(event.locals.user.id).map((credential) => ({
+		user,
+		recoveryCodeConfigured: user.recoveryCodeConfigured,
+		recentlyReauthenticated: isSessionRecentlyReauthenticated(session),
+		passkeyCredentials: passkeyCredentials.map((credential) => ({
 			id: encodeBase64(credential.id),
 			name: credential.name
 		}))
@@ -79,8 +57,6 @@ export function load(event: RequestEvent) {
 }
 
 export const actions: Actions = {
-	reauth_password: reauthenticateWithPassword,
-	reauth_totp: reauthenticateWithTOTP,
 	update_username: updateUsername,
 	update_password: updatePassword,
 	update_email: updateEmail,
@@ -220,7 +196,7 @@ async function updateEmail(event: RequestEvent) {
 			email: { message: 'The verification email could not be sent' }
 		});
 	}
-	redirect(302, '/verify-email');
+	return { email: { message: 'Verification email sent' } };
 }
 
 async function disconnectTOTP(event: RequestEvent) {
@@ -320,66 +296,7 @@ async function deleteAccount(event: RequestEvent) {
 	deletePasswordResetSessionTokenCookie(event);
 	deletePendingRecoveryCodeCookie(event);
 	deleteTOTPSetupCookie(event);
-	redirect(303, '/login');
-}
-
-async function reauthenticateWithPassword(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401, { message: 'Not authenticated' });
-	}
-	if (
-		!event.locals.user.emailVerified ||
-		!event.locals.session.twoFactorVerified ||
-		event.locals.user.registeredTOTP ||
-		event.locals.user.registeredPasskey
-	) {
-		return fail(403, { message: 'Forbidden' });
-	}
-	const formData = await event.request.formData();
-	const password = formData.get('password');
-	if (typeof password !== 'string' || password.length === 0 || password.length > 255) {
-		return fail(400, { message: 'Enter your password' });
-	}
-	if (!settingsReauthBucket.consume(event.locals.session.id, 1)) {
-		return fail(429, { message: 'Too many requests' });
-	}
-	if (!(await verifyPasswordHash(getUserPasswordHash(event.locals.user.id), password))) {
-		return fail(400, { message: 'Incorrect password' });
-	}
-	settingsReauthBucket.reset(event.locals.session.id);
-	rotateSessionAfterReauthentication(event, event.locals.session);
-	return { reauthenticated: true };
-}
-
-async function reauthenticateWithTOTP(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401, { message: 'Not authenticated' });
-	}
-	if (
-		!event.locals.user.emailVerified ||
-		!event.locals.session.twoFactorVerified ||
-		!event.locals.user.registeredTOTP
-	) {
-		return fail(403, { message: 'Forbidden' });
-	}
-	const formData = await event.request.formData();
-	const code = formData.get('code');
-	if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
-		return fail(400, { message: 'Enter the six-digit code' });
-	}
-	if (
-		!settingsReauthBucket.consume(event.locals.session.id, 1) ||
-		!totpBucket.consume(event.locals.user.id, 1)
-	) {
-		return fail(429, { message: 'Too many requests' });
-	}
-	if (!verifyAndConsumeUserTOTP(event.locals.user.id, code)) {
-		return fail(400, { message: 'Invalid authenticator code' });
-	}
-	settingsReauthBucket.reset(event.locals.session.id);
-	totpBucket.reset(event.locals.user.id);
-	rotateSessionAfterReauthentication(event, event.locals.session);
-	return { reauthenticated: true };
+	return {};
 }
 
 function reauthenticationRequired(field?: 'username' | 'password' | 'email' | 'account') {

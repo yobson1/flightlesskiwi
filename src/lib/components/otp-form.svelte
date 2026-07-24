@@ -2,24 +2,24 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import MailCheckIcon from '@lucide/svelte/icons/mail-check';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
-	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
+	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
-	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { ComponentProps } from 'svelte';
+	import type { AuthModalView } from '$lib/types/auth';
 
 	interface Props extends ComponentProps<typeof Card.Root> {
 		kind?: 'email' | 'totp' | 'login-totp';
 		email?: string;
 		onBack?: () => void;
-		onRedirect?: (location: string) => void | Promise<void>;
+		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	let { kind = 'email', email, onBack, onRedirect, ...props }: Props = $props();
+	let { kind = 'email', email, onBack, onComplete, ...props }: Props = $props();
 
 	let code = $state('');
 	let message = $state('');
@@ -29,18 +29,6 @@
 	let usingRecoveryCode = $state(false);
 
 	const codeLength = $derived(kind === 'email' ? 8 : 6);
-	const action = $derived(
-		usingRecoveryCode
-			? kind === 'login-totp'
-				? '/login?/recovery'
-				: '/2fa/reset'
-			: kind === 'email'
-				? '/verify-email?/verify'
-				: kind === 'login-totp'
-					? '/login?/totp'
-					: '/2fa/totp'
-	);
-
 	onMount(() => {
 		if (kind !== 'email') return;
 		const controller = new AbortController();
@@ -50,46 +38,52 @@
 
 	async function ensureEmailVerificationRequest(signal: AbortSignal) {
 		try {
-			const response = await fetch('/api/auth/email-verification', {
+			const result = await authRequest('/api/auth/email-verification', {
 				method: 'POST',
 				signal
 			});
-			if (!response.ok) {
-				resendMessage =
-					(await response.text()) ||
-					'We could not send a verification email. Use “Send another code” to try again.';
-				return;
-			}
-			const data = (await response.json()) as { sent?: unknown };
-			if (data.sent === true) {
+			if ('sent' in result && result.sent === true) {
 				resendMessage = 'A verification code was sent to your inbox.';
 			}
 		} catch (cause) {
 			if (cause instanceof DOMException && cause.name === 'AbortError') return;
+			if (cause instanceof AuthAPIError && cause.modal) {
+				await onComplete?.(cause.modal);
+				return;
+			}
 			resendMessage =
 				'We could not prepare email verification. Use “Send another code” to try again.';
 		}
 	}
 
-	const submit: SubmitFunction = () => {
+	async function submit(event: SubmitEvent) {
+		event.preventDefault();
 		message = '';
 		pending = true;
-
-		return async ({ result }) => {
+		try {
+			const formData = new FormData(event.currentTarget as HTMLFormElement);
+			const endpoint =
+				kind === 'email'
+					? '/api/auth/email-verification'
+					: kind === 'login-totp'
+						? '/api/auth/login'
+						: '/api/auth/totp-verification';
+			const method = usingRecoveryCode
+				? 'PATCH'
+				: kind === 'email'
+					? 'PUT'
+					: kind === 'login-totp'
+						? 'PUT'
+						: 'POST';
+			const result = await authRequest(endpoint, { method, body: formData });
+			await onComplete?.(result.next);
+		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
+			message = cause instanceof Error ? cause.message : 'Unable to verify that code';
+		} finally {
 			pending = false;
-			if (result.type === 'failure') {
-				message = getActionMessage(result.data, 'Unable to verify that code');
-				return;
-			}
-			if (result.type === 'redirect') {
-				await onRedirect?.(result.location);
-				return;
-			}
-			if (result.type === 'error') {
-				message = 'Something went wrong. Please try again.';
-			}
-		};
-	};
+		}
+	}
 
 	function toggleRecoveryCode() {
 		usingRecoveryCode = !usingRecoveryCode;
@@ -97,32 +91,31 @@
 		message = '';
 	}
 
-	const resend: SubmitFunction = () => {
+	async function resend(event: SubmitEvent) {
+		event.preventDefault();
 		resendMessage = '';
 		resendPending = true;
-
-		return ({ result }) => {
+		try {
+			const result = await authRequest('/api/auth/email-verification', { method: 'PATCH' });
+			resendMessage = result.message ?? 'A new code was sent.';
+		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) {
+				await onComplete?.(cause.modal);
+				return;
+			}
+			resendMessage = cause instanceof Error ? cause.message : 'Unable to resend the code';
+		} finally {
 			resendPending = false;
-			if (result.type === 'success') {
-				resendMessage = getActionMessage(result.data, 'A new code was sent.');
-			} else if (result.type === 'failure') {
-				resendMessage = getActionMessage(result.data, 'Unable to resend the code');
-			} else {
-				resendMessage = 'Unable to resend the code';
-			}
-		};
-	};
-
-	function getActionMessage(data: unknown, fallback: string): string {
-		if (typeof data !== 'object' || data === null) return fallback;
-		if ('message' in data && typeof data.message === 'string') return data.message;
-		for (const value of Object.values(data)) {
-			if (typeof value === 'object' && value !== null && 'message' in value) {
-				const nestedMessage = value.message;
-				if (typeof nestedMessage === 'string') return nestedMessage;
-			}
 		}
-		return fallback;
+	}
+
+	async function logout() {
+		try {
+			const result = await authRequest('/api/auth/logout', { method: 'POST' });
+			await onComplete?.(result.next);
+		} catch (cause) {
+			message = cause instanceof Error ? cause.message : 'Unable to log out';
+		}
 	}
 </script>
 
@@ -152,7 +145,7 @@
 		</Card.Description>
 	</Card.Header>
 	<Card.Content>
-		<form method="POST" {action} use:enhance={submit}>
+		<form onsubmit={submit}>
 			<Field.Group>
 				<Field.Field class="items-center">
 					<Field.Label for="otp-code" class="sr-only">Verification code</Field.Label>
@@ -215,7 +208,7 @@
 		</form>
 
 		{#if kind === 'email'}
-			<form method="POST" action="/verify-email?/resend" class="mt-4" use:enhance={resend}>
+			<form class="mt-4" onsubmit={resend}>
 				<p class="text-center text-sm text-muted-foreground">
 					Didn&apos;t receive it?
 					<button
@@ -234,14 +227,15 @@
 			</form>
 		{/if}
 		{#if kind === 'email'}
-			<form method="POST" action="/logout" class="mt-3 text-center">
+			<div class="mt-3 text-center">
 				<button
-					type="submit"
+					type="button"
 					class="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+					onclick={logout}
 				>
 					Log out
 				</button>
-			</form>
+			</div>
 		{:else}
 			<button
 				type="button"

@@ -82,7 +82,7 @@ export function setTOTPSetupCookie(event: RequestEvent, userId: string, key: Uin
 	});
 	event.cookies.set('totp_setup', encodeBase64url(encrypt(new TextEncoder().encode(payload))), {
 		httpOnly: true,
-		path: '/2fa/totp/setup',
+		path: '/api/auth/totp-setup',
 		secure: !dev,
 		sameSite: 'lax',
 		expires: expiresAt
@@ -119,5 +119,5 @@ export function getTOTPSetupKey(event: RequestEvent, userId: string): Uint8Array
 }
 
 export function deleteTOTPSetupCookie(event: RequestEvent): void {
-	event.cookies.delete('totp_setup', { path: '/2fa/totp/setup' });
+	event.cookies.delete('totp_setup', { path: '/api/auth/totp-setup' });
 }

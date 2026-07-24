@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
-	import { enhance } from '$app/forms';
+	import { authFormRequest, authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
 	import favicon from '$lib/assets/favicon.svg';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -9,22 +9,15 @@
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { cn } from '$lib/utils.js';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import type { AuthModalView } from '$lib/types/auth';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		onSwitchToSignup?: () => void;
-		onTOTPRequired?: () => void;
-		onRedirect?: (location: string) => void | Promise<void>;
+		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	let {
-		class: className,
-		onSwitchToSignup,
-		onTOTPRequired,
-		onRedirect,
-		...restProps
-	}: Props = $props();
+	let { class: className, onSwitchToSignup, onComplete, ...restProps }: Props = $props();
 
 	const id = $props.id();
 	let email = $state('');
@@ -33,49 +26,35 @@
 	let pending = $state(false);
 	let passkeyPending = $state(false);
 
-	const submit: SubmitFunction = () => {
+	async function submit(event: SubmitEvent) {
+		event.preventDefault();
 		message = '';
 		pending = true;
-
-		return async ({ result }) => {
+		try {
+			const result = await authFormRequest(
+				'/api/auth/login',
+				new FormData(event.currentTarget as HTMLFormElement)
+			);
+			await onComplete?.(result.next);
+		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
+			message = cause instanceof Error ? cause.message : 'Unable to sign in';
+		} finally {
 			pending = false;
-			if (result.type === 'failure') {
-				message = getActionMessage(result.data, 'Unable to sign in');
-				return;
-			}
-			if (result.type === 'redirect') {
-				await onRedirect?.(result.location);
-				return;
-			}
-			if (result.type === 'success' && requiresTOTP(result.data)) {
-				password = '';
-				onTOTPRequired?.();
-				return;
-			}
-			if (result.type === 'error') {
-				message = 'Something went wrong. Please try again.';
-			}
-		};
-	};
+		}
+	}
 
 	async function signInWithPasskey() {
 		message = '';
 		passkeyPending = true;
 		try {
 			const assertion = await createWebAuthnAssertion('passkey-login');
-			const response = await fetch('/login/passkey', {
+			const result = await authRequest('/api/auth/login/passkey', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(assertion)
 			});
-			if (!response.ok) {
-				throw new Error(await response.text());
-			}
-			const data = (await response.json()) as { redirect?: unknown };
-			if (typeof data.redirect !== 'string') {
-				throw new Error('Invalid login response');
-			}
-			await onRedirect?.(data.redirect);
+			await onComplete?.(result.next);
 		} catch (cause) {
 			if (cause instanceof DOMException && cause.name === 'NotAllowedError') {
 				message = 'Passkey sign-in was cancelled.';
@@ -86,29 +65,12 @@
 			passkeyPending = false;
 		}
 	}
-
-	function getActionMessage(data: unknown, fallback: string): string {
-		if (typeof data === 'object' && data !== null && 'message' in data) {
-			const value = data.message;
-			if (typeof value === 'string') return value;
-		}
-		return fallback;
-	}
-
-	function requiresTOTP(data: unknown): boolean {
-		return (
-			typeof data === 'object' &&
-			data !== null &&
-			'requiresTOTP' in data &&
-			data.requiresTOTP === true
-		);
-	}
 </script>
 
 <div class={cn('flex flex-col gap-6', className)} {...restProps}>
 	<Card.Root class="overflow-hidden p-0">
 		<Card.Content class="grid p-0 md:grid-cols-2">
-			<form method="POST" action="/login?/password" class="p-6 md:p-8" use:enhance={submit}>
+			<form class="p-6 md:p-8" onsubmit={submit}>
 				<Field.Group>
 					<div class="flex flex-col items-center gap-2 text-center">
 						<h2 class="text-2xl font-bold">Welcome back</h2>

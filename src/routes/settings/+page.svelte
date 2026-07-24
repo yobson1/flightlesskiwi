@@ -4,7 +4,6 @@
 	import ClipboardIcon from '@lucide/svelte/icons/clipboard';
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import LockKeyholeIcon from '@lucide/svelte/icons/lock-keyhole';
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -14,36 +13,25 @@
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import UserRoundIcon from '@lucide/svelte/icons/user-round';
 	import { enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { createWebAuthnAssertion } from '$lib/client/webauthn';
+	import { invalidateAll } from '$app/navigation';
+	import { getAuthModal } from '$lib/auth-modal';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
 
-	type SettingsDestination = '/2fa/totp/setup' | '/2fa/passkey/register';
-
 	let { data }: PageProps = $props();
+	const authModal = getAuthModal();
 
 	let recentlyReauthenticated = $derived(data.recentlyReauthenticated);
-	let reauthOpen = $state(false);
-	let reauthPassword = $state('');
-	let reauthCode = $state('');
-	let reauthMessage = $state('');
-	let reauthPending = $state(false);
-	let pendingContinuation = $state<(() => void) | null>(null);
 	let recoveryCode = $state('');
 	let copied = $state(false);
 	let removeAuthenticatorOpen = $state(false);
@@ -51,32 +39,6 @@
 	let replaceRecoveryCodeOpen = $state(false);
 	let deleteAccountOpen = $state(false);
 	let deleteAccountConfirmation = $state('');
-
-	onMount(() => {
-		if (data.reauthenticationDestination === null) return;
-		const destination = data.reauthenticationDestination as SettingsDestination;
-		if (recentlyReauthenticated) {
-			void goto(resolve(destination));
-			return;
-		}
-		requestReauthentication(() => void goto(resolve(destination)));
-	});
-
-	const reauthSubmit: SubmitFunction = () => {
-		reauthMessage = '';
-		reauthPending = true;
-		return async ({ result }) => {
-			reauthPending = false;
-			if (result.type === 'success' && isReauthenticated(result.data)) {
-				await finishReauthentication();
-				return;
-			}
-			reauthMessage =
-				result.type === 'failure'
-					? getActionMessage(result.data, 'Unable to confirm your identity')
-					: 'Unable to confirm your identity';
-		};
-	};
 
 	function settingsSubmit(
 		successMessage: string,
@@ -109,56 +71,22 @@
 	}
 
 	function requestReauthentication(continuation: () => void) {
-		pendingContinuation = continuation;
-		reauthMessage = '';
-		reauthPassword = '';
-		reauthCode = '';
-		reauthOpen = true;
-	}
-
-	async function finishReauthentication() {
-		const continuation = pendingContinuation;
-		pendingContinuation = null;
-		recentlyReauthenticated = true;
-		reauthOpen = false;
-		reauthPassword = '';
-		reauthCode = '';
-		await invalidateAll();
-		toast.success('Identity confirmed');
-		if (continuation) {
-			window.setTimeout(continuation);
-		}
-	}
-
-	async function reauthenticateWithPasskey() {
-		reauthMessage = '';
-		reauthPending = true;
-		try {
-			const assertion = await createWebAuthnAssertion('settings-reauth');
-			const response = await fetch('/settings/reauth/passkey', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(assertion)
-			});
-			if (!response.ok) {
-				throw new Error((await response.text()) || 'Unable to verify your passkey');
+		void authModal.open('reauth', {
+			onComplete: async () => {
+				recentlyReauthenticated = true;
+				await invalidateAll();
+				toast.success('Identity confirmed');
+				window.setTimeout(continuation);
 			}
-			await finishReauthentication();
-		} catch (cause) {
-			if (cause instanceof DOMException && cause.name === 'NotAllowedError') {
-				reauthMessage = 'Passkey verification was cancelled.';
-			} else {
-				reauthMessage = cause instanceof Error ? cause.message : 'Unable to confirm your identity';
-			}
-		} finally {
-			reauthPending = false;
-		}
+		});
 	}
 
-	function guardNavigation(event: MouseEvent, destination: SettingsDestination) {
-		if (recentlyReauthenticated) return;
-		event.preventDefault();
-		requestReauthentication(() => void goto(resolve(destination)));
+	function requestAuthenticatorSetup() {
+		void authModal.open('totp-setup');
+	}
+
+	function requestPasskeySetup() {
+		void authModal.open('passkey-register');
 	}
 
 	function requestAccountDeletion() {
@@ -196,15 +124,6 @@
 		if (form instanceof HTMLFormElement) {
 			form.requestSubmit();
 		}
-	}
-
-	function isReauthenticated(value: unknown): boolean {
-		return (
-			typeof value === 'object' &&
-			value !== null &&
-			'reauthenticated' in value &&
-			value.reauthenticated === true
-		);
 	}
 
 	function needsReauthentication(value: unknown): boolean {
@@ -472,10 +391,7 @@
 							</AlertDialog.Content>
 						</AlertDialog.Root>
 					{:else}
-						<Button
-							href="/2fa/totp/setup"
-							onclick={(event) => guardNavigation(event, '/2fa/totp/setup')}
-						>
+						<Button onclick={requestAuthenticatorSetup}>
 							<PlusIcon />
 							Set up
 						</Button>
@@ -503,11 +419,7 @@
 								</p>
 							</div>
 						</div>
-						<Button
-							href="/2fa/passkey/register"
-							variant="outline"
-							onclick={(event) => guardNavigation(event, '/2fa/passkey/register')}
-						>
+						<Button variant="outline" onclick={requestPasskeySetup}>
 							<PlusIcon />
 							Add passkey
 						</Button>
@@ -743,104 +655,3 @@
 		</form>
 	</AlertDialog.Content>
 </AlertDialog.Root>
-
-<Dialog.Root
-	bind:open={reauthOpen}
-	onOpenChange={(open) => {
-		if (!open) pendingContinuation = null;
-	}}
->
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Confirm it’s you</Dialog.Title>
-			<Dialog.Description>
-				This is a sensitive change. Re-authenticate to continue.
-			</Dialog.Description>
-		</Dialog.Header>
-
-		{#if reauthMessage}
-			<Alert.Root variant="destructive">
-				<AlertTriangleIcon />
-				<Alert.Title>Couldn’t confirm your identity</Alert.Title>
-				<Alert.Description>{reauthMessage}</Alert.Description>
-			</Alert.Root>
-		{/if}
-
-		{#if !data.user.registeredTOTP && !data.user.registeredPasskey}
-			<form method="POST" action="/settings?/reauth_password" use:enhance={reauthSubmit}>
-				<Field.Group>
-					<Field.Field>
-						<Field.Label for="reauth-password">Current password</Field.Label>
-						<Input
-							id="reauth-password"
-							name="password"
-							type="password"
-							bind:value={reauthPassword}
-							autocomplete="current-password"
-							disabled={reauthPending}
-							required
-						/>
-					</Field.Field>
-					<Button type="submit" class="w-full" disabled={reauthPending || !reauthPassword}>
-						{#if reauthPending}<LoaderCircleIcon class="animate-spin" />{/if}
-						Confirm with password
-					</Button>
-				</Field.Group>
-			</form>
-		{:else if data.user.registeredTOTP}
-			<form method="POST" action="/settings?/reauth_totp" use:enhance={reauthSubmit}>
-				<Field.Group>
-					<Field.Field class="items-center">
-						<Field.Label for="reauth-code" class="sr-only">Authenticator code</Field.Label>
-						<InputOTP.Root
-							id="reauth-code"
-							maxlength={6}
-							class="justify-center"
-							bind:value={reauthCode}
-							disabled={reauthPending}
-							required
-						>
-							{#snippet children({ cells })}
-								<InputOTP.Group
-									class="gap-1 *:data-[slot=input-otp-slot]:size-9 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border"
-								>
-									{#each cells as cell (cell)}
-										<InputOTP.Slot {cell} />
-									{/each}
-								</InputOTP.Group>
-							{/snippet}
-						</InputOTP.Root>
-						<input type="hidden" name="code" value={reauthCode} />
-					</Field.Field>
-					<Button type="submit" class="w-full" disabled={reauthPending || reauthCode.length !== 6}>
-						{#if reauthPending}<LoaderCircleIcon class="animate-spin" />{/if}
-						Confirm authenticator code
-					</Button>
-				</Field.Group>
-			</form>
-		{/if}
-
-		{#if data.user.registeredPasskey}
-			{#if data.user.registeredTOTP}
-				<div class="flex items-center gap-3">
-					<Separator class="flex-1" />
-					<span class="text-xs text-muted-foreground">or</span>
-					<Separator class="flex-1" />
-				</div>
-			{/if}
-			<Button
-				variant="outline"
-				class="w-full"
-				disabled={reauthPending}
-				onclick={reauthenticateWithPasskey}
-			>
-				{#if reauthPending}
-					<LoaderCircleIcon class="animate-spin" />
-				{:else}
-					<FingerprintIcon />
-				{/if}
-				Confirm with passkey
-			</Button>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>

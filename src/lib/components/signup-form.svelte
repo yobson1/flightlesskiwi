@@ -1,64 +1,52 @@
 <script lang="ts">
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
-	import { enhance } from '$app/forms';
+	import { authFormRequest, AuthAPIError } from '$lib/client/auth-api';
 	import favicon from '$lib/assets/favicon.svg';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { cn } from '$lib/utils.js';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import type { AuthModalView } from '$lib/types/auth';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		onSwitchToLogin?: () => void;
-		onRedirect?: (location: string) => void | Promise<void>;
+		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	let { class: className, onSwitchToLogin, onRedirect, ...restProps }: Props = $props();
+	let { class: className, onSwitchToLogin, onComplete, ...restProps }: Props = $props();
 
 	const id = $props.id();
 	let message = $state('');
 	let pending = $state(false);
 
-	const submit: SubmitFunction = ({ formData, cancel }) => {
+	async function submit(event: SubmitEvent) {
+		event.preventDefault();
+		const form = event.currentTarget as HTMLFormElement;
+		const formData = new FormData(form);
 		message = '';
 		if (formData.get('password') !== formData.get('confirm-password')) {
-			cancel();
 			message = 'Passwords do not match';
 			return;
 		}
 		pending = true;
-
-		return async ({ result }) => {
+		try {
+			const result = await authFormRequest('/api/auth/signup', formData);
+			await onComplete?.(result.next);
+		} catch (cause) {
+			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
+			message = cause instanceof Error ? cause.message : 'Unable to create your account';
+		} finally {
 			pending = false;
-			if (result.type === 'failure') {
-				message = getActionMessage(result.data, 'Unable to create your account');
-				return;
-			}
-			if (result.type === 'redirect') {
-				await onRedirect?.(result.location);
-				return;
-			}
-			if (result.type === 'error') {
-				message = 'Something went wrong. Please try again.';
-			}
-		};
-	};
-
-	function getActionMessage(data: unknown, fallback: string): string {
-		if (typeof data === 'object' && data !== null && 'message' in data) {
-			const value = data.message;
-			if (typeof value === 'string') return value;
 		}
-		return fallback;
 	}
 </script>
 
 <div class={cn('flex flex-col gap-6', className)} {...restProps}>
 	<Card.Root class="overflow-hidden p-0">
 		<Card.Content class="grid p-0 md:grid-cols-2">
-			<form method="POST" action="/signup" class="p-6 md:p-8" use:enhance={submit}>
+			<form class="p-6 md:p-8" onsubmit={submit}>
 				<Field.Group>
 					<div class="flex flex-col items-center gap-2 text-center">
 						<h2 class="text-2xl font-bold">Create your account</h2>
