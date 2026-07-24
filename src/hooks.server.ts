@@ -115,8 +115,34 @@ function* chunks<T>(items: T[]) {
 	}
 }
 
+function runSyncWrite<T>(
+	operation: string,
+	rows: T[],
+	identify: (row: T) => unknown,
+	write: () => void
+) {
+	try {
+		write();
+	} catch (cause) {
+		const sample = rows.slice(0, 10).map(identify);
+		const omittedRows = rows.length - sample.length;
+		error(
+			`IGDB sync database write failed (${operation}; ${rows.length} rows; sample=${JSON.stringify(sample)}${omittedRows > 0 ? `; ${omittedRows} more rows omitted` : ''})`,
+			cause
+		);
+		throw cause;
+	}
+}
+
+interface GameRelationship {
+	id: number;
+	parentGame: number | null;
+	versionParent: number | null;
+}
+
 function syncGames(igdbGames: IGDBGame[]) {
 	const games = new Map<number, typeof game.$inferInsert>();
+	const relationships = new Map<number, GameRelationship>();
 	const companies = new Map<number, typeof company.$inferInsert>();
 	const engines = new Map<number, typeof gameEngine.$inferInsert>();
 	const names = new Map<string, typeof gameName.$inferInsert>();
@@ -125,15 +151,26 @@ function syncGames(igdbGames: IGDBGame[]) {
 	const usedEngines = new Map<string, typeof usedEngine.$inferInsert>();
 
 	for (const igdbGame of igdbGames) {
+		const parentGame = igdbGame.parent_game ?? null;
+		const versionParent = igdbGame.version_parent ?? null;
+
 		games.set(igdbGame.id, {
 			id: igdbGame.id,
 			releaseDate: igdbGame.first_release_date
 				? new Date(igdbGame.first_release_date * 1000)
 				: null,
 			coverImgId: igdbGame.cover?.image_id ?? null,
-			parentGame: igdbGame.parent_game ?? null,
-			versionParent: igdbGame.version_parent ?? null
+			// Apply self-references after every game batch has been imported.
+			parentGame: null,
+			versionParent: null
 		});
+		if (parentGame !== null || versionParent !== null) {
+			relationships.set(igdbGame.id, {
+				id: igdbGame.id,
+				parentGame,
+				versionParent
+			});
+		}
 
 		names.set(`${igdbGame.id}:${igdbGame.name}`, {
 			gameId: igdbGame.id,
@@ -194,72 +231,257 @@ function syncGames(igdbGames: IGDBGame[]) {
 
 	db.transaction((tx) => {
 		for (const rows of chunks(gameRows)) {
-			tx.insert(game)
-				.values(rows)
-				.onConflictDoUpdate({
-					target: game.id,
-					set: {
-						releaseDate: sql`excluded.release_date`,
-						coverImgId: sql`excluded.cover_img_id`,
-						parentGame: sql`excluded.parent_game_id`,
-						versionParent: sql`excluded.version_parent_id`
-					}
-				})
-				.run();
+			runSyncWrite(
+				'upserting games',
+				rows,
+				({ id }) => id,
+				() => {
+					tx.insert(game)
+						.values(rows)
+						.onConflictDoUpdate({
+							target: game.id,
+							set: {
+								releaseDate: sql`excluded.release_date`,
+								coverImgId: sql`excluded.cover_img_id`,
+								parentGame: sql`excluded.parent_game_id`,
+								versionParent: sql`excluded.version_parent_id`
+							}
+						})
+						.run();
+				}
+			);
 		}
 
 		for (const rows of chunks(companyRows)) {
-			tx.insert(company)
-				.values(rows)
-				.onConflictDoUpdate({
-					target: company.id,
-					set: {
-						name: sql`excluded.name`,
-						url: sql`excluded.url`
-					}
-				})
-				.run();
+			runSyncWrite(
+				'upserting companies',
+				rows,
+				({ id }) => id,
+				() => {
+					tx.insert(company)
+						.values(rows)
+						.onConflictDoUpdate({
+							target: company.id,
+							set: {
+								name: sql`excluded.name`,
+								url: sql`excluded.url`
+							}
+						})
+						.run();
+				}
+			);
 		}
 
 		for (const rows of chunks(engineRows)) {
-			tx.insert(gameEngine)
-				.values(rows)
-				.onConflictDoUpdate({
-					target: gameEngine.id,
-					set: {
-						name: sql`excluded.name`,
-						url: sql`excluded.url`
-					}
-				})
-				.run();
+			runSyncWrite(
+				'upserting game engines',
+				rows,
+				({ id }) => id,
+				() => {
+					tx.insert(gameEngine)
+						.values(rows)
+						.onConflictDoUpdate({
+							target: gameEngine.id,
+							set: {
+								name: sql`excluded.name`,
+								url: sql`excluded.url`
+							}
+						})
+						.run();
+				}
+			);
 		}
 
 		for (const ids of chunks(gameIds)) {
-			tx.delete(gameName).where(inArray(gameName.gameId, ids)).run();
-			tx.delete(storeLink).where(inArray(storeLink.gameId, ids)).run();
-			tx.delete(involvedCompany).where(inArray(involvedCompany.gameId, ids)).run();
-			tx.delete(usedEngine).where(inArray(usedEngine.gameId, ids)).run();
+			runSyncWrite(
+				'deleting existing game names',
+				ids,
+				(id) => id,
+				() => {
+					tx.delete(gameName).where(inArray(gameName.gameId, ids)).run();
+				}
+			);
+			runSyncWrite(
+				'deleting existing store links',
+				ids,
+				(id) => id,
+				() => {
+					tx.delete(storeLink).where(inArray(storeLink.gameId, ids)).run();
+				}
+			);
+			runSyncWrite(
+				'deleting existing involved companies',
+				ids,
+				(id) => id,
+				() => {
+					tx.delete(involvedCompany).where(inArray(involvedCompany.gameId, ids)).run();
+				}
+			);
+			runSyncWrite(
+				'deleting existing used engines',
+				ids,
+				(id) => id,
+				() => {
+					tx.delete(usedEngine).where(inArray(usedEngine.gameId, ids)).run();
+				}
+			);
 		}
 
 		for (const rows of chunks([...names.values()])) {
-			tx.insert(gameName).values(rows).onConflictDoNothing().run();
+			runSyncWrite(
+				'inserting game names',
+				rows,
+				({ gameId, name }) => ({ gameId, name }),
+				() => {
+					tx.insert(gameName).values(rows).onConflictDoNothing().run();
+				}
+			);
 		}
 		for (const rows of chunks([...storeLinks.values()])) {
-			tx.insert(storeLink).values(rows).onConflictDoNothing().run();
+			runSyncWrite(
+				'inserting store links',
+				rows,
+				({ gameId, storeId }) => ({ gameId, storeId }),
+				() => {
+					tx.insert(storeLink).values(rows).onConflictDoNothing().run();
+				}
+			);
 		}
 		for (const rows of chunks([...involvedCompanies.values()])) {
-			tx.insert(involvedCompany).values(rows).onConflictDoNothing().run();
+			runSyncWrite(
+				'inserting involved companies',
+				rows,
+				({ gameId, companyId }) => ({ gameId, companyId }),
+				() => {
+					tx.insert(involvedCompany).values(rows).onConflictDoNothing().run();
+				}
+			);
 		}
 		for (const rows of chunks([...usedEngines.values()])) {
-			tx.insert(usedEngine).values(rows).onConflictDoNothing().run();
+			runSyncWrite(
+				'inserting used engines',
+				rows,
+				({ gameId, engineId }) => ({ gameId, engineId }),
+				() => {
+					tx.insert(usedEngine).values(rows).onConflictDoNothing().run();
+				}
+			);
 		}
 		for (const ids of chunks(gameIds)) {
-			tx.insert(gameSearchQueue)
-				.values(ids.map((gameId) => ({ gameId })))
-				.onConflictDoNothing()
-				.run();
+			runSyncWrite(
+				'queueing games for search indexing',
+				ids,
+				(id) => id,
+				() => {
+					tx.insert(gameSearchQueue)
+						.values(ids.map((gameId) => ({ gameId })))
+						.onConflictDoNothing()
+						.run();
+				}
+			);
 		}
 	});
+
+	return [...relationships.values()];
+}
+
+function syncGameRelationships(relationships: GameRelationship[]) {
+	const referencedGameIds = [
+		...new Set(
+			relationships.flatMap(({ parentGame, versionParent }) =>
+				[parentGame, versionParent].filter((id): id is number => id !== null)
+			)
+		)
+	];
+	const existingGameIds = new Set<number>();
+
+	for (const ids of chunks(referencedGameIds)) {
+		for (const { id } of db.select({ id: game.id }).from(game).where(inArray(game.id, ids)).all()) {
+			existingGameIds.add(id);
+		}
+	}
+
+	const unresolvedReferences: Array<{
+		gameId: number;
+		column: 'parentGame' | 'versionParent';
+		referencedGameId: number;
+	}> = [];
+	const resolvedRelationships: GameRelationship[] = [];
+
+	for (const { id, parentGame, versionParent } of relationships) {
+		const resolvedParentGame =
+			parentGame !== null && existingGameIds.has(parentGame) ? parentGame : null;
+		const resolvedVersionParent =
+			versionParent !== null && existingGameIds.has(versionParent) ? versionParent : null;
+
+		if (parentGame !== null && resolvedParentGame === null) {
+			unresolvedReferences.push({
+				gameId: id,
+				column: 'parentGame',
+				referencedGameId: parentGame
+			});
+		}
+		if (versionParent !== null && resolvedVersionParent === null) {
+			unresolvedReferences.push({
+				gameId: id,
+				column: 'versionParent',
+				referencedGameId: versionParent
+			});
+		}
+		if (resolvedParentGame !== null || resolvedVersionParent !== null) {
+			resolvedRelationships.push({
+				id,
+				parentGame: resolvedParentGame,
+				versionParent: resolvedVersionParent
+			});
+		}
+	}
+
+	if (unresolvedReferences.length > 0) {
+		const sample = unresolvedReferences.slice(0, 20);
+		const omittedReferences = unresolvedReferences.length - sample.length;
+		warn(
+			`Left ${unresolvedReferences.length} IGDB game relationships unset because the referenced games do not exist; sample=${JSON.stringify(sample)}${omittedReferences > 0 ? `; ${omittedReferences} more references omitted` : ''}`
+		);
+	}
+
+	db.transaction((tx) => {
+		for (const rows of chunks(resolvedRelationships)) {
+			runSyncWrite(
+				'updating game relationships',
+				rows,
+				({ id, parentGame, versionParent }) => ({ id, parentGame, versionParent }),
+				() => {
+					tx.insert(game)
+						.values(rows)
+						.onConflictDoUpdate({
+							target: game.id,
+							set: {
+								parentGame: sql`excluded.parent_game_id`,
+								versionParent: sql`excluded.version_parent_id`
+							}
+						})
+						.run();
+				}
+			);
+		}
+
+		for (const ids of chunks(resolvedRelationships.map(({ id }) => id))) {
+			runSyncWrite(
+				'queueing relationship updates for search indexing',
+				ids,
+				(id) => id,
+				() => {
+					tx.insert(gameSearchQueue)
+						.values(ids.map((gameId) => ({ gameId })))
+						.onConflictDoNothing()
+						.run();
+				}
+			);
+		}
+	});
+
+	return resolvedRelationships.length;
 }
 
 class IgdbRateLimiter {
@@ -415,6 +637,7 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 	info(`Found ${totalGames} games to sync`);
 
 	let importedGames = 0;
+	const relationships = new Map<number, GameRelationship>();
 
 	while (importedGames < totalGames) {
 		const games = await fetchGames(rateLimiter, filter, importedGames, totalGames);
@@ -427,7 +650,9 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 			throw new Error(`IGDB returned ${games.length} games; expected ${expectedGames}`);
 		}
 
-		syncGames(games);
+		for (const relationship of syncGames(games)) {
+			relationships.set(relationship.id, relationship);
+		}
 		importedGames += games.length;
 		info(`Imported ${importedGames}/${totalGames} games`);
 
@@ -438,6 +663,19 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 				gameSearchReady = false;
 				warn('Game search indexing failed; queued games will be retried on restart', cause);
 			}
+		}
+	}
+
+	const updatedRelationships = syncGameRelationships([...relationships.values()]);
+	if (updatedRelationships > 0) {
+		info(`Applied parent/version relationships to ${updatedRelationships} games`);
+	}
+
+	if (gameSearchReady && updatedRelationships > 0) {
+		try {
+			await flushGameSearchQueue();
+		} catch (cause) {
+			warn('Game search indexing failed; queued games will be retried on restart', cause);
 		}
 	}
 
