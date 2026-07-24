@@ -20,7 +20,7 @@ bun dev
 To create a production version of the app:
 
 ```sh
-bun build
+bun run build
 ```
 
 You can preview the production build with `bun preview`.
