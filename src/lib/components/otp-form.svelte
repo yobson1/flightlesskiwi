@@ -13,7 +13,7 @@
 	import type { AuthModalView } from '$lib/types/auth';
 
 	interface Props extends ComponentProps<typeof Card.Root> {
-		kind?: 'email' | 'totp' | 'login-totp';
+		kind?: 'email' | 'totp' | 'login-totp' | 'password-reset';
 		email?: string;
 		onBack?: () => void;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
@@ -62,19 +62,25 @@
 		pending = true;
 		try {
 			const formData = new FormData(event.currentTarget as HTMLFormElement);
+			if (kind === 'password-reset') {
+				formData.set('step', usingRecoveryCode ? 'recovery-code' : 'totp');
+			}
 			const endpoint =
 				kind === 'email'
 					? '/api/auth/email-verification'
 					: kind === 'login-totp'
 						? '/api/auth/login'
-						: '/api/auth/totp-verification';
-			const method = usingRecoveryCode
-				? 'PATCH'
-				: kind === 'email'
-					? 'PUT'
-					: kind === 'login-totp'
-						? 'PUT'
-						: 'POST';
+						: kind === 'password-reset'
+							? '/api/auth/password-reset'
+							: '/api/auth/totp-verification';
+			const method =
+				kind === 'password-reset'
+					? 'POST'
+					: usingRecoveryCode
+						? 'PATCH'
+						: kind === 'email' || kind === 'login-totp'
+							? 'PUT'
+							: 'POST';
 			const result = await authRequest(endpoint, { method, body: formData });
 			await onComplete?.(result.next);
 		} catch (cause) {
@@ -249,13 +255,13 @@
 					: 'Lost your authenticator? Use your recovery code'}
 			</button>
 		{/if}
-		{#if kind === 'login-totp'}
+		{#if kind === 'login-totp' || kind === 'password-reset'}
 			<button
 				type="button"
 				class="mt-3 w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
 				onclick={onBack}
 			>
-				Back to sign in
+				{kind === 'login-totp' ? 'Back to sign in' : 'Back to verification options'}
 			</button>
 		{/if}
 	</Card.Content>

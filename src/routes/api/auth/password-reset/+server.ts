@@ -1,5 +1,6 @@
 import { error as logError } from '$lib/logger';
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
+import { recoveryCodeBucket, resetUser2FAWithRecoveryCode } from '$lib/server/auth/2fa';
 import { authError, authSuccess } from '$lib/server/auth/api';
 import { sendPasswordResetEmail } from '$lib/server/auth/email';
 import { verifyPasswordStrength } from '$lib/server/auth/password';
@@ -58,6 +59,7 @@ export async function POST(event: RequestEvent) {
 	if (step === 'request') return requestReset(event, formData);
 	if (step === 'email-code') return verifyEmailCode(event, formData);
 	if (step === 'totp') return verifyTOTP(event, formData);
+	if (step === 'recovery-code') return verifyRecoveryCode(event, formData);
 	if (step === 'password') return updatePassword(event, formData);
 	return authError(400, 'Invalid reset step');
 }
@@ -150,6 +152,32 @@ function verifyTOTP(event: RequestEvent, formData: FormData): Response {
 		return authError(400, 'Invalid authenticator code');
 	}
 	totpBucket.reset(session.userId);
+	setPasswordResetSessionAs2FAVerified(session.id);
+	return stateResponse({ ...session, twoFactorVerified: true }, user);
+}
+
+async function verifyRecoveryCode(event: RequestEvent, formData: FormData): Promise<Response> {
+	const { session, user } = validatePasswordResetSessionRequest(event);
+	if (
+		session === null ||
+		!session.emailVerified ||
+		session.twoFactorVerified ||
+		!user.registered2FA ||
+		!user.recoveryCodeConfigured
+	) {
+		return authError(403, 'Recovery-code verification is not available');
+	}
+	const code = formData.get('code');
+	if (typeof code !== 'string' || code.trim().length === 0 || code.length > 64) {
+		return authError(400, 'Enter your recovery code');
+	}
+	if (!recoveryCodeBucket.consume(session.userId, 1)) {
+		return authError(429, 'Too many attempts. Try again later.');
+	}
+	if (!(await resetUser2FAWithRecoveryCode(session.userId, code))) {
+		return authError(400, 'Invalid recovery code');
+	}
+	recoveryCodeBucket.reset(session.userId);
 	setPasswordResetSessionAs2FAVerified(session.id);
 	return stateResponse({ ...session, twoFactorVerified: true }, user);
 }
