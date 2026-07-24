@@ -67,9 +67,13 @@
 		padding={{
 			left: leftPadding,
 			right: rightPadding,
-			bottom: showLegend ? 52 : 20
+			bottom: showLegend ? 52 : 44
 		}}
 		props={{
+			xAxis: {
+				label: unit || title,
+				labelProps: showLegend ? { dy: -24 } : undefined
+			},
 			yAxis: {
 				tickLabelProps: {
 					truncate: { maxChars: maxLabelCharacters, position: 'middle' }
