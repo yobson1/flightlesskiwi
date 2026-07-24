@@ -176,6 +176,8 @@
 			},
 			xAxis: {
 				...getBenchmarkEChartAxis(theme, (value: number) => formatMetricValue(value)),
+				max: chartData.at(-1)?.timeSeconds,
+				min: 0,
 				name: 'Time (seconds)',
 				nameGap: 28,
 				nameLocation: 'middle',
