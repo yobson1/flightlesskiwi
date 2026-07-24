@@ -1,6 +1,9 @@
 <script lang="ts">
 	import ChartNoAxesCombinedIcon from '@lucide/svelte/icons/chart-no-axes-combined';
 	import favicon from '$lib/assets/favicon.svg';
+	import ShaderRenderer from '$lib/components/shader-renderer.svelte';
+	import fragShaderSource from '$lib/shaders/isovalues/frag.glsl?raw';
+	import vertShaderSource from '$lib/shaders/isovalues/vert.glsl?raw';
 	import { cn, type WithElementRef } from '$lib/utils.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -11,15 +14,17 @@
 	let { ref = $bindable(null), class: className, flip = false, ...restProps }: Props = $props();
 
 	// Decorative mock runs for the readout card — not real data.
-	const runs = flip
-		? [
-				{ label: 'RTX 4080 · High', fps: 142, low: 118, frametime: 7.0 },
-				{ label: 'RX 7900 XT · High', fps: 131, low: 104, frametime: 7.6 }
-			]
-		: [
-				{ label: 'Steam Deck OLED', fps: 58, low: 49, frametime: 17.2 },
-				{ label: 'Steam Deck LCD', fps: 44, low: 36, frametime: 22.7 }
-			];
+	const runs = $derived(
+		flip
+			? [
+					{ label: 'RTX 4080 · High', fps: 142, low: 118, frametime: 7.0 },
+					{ label: 'RX 7900 XT · High', fps: 131, low: 104, frametime: 7.6 }
+				]
+			: [
+					{ label: 'Steam Deck OLED', fps: 58, low: 49, frametime: 17.2 },
+					{ label: 'Steam Deck LCD', fps: 44, low: 36, frametime: 22.7 }
+				]
+	);
 </script>
 
 <div
@@ -31,15 +36,9 @@
 	aria-hidden="true"
 	{...restProps}
 >
-	<!-- faint dot grid, no color bloom — just texture, fading out from the divider -->
-	<div
-		class="absolute inset-0 opacity-[0.07]"
-		style="
-			background-image: radial-gradient(var(--color-foreground) 1px, transparent 1px);
-			background-size: 22px 22px;
-			mask-image: linear-gradient(to {flip ? 'left' : 'right'}, black, transparent 85%);
-		"
-	></div>
+	<div class="absolute inset-0 opacity-[0.07]">
+		<ShaderRenderer {vertShaderSource} {fragShaderSource} class="absolute inset-0 size-full" />
+	</div>
 
 	<div class="relative flex items-center gap-3 p-8">
 		<img src={favicon} alt="" class="size-10" />
