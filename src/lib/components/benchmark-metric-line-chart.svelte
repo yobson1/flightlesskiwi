@@ -10,19 +10,22 @@
 		const items = (Array.isArray(params) ? params : [params]).filter(
 			(item): item is LineTooltipItem => typeof item === 'object' && item !== null
 		);
-		const firstItem = items[0];
+		const itemsWithValues = items.flatMap((item) => {
+			const value = Array.isArray(item.value) ? item.value[1] : item.value;
+			return typeof value === 'number' && Number.isFinite(value) ? [{ item, value }] : [];
+		});
+		const firstItem = itemsWithValues[0]?.item;
 		const time =
 			typeof firstItem?.axisValue === 'number'
 				? `${formatMetricValue(firstItem.axisValue)} seconds`
 				: String(firstItem?.axisValue ?? '');
-		const rows = items
-			.map((item) => {
-				const value = Array.isArray(item.value) ? item.value[1] : item.value;
-				return `<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">${item.marker ?? ''}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${escapeHtml(item.seriesName ?? '')}</span><strong style="font-family:monospace">${typeof value === 'number' ? escapeHtml(formatMetricValue(value, unit)) : escapeHtml(String(value ?? ''))}</strong></div>`;
+		const rows = itemsWithValues
+			.map(({ item, value }) => {
+				return `${item.marker ?? ''}<span style="min-width:0;overflow:hidden;text-align:left;text-overflow:ellipsis">${escapeHtml(item.seriesName ?? '')}</span><strong style="font-family:monospace;text-align:right">${escapeHtml(formatMetricValue(value, unit))}</strong>`;
 			})
 			.join('');
 
-		return `<div style="font-weight:500;margin-bottom:.375rem">${escapeHtml(time)}</div><div style="display:grid;gap:.25rem">${rows}</div>`;
+		return `<div style="font-weight:500;margin-bottom:.375rem">${escapeHtml(time)}</div><div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:.5rem;row-gap:.25rem">${rows}</div>`;
 	}
 
 	function escapeHtml(value: string): string {
