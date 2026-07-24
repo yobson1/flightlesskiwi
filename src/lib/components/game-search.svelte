@@ -1,13 +1,9 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
+	import { resolve } from '$app/paths';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import Search from '$lib/components/search.svelte';
 	import { constructImageUrl } from '$lib/igdb';
 	import type { GameSearchResult } from '$lib/types/game';
-	import { fly } from 'svelte/transition';
-	import LineMdSearchTwotone from '$lib/components/icons/line-md-search-twotone.svelte';
-	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-
-	// Props
 
 	interface Props {
 		onSelected?: (gameId: number, game: GameSearchResult) => void;
@@ -16,268 +12,63 @@
 	}
 
 	let { onSelected, noParent = false, inputId }: Props = $props();
-
-	// State
-
-	let searchQuery = $state('');
-	let results = $state<GameSearchResult[]>([]);
-	let loading = $state(false);
-	let open = $state(false);
-	let errorMessage = $state<string | null>(null);
 	let imageLoadingStates = $state<Record<number, boolean>>({});
-	let isMouseOverResults = false;
-	let selectedIndex = $state(-1);
-	let resultButtons: HTMLButtonElement[] = [];
 
-	// Derived state
-
-	let hasResults = $derived(results.length > 0);
-	let shouldShowDropdown = $derived(open && searchQuery.trim());
-
-	// Async tracking
-
-	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-	let abortController: AbortController | undefined;
-	let currentSearchQuery = '';
-
-	// Search logic
-
-	async function searchGames(query: string) {
-		abortController?.abort();
-		abortController = new AbortController();
-
-		// Track this search query to ignore stale results
-		currentSearchQuery = query;
-		const thisSearchQuery = query;
-
-		resetSearch(true);
-		errorMessage = null;
-
-		try {
-			const response = await fetch(`/api/game/search/${encodeURIComponent(query)}`, {
-				signal: abortController.signal
-			});
-			const data = await response.json();
-
-			// Ignore stale results
-			if (thisSearchQuery !== currentSearchQuery) {
-				console.log(
-					`ignoring stale results for "${thisSearchQuery}" (current: "${currentSearchQuery}")`
-				);
-				return;
-			}
-
-			if (response.ok) {
-				results = data;
-				initializeImageLoadingStates(data);
-			} else {
-				errorMessage = data.error || `Failed to search games (${response.status})`;
-				results = [];
-			}
-		} catch (error) {
-			// these are expected when we cancel requests
-			if (error instanceof Error && error.name === 'AbortError') {
-				console.log(`aborted "${thisSearchQuery}" search`);
-				return;
-			}
-
-			console.error('Search error:', error);
-			errorMessage = error instanceof Error ? error.message : 'Failed to search games';
-			results = [];
-		} finally {
-			// only update loading state if this is still the current search
-			if (thisSearchQuery === currentSearchQuery) {
-				loading = false;
-			}
+	async function searchGames(query: string, signal: AbortSignal) {
+		const response = await fetch(resolve('/api/game/search/[query]', { query }), { signal });
+		const data = await response.json();
+		if (!response.ok) {
+			throw new Error(data.error || `Failed to search games (${response.status})`);
 		}
+		return data as GameSearchResult[];
 	}
 
-	// Event Handlers
-
-	function handleInput(event: Event) {
-		const target = event.target as HTMLInputElement;
-		searchQuery = target.value;
-
-		clearTimeout(debounceTimer);
-
-		if (!searchQuery.trim()) {
-			resetSearch(false);
-			return;
-		}
-
-		debounceTimer = setTimeout(() => {
-			searchGames(searchQuery);
-		}, 350);
-	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (!shouldShowDropdown || !hasResults) return;
-
-		switch (event.key) {
-			case 'ArrowDown':
-				event.preventDefault();
-				selectedIndex = selectedIndex < results.length - 1 ? selectedIndex + 1 : 0;
-				scrollToSelected();
-				break;
-			case 'ArrowUp':
-				event.preventDefault();
-				selectedIndex = selectedIndex > 0 ? selectedIndex - 1 : results.length - 1;
-				scrollToSelected();
-				break;
-			case 'Enter':
-				event.preventDefault();
-				if (selectedIndex >= 0 && selectedIndex < results.length) {
-					const selectedResult = results[selectedIndex];
-					if (selectedResult) selectGame(selectedResult);
-				}
-				break;
-			case 'Escape':
-				event.preventDefault();
-				open = false;
-				selectedIndex = -1;
-				break;
-		}
-	}
-
-	function scrollToSelected() {
-		const selectedButton = resultButtons[selectedIndex];
-		if (selectedButton) {
-			selectedButton.scrollIntoView({
-				behavior: 'smooth',
-				block: 'nearest'
-			});
-		}
-	}
-
-	function handleBlur() {
-		if (!isMouseOverResults) {
-			open = false;
-		}
-	}
-
-	function handleFocus(event: FocusEvent) {
-		const target = event.target as HTMLInputElement;
-
-		// handle cached input values
-		if (searchQuery === '' && target.value.trim()) {
-			searchQuery = target.value;
-			searchGames(searchQuery);
-			return;
-		}
-
-		// reopen if we have results and a search query
-		if (hasResults && searchQuery.trim()) {
-			open = true;
-		}
+	function initializeImageLoadingStates(_: string, games: GameSearchResult[]) {
+		imageLoadingStates = Object.fromEntries(
+			games.filter((game) => game.coverImgId).map((game) => [game.id, true])
+		);
 	}
 
 	function selectGame(game: GameSearchResult) {
-		console.log(`Selected game: ${game.name}[${game.id}]`);
-		searchQuery = game.name;
-		open = false;
-		isMouseOverResults = false;
-		selectedIndex = -1;
-
 		onSelected?.(noParent ? game.id : (game.parentGame ?? game.versionParent ?? game.id), game);
-	}
-
-	function handleImageLoad(gameId: number) {
-		imageLoadingStates[gameId] = false;
-	}
-
-	// Util
-
-	function initializeImageLoadingStates(games: GameSearchResult[]) {
-		const newLoadingStates: Record<number, boolean> = {};
-		for (const game of games) {
-			if (game.coverImgId) {
-				newLoadingStates[game.id] = true;
-			}
-		}
-		imageLoadingStates = newLoadingStates;
-	}
-
-	function resetSearch(isSearching: boolean) {
-		results = [];
-		imageLoadingStates = {};
-		open = isSearching;
-		loading = isSearching;
-		selectedIndex = -1;
 	}
 </script>
 
-<div class="relative">
-	<div class="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">
-		{#if loading}
-			<LineMdLoadingTwotoneLoop class="h-4 w-4" />
-		{:else}
-			<LineMdSearchTwotone class="h-4 w-4" />
-		{/if}
-	</div>
-	<Input
-		id={inputId}
-		type="text"
-		placeholder="Search for a game..."
-		value={searchQuery}
-		oninput={handleInput}
-		onblur={handleBlur}
-		onfocus={handleFocus}
-		onkeydown={handleKeydown}
-		class="pl-10"
-	/>
-	{#if shouldShowDropdown}
-		<div
-			role="listbox"
-			tabindex="-1"
-			class="absolute z-50 mt-2 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none"
-			transition:fly={{ y: -5, duration: 150 }}
-			onmouseenter={() => (isMouseOverResults = true)}
-			onmouseleave={() => (isMouseOverResults = false)}
-		>
-			{#if loading}
-				<div class="p-4 text-center text-sm text-muted-foreground">Loading...</div>
-			{:else if errorMessage}
-				<div class="p-4 text-center text-sm text-destructive">Error: {errorMessage}</div>
-			{:else if !hasResults}
-				<div class="p-4 text-center text-sm text-muted-foreground">No games found</div>
-			{:else}
-				<div class="max-h-100 overflow-y-auto [&>button:not(:last-child)]:border-b">
-					{#each results as game, index (game.id)}
-						<button
-							bind:this={resultButtons[index]}
-							type="button"
-							class="flex w-full items-center gap-3 p-3 text-left transition-colors active:bg-accent"
-							class:bg-accent={index === selectedIndex}
-							onclick={() => selectGame(game)}
-							onmouseenter={() => (selectedIndex = index)}
-						>
-							<div class="relative flex h-16 w-12 items-center">
-								{#if game.coverImgId}
-									{#if imageLoadingStates[game.id] !== false}
-										<Skeleton class="absolute inset-0 rounded" />
-									{/if}
-									<img
-										src={constructImageUrl(game.coverImgId, 'cover_small')}
-										alt={game.name}
-										class="absolute rounded text-transparent"
-										onload={() => handleImageLoad(game.id)}
-									/>
-								{:else}
-									<Skeleton class="absolute inset-0 rounded" />
-								{/if}
-							</div>
-							<div class="min-w-0 flex-1">
-								<div class="truncate font-medium">{game.name}</div>
-								{#if game.releaseDate}
-									<div class="text-sm text-muted-foreground">
-										{new Date(game.releaseDate).getFullYear()}
-									</div>
-								{/if}
-							</div>
-						</button>
-					{/each}
-				</div>
-			{/if}
+<Search
+	search={searchGames}
+	getKey={(game) => game.id}
+	getLabel={(game) => game.name}
+	onSelected={selectGame}
+	onResults={initializeImageLoadingStates}
+	{inputId}
+	placeholder="Search for a game..."
+	noResultsText="No games found"
+>
+	{#snippet result(game)}
+		<div class="flex items-center gap-3">
+			<div class="relative flex h-16 w-12 shrink-0 items-center">
+				{#if game.coverImgId}
+					{#if imageLoadingStates[game.id] !== false}
+						<Skeleton class="absolute inset-0 rounded" />
+					{/if}
+					<img
+						src={constructImageUrl(game.coverImgId, 'cover_small')}
+						alt={game.name}
+						class="absolute inset-0 h-full w-full rounded object-cover text-transparent"
+						onload={() => (imageLoadingStates[game.id] = false)}
+					/>
+				{:else}
+					<Skeleton class="absolute inset-0 rounded" />
+				{/if}
+			</div>
+			<div class="min-w-0 flex-1">
+				<div class="truncate font-medium">{game.name}</div>
+				{#if game.releaseDate}
+					<div class="text-sm text-muted-foreground">
+						{new Date(game.releaseDate).getFullYear()}
+					</div>
+				{/if}
+			</div>
 		</div>
-	{/if}
-</div>
+	{/snippet}
+</Search>

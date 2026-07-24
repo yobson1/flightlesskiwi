@@ -19,6 +19,7 @@ import {
 	STORES
 } from '$lib/server/db/schema';
 import { flushGameSearchQueue, prepareGameSearch } from '$lib/server/game-search';
+import { prepareBenchmarkSearch } from '$lib/server/benchmark-search';
 import * as auth from '$lib/server/auth';
 import { sleep } from 'bun';
 import { inArray, sql } from 'drizzle-orm';
@@ -704,6 +705,7 @@ function getLastSyncTime() {
 
 const syncGlobal = globalThis as typeof globalThis & {
 	flightlesskiwiIgdbSync?: Promise<void>;
+	flightlesskiwiBenchmarkSearchSync?: Promise<void>;
 };
 
 async function syncGameSearch() {
@@ -738,7 +740,29 @@ function startIgdbSync() {
 	syncGlobal.flightlesskiwiIgdbSync = sync;
 }
 
+function startBenchmarkSearchSync() {
+	if (syncGlobal.flightlesskiwiBenchmarkSearchSync) return;
+
+	const sync = prepareBenchmarkSearch()
+		.then((indexedBenchmarks) => {
+			if (indexedBenchmarks > 0) {
+				info(`Indexed ${indexedBenchmarks} benchmarks in Meilisearch`);
+			}
+		})
+		.catch((cause) => {
+			warn('Meilisearch is unavailable; benchmark search indexing will retry on restart', cause);
+		})
+		.finally(() => {
+			if (syncGlobal.flightlesskiwiBenchmarkSearchSync === sync) {
+				delete syncGlobal.flightlesskiwiBenchmarkSearchSync;
+			}
+		});
+
+	syncGlobal.flightlesskiwiBenchmarkSearchSync = sync;
+}
+
 if (!building) {
 	seedStores();
+	startBenchmarkSearchSync();
 	startIgdbSync();
 }

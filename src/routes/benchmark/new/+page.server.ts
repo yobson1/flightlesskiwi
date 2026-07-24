@@ -9,10 +9,11 @@ import {
 	MAX_BENCHMARK_TOTAL_SIZE,
 	formatFileSize
 } from '$lib/benchmark';
-import { error as logError } from '$lib/logger';
+import { error as logError, warn } from '$lib/logger';
 import { requireVerifiedPage, requireVerifiedSession } from '$lib/server/auth/api';
 import { generateSecureRandomString } from '$lib/server/auth/utils';
 import { deleteBenchmarkFiles, writeBenchmarkFiles } from '$lib/server/benchmark-files';
+import { indexBenchmarks } from '$lib/server/benchmark-search';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
@@ -111,6 +112,12 @@ export const actions: Actions = {
 				message: 'The benchmark could not be uploaded. Please try again.',
 				values
 			});
+		}
+
+		try {
+			await indexBenchmarks([benchmarkId]);
+		} catch (cause) {
+			warn(`Failed to index benchmark ${benchmarkId}; it will be retried on restart`, cause);
 		}
 
 		return {

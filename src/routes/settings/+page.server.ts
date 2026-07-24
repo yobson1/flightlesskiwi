@@ -16,6 +16,7 @@ import {
 } from '$lib/server/auth';
 import { requireVerifiedPage } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
+import { removeBenchmarksFromSearch } from '$lib/server/benchmark-search';
 import {
 	checkCodeEmailSendRateLimit,
 	CodeEmailRateLimitError,
@@ -315,6 +316,12 @@ async function deleteAccount(event: RequestEvent) {
 		.where(eq(benchmarkResult.userId, event.locals.user.id))
 		.all()
 		.map(({ id }) => id);
+	const benchmarkIds = db
+		.select({ id: benchmarkResult.id })
+		.from(benchmarkResult)
+		.where(eq(benchmarkResult.userId, event.locals.user.id))
+		.all()
+		.map(({ id }) => id);
 	if (!deleteUser(event.locals.user.id)) {
 		return fail(404, { account: { message: 'Account not found' } });
 	}
@@ -322,6 +329,11 @@ async function deleteAccount(event: RequestEvent) {
 		await deleteBenchmarkFiles(benchmarkFileIds);
 	} catch (cause) {
 		logError(`Failed to clean up benchmark files for deleted user ${event.locals.user.id}`, cause);
+	}
+	try {
+		await removeBenchmarksFromSearch(benchmarkIds);
+	} catch (cause) {
+		logError(`Failed to remove deleted user benchmarks from search`, cause);
 	}
 
 	deleteSessionTokenCookie(event);
