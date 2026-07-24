@@ -6,6 +6,11 @@ export const MAX_BENCHMARK_FILE_SIZE = 25 * 1024 * 1024;
 export const MAX_BENCHMARK_TOTAL_SIZE = 100 * 1024 * 1024;
 
 export function formatFileSize(bytes: number): string {
-	const mebibytes = bytes / (1024 * 1024);
-	return `${mebibytes.toLocaleString(undefined, { maximumFractionDigits: 0 })} MiB`;
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${formatUnit(bytes / 1024)} KiB`;
+	return `${formatUnit(bytes / (1024 * 1024))} MiB`;
+}
+
+function formatUnit(value: number): string {
+	return (value < 10 ? value.toFixed(1) : value.toFixed(0)).replace(/\.0$/, '');
 }
