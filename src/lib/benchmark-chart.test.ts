@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	averageMetricValues,
+	buildSharedMetricChartData,
 	formatBenchmarkMetricName,
 	getBenchmarkMetricUnit,
 	hasNonZeroMetricValues,
@@ -32,5 +33,31 @@ describe('benchmark chart metric helpers', () => {
 		expect(hasNonZeroMetricValues([null, 0, 0])).toBe(false);
 		expect(hasNonZeroMetricValues([null, 0, 0.01])).toBe(true);
 		expect(hasNonZeroMetricValues([-1, 0])).toBe(true);
+	});
+
+	test('aligns independently sampled runs onto one shared time grid', () => {
+		expect(
+			buildSharedMetricChartData([
+				{
+					key: 'first',
+					points: [
+						{ timeSeconds: 0, value: 10 },
+						{ timeSeconds: 2, value: 30 },
+						{ timeSeconds: 4, value: 50 }
+					]
+				},
+				{
+					key: 'second',
+					points: [
+						{ timeSeconds: 0, value: 20 },
+						{ timeSeconds: 4, value: 100 }
+					]
+				}
+			])
+		).toEqual([
+			{ timeSeconds: 0, first: 10, second: 20 },
+			{ timeSeconds: 2, first: 30, second: 60 },
+			{ timeSeconds: 4, first: 50, second: 100 }
+		]);
 	});
 });

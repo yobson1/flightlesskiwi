@@ -40,9 +40,23 @@
 	} satisfies Chart.ChartConfig;
 </script>
 
-{#snippet tooltipValue({ value, name }: { value: unknown; name: string })}
+{#snippet tooltipValue({
+	value,
+	name,
+	item
+}: {
+	value: unknown;
+	name: string;
+	item: { color?: string };
+})}
 	<div class="flex min-w-0 flex-1 items-center justify-between gap-4">
-		<span class="text-muted-foreground">{name}</span>
+		<div class="flex min-w-0 items-center gap-2">
+			<span
+				class="size-2.5 shrink-0 rounded-[2px]"
+				style:background-color={item.color ?? 'currentColor'}
+			></span>
+			<span class="text-muted-foreground">{name}</span>
+		</div>
 		<span class="font-mono font-medium tabular-nums">
 			{typeof value === 'number' ? formatMetricValue(value, 'FPS') : String(value)}
 		</span>
@@ -67,9 +81,8 @@
 				offset: 6,
 				format: (value) => formatMetricValue(value, 'FPS')
 			}}
-			padding={{ left: 168, right: 72 }}
+			padding={{ left: 168, right: 72, bottom: 52 }}
 			props={{
-				xAxis: { label: 'FPS' },
 				yAxis: {
 					tickLabelProps: {
 						truncate: { maxChars: 24, position: 'middle' }

@@ -2,6 +2,7 @@
 	import { LineChart } from 'layerchart';
 	import {
 		BENCHMARK_CHART_COLORS,
+		buildSharedMetricChartData,
 		formatBenchmarkMetricName,
 		formatMetricValue,
 		getBenchmarkMetricUnit,
@@ -20,7 +21,7 @@
 
 	const unit = $derived(getBenchmarkMetricUnit(metricKey));
 	const title = $derived(formatBenchmarkMetricName(metricKey));
-	const series = $derived.by(() =>
+	const metricSeries = $derived.by(() =>
 		runs.flatMap((run, index) => {
 			const metric = run.mangoHudData?.metrics.find(({ key }) => key === metricKey);
 			if (!metric || !run.mangoHudData || !hasNonZeroMetricValues(metric.values)) return [];
@@ -36,13 +37,20 @@
 				{
 					key: run.id,
 					label: run.originalName,
-					value: 'value',
-					data: points,
+					points,
 					color: BENCHMARK_CHART_COLORS[index % BENCHMARK_CHART_COLORS.length]
 				}
 			];
 		})
 	);
+	const series = $derived(
+		metricSeries.map(({ key, label, color }) => ({
+			key,
+			label,
+			color
+		}))
+	);
+	const chartData = $derived(buildSharedMetricChartData(metricSeries));
 	const config = $derived(
 		Object.fromEntries(
 			series.map(({ key, label, color }) => [key, { label, color }])
@@ -50,9 +58,23 @@
 	);
 </script>
 
-{#snippet tooltipValue({ value, name }: { value: unknown; name: string })}
+{#snippet tooltipValue({
+	value,
+	name,
+	item
+}: {
+	value: unknown;
+	name: string;
+	item: { color?: string };
+})}
 	<div class="flex min-w-0 flex-1 items-center justify-between gap-4">
-		<span class="max-w-64 truncate text-muted-foreground">{name}</span>
+		<div class="flex min-w-0 items-center gap-2">
+			<span
+				class="size-2.5 shrink-0 rounded-[2px]"
+				style:background-color={item.color ?? 'currentColor'}
+			></span>
+			<span class="max-w-64 truncate text-muted-foreground">{name}</span>
+		</div>
 		<span class="font-mono font-medium tabular-nums">
 			{typeof value === 'number' ? formatMetricValue(value, unit) : String(value)}
 		</span>
@@ -69,9 +91,8 @@
 
 	<Chart.Container {config} class="mt-4 aspect-auto h-72 w-full">
 		<LineChart
-			data={[]}
+			data={chartData}
 			x="timeSeconds"
-			y="value"
 			{series}
 			legend={series.length > 1 ? { variant: 'swatches' } : false}
 			props={{

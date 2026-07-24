@@ -6,6 +6,11 @@ export interface BenchmarkChartRun {
 	mangoHudData: MangoHudBenchmarkData | null;
 }
 
+export interface BenchmarkMetricSeries {
+	key: string;
+	points: Array<{ timeSeconds: number; value: number }>;
+}
+
 const ACRONYMS = new Set(['cpu', 'fps', 'gpu', 'mhz', 'ram', 'rss', 'vram']);
 
 const METRIC_UNITS: Record<string, string> = {
@@ -71,6 +76,26 @@ export function hasNonZeroMetricValues(values: Array<number | null>): boolean {
 	return values.some((value) => value !== null && value !== 0);
 }
 
+export function buildSharedMetricChartData(
+	series: BenchmarkMetricSeries[]
+): Array<{ timeSeconds: number } & Record<string, number | undefined>> {
+	const sampleCount = Math.max(0, ...series.map(({ points }) => points.length));
+	if (sampleCount === 0) return [];
+
+	const maximumTime = Math.max(0, ...series.map(({ points }) => points.at(-1)?.timeSeconds ?? 0));
+
+	return Array.from({ length: sampleCount }, (_, index) => {
+		const timeSeconds = sampleCount === 1 ? 0 : (maximumTime * index) / (sampleCount - 1);
+		const row: { timeSeconds: number } & Record<string, number | undefined> = { timeSeconds };
+
+		for (const metricSeries of series) {
+			row[metricSeries.key] = interpolateMetricValue(metricSeries.points, timeSeconds);
+		}
+
+		return row;
+	});
+}
+
 export function percentileMetricValue(
 	values: Array<number | null>,
 	percentile: number
@@ -94,4 +119,33 @@ export function formatMetricValue(value: number, unit = ''): string {
 	const maximumFractionDigits = Math.abs(value) >= 100 ? 1 : 2;
 	const formatted = new Intl.NumberFormat('en', { maximumFractionDigits }).format(value);
 	return unit ? `${formatted} ${unit}` : formatted;
+}
+
+function interpolateMetricValue(
+	points: Array<{ timeSeconds: number; value: number }>,
+	timeSeconds: number
+): number | undefined {
+	const first = points[0];
+	const last = points.at(-1);
+	if (!first || !last || timeSeconds < first.timeSeconds || timeSeconds > last.timeSeconds) {
+		return undefined;
+	}
+
+	let lowerIndex = 0;
+	let upperIndex = points.length - 1;
+
+	while (lowerIndex <= upperIndex) {
+		const middleIndex = Math.floor((lowerIndex + upperIndex) / 2);
+		const middle = points[middleIndex]!;
+		if (middle.timeSeconds === timeSeconds) return middle.value;
+		if (middle.timeSeconds < timeSeconds) lowerIndex = middleIndex + 1;
+		else upperIndex = middleIndex - 1;
+	}
+
+	const lower = points[Math.max(0, upperIndex)]!;
+	const upper = points[Math.min(points.length - 1, lowerIndex)]!;
+	if (lower.timeSeconds === upper.timeSeconds) return upper.value;
+
+	const progress = (timeSeconds - lower.timeSeconds) / (upper.timeSeconds - lower.timeSeconds);
+	return lower.value + (upper.value - lower.value) * progress;
 }
