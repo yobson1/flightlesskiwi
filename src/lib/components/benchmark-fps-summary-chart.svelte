@@ -62,9 +62,19 @@
 			{series}
 			seriesLayout="group"
 			legend={{ variant: 'swatches' }}
-			axis="x"
+			labels={{
+				placement: 'outside',
+				offset: 6,
+				format: (value) => formatMetricValue(value, 'FPS')
+			}}
+			padding={{ left: 168, right: 72 }}
 			props={{
-				xAxis: { label: 'FPS' }
+				xAxis: { label: 'FPS' },
+				yAxis: {
+					tickLabelProps: {
+						truncate: { maxChars: 24, position: 'middle' }
+					}
+				}
 			}}
 		>
 			{#snippet tooltip({ context })}

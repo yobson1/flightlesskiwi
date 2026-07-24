@@ -55,9 +55,19 @@
 			x="average"
 			y="run"
 			series={[{ key: 'average', label: `Average ${title}`, value: 'average' }]}
-			axis="x"
+			labels={{
+				placement: 'outside',
+				offset: 6,
+				format: (value) => formatMetricValue(value, unit)
+			}}
+			padding={{ left: 144, right: 88 }}
 			props={{
 				xAxis: { label: unit || title },
+				yAxis: {
+					tickLabelProps: {
+						truncate: { maxChars: 20, position: 'middle' }
+					}
+				},
 				bars: { fill: 'var(--color-average)' }
 			}}
 		>
