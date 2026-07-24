@@ -27,6 +27,9 @@ vite.config.ts.timestamp-*
 *.db-*
 drizzle
 
+# Uploaded benchmark data
+/uploads/
+
 # Meilisearch
 data.ms
 config.toml

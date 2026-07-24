@@ -1,7 +1,8 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
 	type AnySQLiteColumn,
 	blob,
+	check,
 	index,
 	integer,
 	primaryKey,
@@ -9,6 +10,12 @@ import {
 	text,
 	unique
 } from 'drizzle-orm/sqlite-core';
+import {
+	MAX_BENCHMARK_DESCRIPTION_LENGTH,
+	MAX_BENCHMARK_FILE_NAME_LENGTH,
+	MAX_BENCHMARK_FILE_SIZE,
+	MAX_BENCHMARK_TITLE_LENGTH
+} from '../../benchmark';
 
 export const user = sqliteTable(
 	'user',
@@ -219,6 +226,58 @@ export const game = sqliteTable('game', {
 	versionParent: integer('version_parent_id').references((): AnySQLiteColumn => game.id)
 });
 
+export const benchmarkResult = sqliteTable(
+	'benchmark_result',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		gameId: integer('game_id')
+			.notNull()
+			.references(() => game.id),
+		title: text('title').notNull(),
+		description: text('description'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [
+		index('benchmark_result_user_id_idx').on(table.userId),
+		index('benchmark_result_game_id_idx').on(table.gameId),
+		index('benchmark_result_created_at_idx').on(table.createdAt),
+		check(
+			'benchmark_result_title_length_check',
+			sql`length(${table.title}) between 1 and ${sql.raw(String(MAX_BENCHMARK_TITLE_LENGTH))}`
+		),
+		check(
+			'benchmark_result_description_length_check',
+			sql`${table.description} is null or length(${table.description}) <= ${sql.raw(String(MAX_BENCHMARK_DESCRIPTION_LENGTH))}`
+		)
+	]
+);
+
+export const benchmarkFile = sqliteTable(
+	'benchmark_file',
+	{
+		id: text('id').primaryKey(),
+		benchmarkId: text('benchmark_id')
+			.notNull()
+			.references(() => benchmarkResult.id, { onDelete: 'cascade' }),
+		originalName: text('original_name').notNull(),
+		size: integer('size').notNull()
+	},
+	(table) => [
+		index('benchmark_file_benchmark_id_idx').on(table.benchmarkId),
+		check(
+			'benchmark_file_original_name_length_check',
+			sql`length(${table.originalName}) between 1 and ${sql.raw(String(MAX_BENCHMARK_FILE_NAME_LENGTH))}`
+		),
+		check(
+			'benchmark_file_size_check',
+			sql`${table.size} between 1 and ${sql.raw(String(MAX_BENCHMARK_FILE_SIZE))}`
+		)
+	]
+);
+
 export const gameSearchQueue = sqliteTable('game_search_queue', {
 	gameId: integer('game_id')
 		.primaryKey()
@@ -235,6 +294,7 @@ export const gameRelations = relations(game, ({ many, one }) => ({
 	storeLinks: many(storeLink),
 	involvedCompanies: many(involvedCompany),
 	usedEngines: many(usedEngine),
+	benchmarks: many(benchmarkResult),
 	parentGameRef: one(game, {
 		fields: [game.parentGame],
 		references: [game.id],
@@ -307,7 +367,27 @@ export const userRelations = relations(user, ({ many, one }) => ({
 	totpCredential: one(totpCredential),
 	passkeyCredentials: many(passkeyCredential),
 	emailVerificationRequests: many(emailVerificationRequest),
-	passwordResetSessions: many(passwordResetSession)
+	passwordResetSessions: many(passwordResetSession),
+	benchmarks: many(benchmarkResult)
+}));
+
+export const benchmarkResultRelations = relations(benchmarkResult, ({ many, one }) => ({
+	user: one(user, {
+		fields: [benchmarkResult.userId],
+		references: [user.id]
+	}),
+	game: one(game, {
+		fields: [benchmarkResult.gameId],
+		references: [game.id]
+	}),
+	files: many(benchmarkFile)
+}));
+
+export const benchmarkFileRelations = relations(benchmarkFile, ({ one }) => ({
+	benchmark: one(benchmarkResult, {
+		fields: [benchmarkFile.benchmarkId],
+		references: [benchmarkResult.id]
+	})
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -359,6 +439,8 @@ export type Company = typeof company.$inferSelect;
 export type InvolvedCompany = typeof involvedCompany.$inferSelect;
 export type Game = typeof game.$inferSelect;
 export type GameName = typeof gameName.$inferSelect;
+export type BenchmarkResult = typeof benchmarkResult.$inferSelect;
+export type BenchmarkFile = typeof benchmarkFile.$inferSelect;
 
 export type FullGame = Game & {
 	storeLinks: (StoreLink & {

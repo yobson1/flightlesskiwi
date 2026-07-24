@@ -3,6 +3,7 @@
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import SunIcon from '@lucide/svelte/icons/sun';
+	import UploadIcon from '@lucide/svelte/icons/upload';
 	import UserKeyIcon from '@lucide/svelte/icons/user-key';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import { toggleMode } from 'mode-watcher';
@@ -31,6 +32,11 @@
 		<span class="hidden max-w-36 truncate px-2 text-sm text-muted-foreground md:inline">
 			{auth.user.username}
 		</span>
+		<Button href="/benchmark/new">
+			<UploadIcon />
+			<span class="hidden sm:inline">Upload benchmark</span>
+			<span class="sr-only sm:hidden">Upload benchmark</span>
+		</Button>
 		<Button href="/settings" variant="ghost" size="icon" aria-label="Settings">
 			<SettingsIcon />
 		</Button>

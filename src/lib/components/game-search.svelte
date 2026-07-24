@@ -10,11 +10,12 @@
 	// Props
 
 	interface Props {
-		onSelected?: (gameId: number) => void;
+		onSelected?: (gameId: number, game: GameSearchResult) => void;
 		noParent?: boolean;
+		inputId?: string;
 	}
 
-	let { onSelected, noParent = false }: Props = $props();
+	let { onSelected, noParent = false, inputId }: Props = $props();
 
 	// State
 
@@ -172,11 +173,12 @@
 
 	function selectGame(game: GameSearchResult) {
 		console.log(`Selected game: ${game.name}[${game.id}]`);
+		searchQuery = game.name;
 		open = false;
 		isMouseOverResults = false;
 		selectedIndex = -1;
 
-		onSelected?.(noParent ? game.id : (game.parentGame ?? game.versionParent ?? game.id));
+		onSelected?.(noParent ? game.id : (game.parentGame ?? game.versionParent ?? game.id), game);
 	}
 
 	function handleImageLoad(gameId: number) {
@@ -213,6 +215,7 @@
 		{/if}
 	</div>
 	<Input
+		id={inputId}
 		type="text"
 		placeholder="Search for a game..."
 		value={searchQuery}

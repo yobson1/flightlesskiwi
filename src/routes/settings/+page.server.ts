@@ -1,5 +1,6 @@
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { fail } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 import {
 	MAX_PASSWORD_LENGTH,
 	MAX_USERNAME_LENGTH,
@@ -14,6 +15,7 @@ import {
 	isSessionRecentlyReauthenticated
 } from '$lib/server/auth';
 import { requireVerifiedPage } from '$lib/server/auth/api';
+import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
 import {
 	checkCodeEmailSendRateLimit,
 	CodeEmailRateLimitError,
@@ -46,6 +48,8 @@ import {
 	verifyUsernameInput
 } from '$lib/server/auth/user';
 import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
+import { db } from '$lib/server/db';
+import { benchmarkFile, benchmarkResult } from '$lib/server/db/schema';
 import type { Actions, RequestEvent } from './$types';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>('password-update', 5, 30 * 60);
@@ -304,8 +308,20 @@ async function deleteAccount(event: RequestEvent) {
 			account: { message: 'Enter your username exactly as shown to delete your account' }
 		});
 	}
+	const benchmarkFileIds = db
+		.select({ id: benchmarkFile.id })
+		.from(benchmarkFile)
+		.innerJoin(benchmarkResult, eq(benchmarkFile.benchmarkId, benchmarkResult.id))
+		.where(eq(benchmarkResult.userId, event.locals.user.id))
+		.all()
+		.map(({ id }) => id);
 	if (!deleteUser(event.locals.user.id)) {
 		return fail(404, { account: { message: 'Account not found' } });
+	}
+	try {
+		await deleteBenchmarkFiles(benchmarkFileIds);
+	} catch (cause) {
+		logError(`Failed to clean up benchmark files for deleted user ${event.locals.user.id}`, cause);
 	}
 
 	deleteSessionTokenCookie(event);

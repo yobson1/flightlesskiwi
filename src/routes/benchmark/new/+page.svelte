@@ -1,0 +1,236 @@
+<script lang="ts">
+	import FileIcon from '@lucide/svelte/icons/file-chart-column';
+	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
+	import UploadIcon from '@lucide/svelte/icons/upload';
+	import { enhance } from '$app/forms';
+	import {
+		MAX_BENCHMARK_DESCRIPTION_LENGTH,
+		MAX_BENCHMARK_FILES,
+		MAX_BENCHMARK_FILE_SIZE,
+		MAX_BENCHMARK_TITLE_LENGTH,
+		MAX_BENCHMARK_TOTAL_SIZE,
+		formatFileSize
+	} from '$lib/benchmark';
+	import GameSearch from '$lib/components/game-search.svelte';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import type { GameSearchResult } from '$lib/types/game';
+	import { untrack } from 'svelte';
+	import { toast } from 'svelte-sonner';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import type { PageProps } from './$types';
+
+	let { form }: PageProps = $props();
+
+	const initialValues = untrack(() => getSubmittedValues(form));
+	let selectedGameId = $state<number | null>(initialValues?.gameId ?? null);
+	let selectedGameName = $state('');
+	let selectedFiles = $state<FileList>();
+	let submitting = $state(false);
+	let gameSearchKey = $state(0);
+
+	const uploadSubmit: SubmitFunction = () => {
+		submitting = true;
+
+		return async ({ result, update }) => {
+			submitting = false;
+			if (result.type === 'failure') {
+				toast.error(getMessage(result.data, 'Unable to upload benchmark'));
+				await update({ reset: false });
+				return;
+			}
+			if (result.type === 'error') {
+				toast.error('Unable to upload benchmark');
+				await update({ reset: false });
+				return;
+			}
+			if (result.type === 'success') {
+				toast.success(getMessage(result.data, 'Benchmark uploaded'));
+				selectedGameId = null;
+				selectedGameName = '';
+				selectedFiles = undefined;
+				gameSearchKey++;
+			}
+			await update({ reset: result.type === 'success' });
+		};
+	};
+
+	function selectGame(gameId: number, game: GameSearchResult) {
+		selectedGameId = gameId;
+		selectedGameName = game.name;
+	}
+
+	function getMessage(value: unknown, fallback: string): string {
+		if (
+			typeof value === 'object' &&
+			value !== null &&
+			'message' in value &&
+			typeof value.message === 'string'
+		) {
+			return value.message;
+		}
+		return fallback;
+	}
+
+	function getSubmittedValues(value: unknown):
+		| {
+				gameId: number | null;
+				title: string;
+				description: string;
+		  }
+		| undefined {
+		if (
+			typeof value !== 'object' ||
+			value === null ||
+			!('values' in value) ||
+			typeof value.values !== 'object' ||
+			value.values === null
+		) {
+			return undefined;
+		}
+		const values = value.values as Record<string, unknown>;
+		if (
+			(values.gameId !== null && typeof values.gameId !== 'number') ||
+			typeof values.title !== 'string' ||
+			typeof values.description !== 'string'
+		) {
+			return undefined;
+		}
+		return {
+			gameId: values.gameId,
+			title: values.title,
+			description: values.description
+		};
+	}
+</script>
+
+<svelte:head>
+	<title>Upload benchmark · flightlesskiwi</title>
+</svelte:head>
+
+<div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
+	<div>
+		<p class="text-sm font-medium text-primary">Share your results</p>
+		<h1 class="text-3xl font-bold tracking-tight">Upload benchmark</h1>
+		<p class="mt-2 text-muted-foreground">
+			Add the details now; MangoHud and PresentMon processing will be added next.
+		</p>
+	</div>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Benchmark details</Card.Title>
+			<Card.Description>
+				Choose the game and upload the raw files produced during the same benchmark run.
+			</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<form method="POST" enctype="multipart/form-data" use:enhance={uploadSubmit}>
+				<Field.Group>
+					<Field.Field
+						data-invalid={form?.message && !form?.benchmarkId && selectedGameId === null}
+					>
+						<Field.Label for="benchmark-game-search">Game</Field.Label>
+						{#key gameSearchKey}
+							<GameSearch onSelected={selectGame} noParent inputId="benchmark-game-search" />
+						{/key}
+						<input type="hidden" name="game_id" value={selectedGameId ?? ''} />
+						{#if selectedGameId !== null}
+							<div class="flex items-center gap-2 text-sm text-muted-foreground">
+								<span>Selected:</span>
+								<Badge variant="secondary">{selectedGameName || `Game #${selectedGameId}`}</Badge>
+							</div>
+						{:else}
+							<Field.Description>Select a game from the search results.</Field.Description>
+						{/if}
+					</Field.Field>
+
+					<Field.Field>
+						<Field.Label for="benchmark-title">Title</Field.Label>
+						<Input
+							id="benchmark-title"
+							name="title"
+							value={getSubmittedValues(form)?.title ?? ''}
+							maxlength={MAX_BENCHMARK_TITLE_LENGTH}
+							placeholder="e.g. Steam Deck OLED · High preset"
+							required
+						/>
+						<Field.Description>
+							A short, descriptive title. Maximum {MAX_BENCHMARK_TITLE_LENGTH} characters.
+						</Field.Description>
+					</Field.Field>
+
+					<Field.Field>
+						<Field.Label for="benchmark-description">Description</Field.Label>
+						<Textarea
+							id="benchmark-description"
+							name="description"
+							value={getSubmittedValues(form)?.description ?? ''}
+							maxlength={MAX_BENCHMARK_DESCRIPTION_LENGTH}
+							rows={5}
+							placeholder="Optional notes about settings, hardware, or the run..."
+						/>
+						<Field.Description>
+							Optional. Maximum {MAX_BENCHMARK_DESCRIPTION_LENGTH.toLocaleString()} characters.
+						</Field.Description>
+					</Field.Field>
+
+					<Field.Field>
+						<Field.Label for="benchmark-files">Benchmark files</Field.Label>
+						<div class="rounded-lg border border-dashed p-4">
+							<div class="mb-3 flex items-start gap-3">
+								<div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+									<FileIcon class="size-5" />
+								</div>
+								<div>
+									<p class="text-sm font-medium">MangoHud or PresentMon output</p>
+									<p class="text-sm text-muted-foreground">
+										CSV or text files are expected. They will be kept raw for later processing.
+									</p>
+								</div>
+							</div>
+							<Input
+								id="benchmark-files"
+								name="files"
+								type="file"
+								accept=".csv,.txt,text/csv,text/plain"
+								multiple
+								required
+								bind:files={selectedFiles}
+							/>
+						</div>
+						<Field.Description>
+							Up to {MAX_BENCHMARK_FILES} files, {formatFileSize(MAX_BENCHMARK_FILE_SIZE)} each and {formatFileSize(
+								MAX_BENCHMARK_TOTAL_SIZE
+							)} total.
+						</Field.Description>
+					</Field.Field>
+
+					{#if form?.message && !form?.benchmarkId}
+						<Field.Error>{form.message}</Field.Error>
+					{:else if form?.benchmarkId}
+						<p class="text-sm text-emerald-600 dark:text-emerald-400" role="status">
+							Benchmark uploaded successfully.
+						</p>
+					{/if}
+
+					<div class="flex justify-end">
+						<Button type="submit" size="lg" disabled={submitting}>
+							{#if submitting}
+								<LoaderIcon class="animate-spin" />
+								Uploading…
+							{:else}
+								<UploadIcon />
+								Upload benchmark
+							{/if}
+						</Button>
+					</div>
+				</Field.Group>
+			</form>
+		</Card.Content>
+	</Card.Root>
+</div>
