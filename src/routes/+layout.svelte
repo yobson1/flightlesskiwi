@@ -257,7 +257,7 @@
 
 <div class="flex min-h-screen flex-col">
 	<header class="flex w-full justify-center border-b bg-background/90 backdrop-blur">
-		<nav class="flex w-4/5 max-w-7xl min-w-80 items-center justify-between py-2">
+		<nav class="mx-2 flex w-full max-w-7xl min-w-80 items-center justify-between py-2">
 			<a href="/" class="flex items-center gap-2">
 				<img src={favicon} alt="" class="h-8 w-8" />
 				<span class="font-semibold">flightlesskiwi</span>
