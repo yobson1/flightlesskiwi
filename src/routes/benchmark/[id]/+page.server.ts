@@ -1,10 +1,13 @@
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+import { error as logError } from '$lib/logger';
+import { parseMangoHudSystemInfo } from '$lib/mangohud';
+import { readBenchmarkFilePrefix } from '$lib/server/benchmark-files';
 import { db } from '$lib/server/db';
-import { benchmarkResult, user } from '$lib/server/db/schema';
+import { benchmarkFile, benchmarkResult, user } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = ({ params }) => {
+export const load: PageServerLoad = async ({ params }) => {
 	const benchmark = db
 		.select({
 			id: benchmarkResult.id,
@@ -21,5 +24,30 @@ export const load: PageServerLoad = ({ params }) => {
 
 	if (!benchmark) error(404, 'Benchmark not found');
 
-	return { benchmark };
+	const files = db
+		.select({
+			id: benchmarkFile.id,
+			originalName: benchmarkFile.originalName
+		})
+		.from(benchmarkFile)
+		.where(eq(benchmarkFile.benchmarkId, benchmark.id))
+		.orderBy(benchmarkFile.originalName)
+		.all();
+
+	const runs = await Promise.all(
+		files.map(async (file) => {
+			try {
+				const prefix = await readBenchmarkFilePrefix(file.id);
+				return {
+					...file,
+					mangoHud: parseMangoHudSystemInfo(prefix)
+				};
+			} catch (cause) {
+				logError(`Failed to read benchmark file ${file.id}`, cause);
+				return { ...file, mangoHud: null };
+			}
+		})
+	);
+
+	return { benchmark, runs };
 };

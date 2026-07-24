@@ -63,7 +63,7 @@
 	</div>
 
 	{#if benchmarks.length > 0}
-		<div class="h-[calc(100dvh-18rem)] max-h-168 min-h-80">
+		<div class="h-[calc(100dvh-18rem)] min-h-80">
 			<SvelteVirtualList
 				items={benchmarks}
 				defaultEstimatedItemHeight={116}
