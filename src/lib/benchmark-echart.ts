@@ -40,6 +40,49 @@ export function createBenchmarkEChart(element: HTMLDivElement): BenchmarkEChartI
 	return init(element, undefined, { renderer: 'canvas' });
 }
 
+export function getBenchmarkEChartBaseOption(theme: BenchmarkEChartTheme) {
+	return {
+		animation: false,
+		aria: { enabled: true },
+		tooltip: {
+			appendToBody: true,
+			backgroundColor: theme.background,
+			borderColor: theme.border,
+			confine: true,
+			textStyle: { color: theme.foreground }
+		}
+	};
+}
+
+export function getBenchmarkEChartAxis<Value>(
+	theme: BenchmarkEChartTheme,
+	formatter?: (value: Value) => string
+) {
+	return {
+		axisLabel: {
+			color: theme.mutedForeground,
+			...(formatter ? { formatter } : {})
+		},
+		axisLine: { show: false },
+		axisTick: { show: false },
+		nameTextStyle: { color: theme.mutedForeground },
+		splitLine: { lineStyle: { color: theme.border } }
+	};
+}
+
+export function getBenchmarkEChartLegend(theme: BenchmarkEChartTheme) {
+	return {
+		icon: 'roundRect',
+		itemHeight: 10,
+		itemWidth: 10,
+		textStyle: { color: theme.mutedForeground }
+	};
+}
+
+export function getBenchmarkEChartSeriesColor(theme: BenchmarkEChartTheme, index: number): string {
+	return theme.colors[index % theme.colors.length] ?? theme.foreground;
+}
+
 export function readBenchmarkEChartTheme(): BenchmarkEChartTheme {
 	const styles = getComputedStyle(document.documentElement);
 	const variable = (name: string) => styles.getPropertyValue(name).trim();

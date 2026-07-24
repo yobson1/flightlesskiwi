@@ -1,15 +1,17 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import type { BenchmarkEChartOption, BenchmarkEChartTheme } from '$lib/benchmark-echart';
+	import BenchmarkEChart from '$lib/components/benchmark-echart.svelte';
 	import { cn } from '$lib/utils';
 
 	interface Props {
 		title: string;
 		description: string;
 		chartClass: string;
-		children: Snippet;
+		ariaLabel: string;
+		createOption: (theme: BenchmarkEChartTheme) => BenchmarkEChartOption;
 	}
 
-	let { title, description, chartClass, children }: Props = $props();
+	let { title, description, chartClass, ariaLabel, createOption }: Props = $props();
 </script>
 
 <article class="rounded-xl border bg-card p-4">
@@ -17,6 +19,6 @@
 	<p class="text-sm text-muted-foreground">{description}</p>
 
 	<div class={cn('mt-4 w-full', chartClass)}>
-		{@render children()}
+		<BenchmarkEChart {ariaLabel} class="h-full" {createOption} />
 	</div>
 </article>
