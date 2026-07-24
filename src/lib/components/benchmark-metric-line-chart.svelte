@@ -9,6 +9,8 @@
 		hasNonZeroMetricValues,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
+	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
+	import BenchmarkChartTooltip from '$lib/components/benchmark-chart-tooltip.svelte';
 	import * as Chart from '$lib/components/ui/chart';
 
 	interface Props {
@@ -56,58 +58,37 @@
 			series.map(({ key, label, color }) => [key, { label, color }])
 		) satisfies Chart.ChartConfig
 	);
+	const hasLegend = $derived(series.length > 1);
 </script>
 
-{#snippet tooltipValue({
-	value,
-	name,
-	item
-}: {
-	value: unknown;
-	name: string;
-	item: { color?: string };
-})}
-	<div class="flex min-w-0 flex-1 items-center justify-between gap-4">
-		<div class="flex min-w-0 items-center gap-2">
-			<span
-				class="size-2.5 shrink-0 rounded-[2px]"
-				style:background-color={item.color ?? 'currentColor'}
-			></span>
-			<span class="max-w-64 truncate text-muted-foreground">{name}</span>
-		</div>
-		<span class="font-mono font-medium tabular-nums">
-			{typeof value === 'number' ? formatMetricValue(value, unit) : String(value)}
-		</span>
-	</div>
-{/snippet}
-
-<article class="rounded-xl border bg-card p-4">
-	<div>
-		<h3 class="font-semibold">{title}</h3>
-		<p class="text-sm text-muted-foreground">
-			{description ?? `${title} throughout each benchmark run${unit ? ` (${unit})` : ''}.`}
-		</p>
-	</div>
-
-	<Chart.Container {config} class="mt-4 aspect-auto h-72 w-full">
-		<LineChart
-			data={chartData}
-			x="timeSeconds"
-			{series}
-			legend={series.length > 1 ? { variant: 'swatches' } : false}
-			props={{
-				xAxis: { label: 'Time (seconds)' },
-				yAxis: { label: unit || title },
-				spline: { strokeWidth: 1.75 }
-			}}
-		>
-			{#snippet tooltip()}
-				<Chart.Tooltip
-					formatter={tooltipValue}
-					labelFormatter={(value) =>
-						typeof value === 'number' ? `${formatMetricValue(value)} seconds` : String(value)}
-				/>
-			{/snippet}
-		</LineChart>
-	</Chart.Container>
-</article>
+<BenchmarkChartCard
+	{title}
+	description={description ?? `${title} throughout each benchmark run${unit ? ` (${unit})` : ''}.`}
+	{config}
+	chartClass="h-72"
+>
+	<LineChart
+		data={chartData}
+		x="timeSeconds"
+		{series}
+		legend={hasLegend ? { variant: 'swatches' } : false}
+		padding={{
+			left: 52,
+			right: 12,
+			bottom: hasLegend ? 76 : 44
+		}}
+		props={{
+			xAxis: { label: 'Time (seconds)' },
+			yAxis: { label: unit || title },
+			spline: { strokeWidth: 1.75 }
+		}}
+	>
+		{#snippet tooltip()}
+			<BenchmarkChartTooltip
+				{unit}
+				labelFormatter={(value) =>
+					typeof value === 'number' ? `${formatMetricValue(value)} seconds` : String(value)}
+			/>
+		{/snippet}
+	</LineChart>
+</BenchmarkChartCard>

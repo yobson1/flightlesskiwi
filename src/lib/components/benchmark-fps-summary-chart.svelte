@@ -1,13 +1,11 @@
 <script lang="ts">
-	import { BarChart } from 'layerchart';
 	import {
 		averageMetricValues,
-		formatMetricValue,
 		hasNonZeroMetricValues,
 		percentileMetricValue,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
-	import * as Chart from '$lib/components/ui/chart';
+	import BenchmarkHorizontalBarChart from '$lib/components/benchmark-horizontal-bar-chart.svelte';
 
 	interface Props {
 		runs: BenchmarkChartRun[];
@@ -37,65 +35,19 @@
 		low: { label: '1st percentile', color: 'var(--chart-3)' },
 		average: { label: 'Average', color: 'var(--chart-1)' },
 		high: { label: '97th percentile', color: 'var(--chart-2)' }
-	} satisfies Chart.ChartConfig;
+	};
 </script>
 
-{#snippet tooltipValue({
-	value,
-	name,
-	item
-}: {
-	value: unknown;
-	name: string;
-	item: { color?: string };
-})}
-	<div class="flex min-w-0 flex-1 items-center justify-between gap-4">
-		<div class="flex min-w-0 items-center gap-2">
-			<span
-				class="size-2.5 shrink-0 rounded-[2px]"
-				style:background-color={item.color ?? 'currentColor'}
-			></span>
-			<span class="text-muted-foreground">{name}</span>
-		</div>
-		<span class="font-mono font-medium tabular-nums">
-			{typeof value === 'number' ? formatMetricValue(value, 'FPS') : String(value)}
-		</span>
-	</div>
-{/snippet}
-
-<article class="rounded-xl border bg-card p-4">
-	<h3 class="font-semibold">FPS comparison</h3>
-	<p class="text-sm text-muted-foreground">Low, average, and high frame rates for each run.</p>
-
-	<Chart.Container {config} class="mt-4 aspect-auto h-80 w-full">
-		<BarChart
-			data={chartData}
-			orientation="horizontal"
-			x={series.map(({ value }) => value)}
-			y="run"
-			{series}
-			seriesLayout="group"
-			legend={{ variant: 'swatches' }}
-			labels={{
-				placement: 'outside',
-				offset: 6,
-				format: (value) => formatMetricValue(value, 'FPS')
-			}}
-			padding={{ left: 168, right: 72, bottom: 52 }}
-			props={{
-				yAxis: {
-					tickLabelProps: {
-						truncate: { maxChars: 24, position: 'middle' }
-					}
-				}
-			}}
-		>
-			{#snippet tooltip({ context })}
-				<Chart.Tooltip
-					formatter={tooltipValue}
-					label={context.tooltip.data?.run ?? 'Benchmark run'}
-				/>
-			{/snippet}
-		</BarChart>
-	</Chart.Container>
-</article>
+<BenchmarkHorizontalBarChart
+	title="FPS comparison"
+	description="Low, average, and high frame rates for each run."
+	data={chartData}
+	{series}
+	{config}
+	unit="FPS"
+	chartClass="h-80"
+	leftPadding={168}
+	rightPadding={72}
+	maxLabelCharacters={24}
+	showLegend
+/>
