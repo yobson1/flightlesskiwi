@@ -43,3 +43,7 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
 	}
 	return difference === 0;
 }
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}

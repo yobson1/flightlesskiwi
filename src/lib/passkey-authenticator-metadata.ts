@@ -1,3 +1,5 @@
+import { isRecord } from '$lib/server/auth/utils';
+
 export const PASSKEY_AUTHENTICATOR_AAGUIDS_URL =
 	'https://raw.githubusercontent.com/passkeydeveloper/passkey-authenticator-aaguids/refs/heads/main/aaguid.json';
 
@@ -48,10 +50,6 @@ function parsePasskeyAuthenticatorMetadata(
 		};
 	}
 	return metadata;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isSVGDataURI(value: unknown): value is string {

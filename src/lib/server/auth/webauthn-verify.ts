@@ -31,7 +31,7 @@ import {
 	verifyWebAuthnChallenge,
 	type WebAuthnUserCredential
 } from '$lib/server/auth/webauthn';
-import { hashSecret } from '$lib/server/auth/utils';
+import { hashSecret, isRecord } from '$lib/server/auth/utils';
 import { formatAAGUID } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
@@ -228,10 +228,6 @@ async function parseAssertionRequest(request: Request): Promise<ParsedAssertion 
 	} catch {
 		return null;
 	}
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 interface ParsedAssertion {
