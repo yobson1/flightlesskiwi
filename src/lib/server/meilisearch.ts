@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { debug, info } from '$lib/logger';
 import { db } from '$lib/server/db';
 import { searchIndexQueue } from '$lib/server/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
@@ -55,6 +56,7 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 			existingPrimaryKey = (await client.getRawIndex(name)).primaryKey;
 		} catch (cause) {
 			if (!isMissingIndex(cause)) throw cause;
+			info(`Creating Meilisearch index "${name}"`);
 			await waitForMeilisearchTask(client.createIndex(name, { primaryKey }));
 			existingPrimaryKey = primaryKey;
 		}
@@ -68,6 +70,7 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 			!arraysEqual(settings.searchableAttributes, searchableAttributes) ||
 			!arraysEqual(settings.displayedAttributes, displayedAttributes)
 		) {
+			info(`Updating settings for Meilisearch index "${name}"`);
 			await waitForMeilisearchTask(
 				index.updateSettings({
 					searchableAttributes,
@@ -89,8 +92,9 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 	}
 
 	function queue(documentIds: Id[], database: SearchQueueDatabase = db) {
+		if (documentIds.length === 0) return;
+
 		for (const ids of chunks(documentIds)) {
-			if (ids.length === 0) continue;
 			database
 				.insert(searchIndexQueue)
 				.values(
@@ -105,10 +109,13 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 				})
 				.run();
 		}
+		debug(`Queued ${documentIds.length} documents for Meilisearch index "${name}"`);
 	}
 
 	async function reconcile() {
 		await ready();
+		const startedAt = Date.now();
+		info(`Checking Meilisearch index "${name}" against the database`);
 
 		const databaseIds = await getAllDocumentIds();
 		const databaseIdSet = new Set(databaseIds.map(String));
@@ -151,12 +158,22 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 				documentIds.set(String(documentId), documentId);
 			}
 			queue([...documentIds.values()]);
+			info(
+				`Meilisearch index "${name}" is out of date; queued ${documentIds.size} documents (database=${databaseIds.length}, indexed=${indexedIds.length}, version=${documentVersion})`
+			);
+		} else {
+			info(
+				`Meilisearch index "${name}" is up to date with ${databaseIds.length} documents (${formatDuration(startedAt)})`
+			);
 		}
 	}
 
 	async function runFlush() {
 		await ready();
 		let indexedDocuments = 0;
+		let deletedDocuments = 0;
+		let processedDocuments = 0;
+		let startedAt: number | undefined;
 
 		while (true) {
 			const queuedDocuments = db
@@ -168,7 +185,20 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 				.where(eq(searchIndexQueue.indexName, name))
 				.limit(INDEX_BATCH_SIZE)
 				.all();
-			if (queuedDocuments.length === 0) return indexedDocuments;
+			if (queuedDocuments.length === 0) {
+				if (startedAt === undefined) {
+					debug(`Meilisearch queue for index "${name}" is empty`);
+				} else {
+					info(
+						`Flushed Meilisearch queue for index "${name}": processed=${processedDocuments}, imported=${indexedDocuments}, removed=${deletedDocuments} (${formatDuration(startedAt)})`
+					);
+				}
+				return indexedDocuments;
+			}
+			if (startedAt === undefined) {
+				startedAt = Date.now();
+				info(`Flushing Meilisearch queue for index "${name}"`);
+			}
 
 			const documentIds = queuedDocuments.map(({ documentId }) => parseDocumentId(documentId));
 			const documents = await getDocuments(documentIds);
@@ -180,6 +210,7 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 			);
 
 			if (documents.length > 0) {
+				info(`Importing ${documents.length} documents into Meilisearch index "${name}"`);
 				const versionedDocuments = documents.map((document) => ({
 					...document,
 					schemaVersion: documentVersion
@@ -188,8 +219,11 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 				indexedDocuments += documents.length;
 			}
 			if (deletedDocumentIds.length > 0) {
+				info(`Removing ${deletedDocumentIds.length} documents from Meilisearch index "${name}"`);
 				await waitForMeilisearchTask(index.deleteDocuments(deletedDocumentIds.map(String)));
+				deletedDocuments += deletedDocumentIds.length;
 			}
+			processedDocuments += queuedDocuments.length;
 
 			db.transaction((tx) => {
 				for (const queuedDocument of queuedDocuments) {
@@ -250,4 +284,8 @@ function* chunks<Id>(items: Id[]) {
 	for (let index = 0; index < items.length; index += INDEX_BATCH_SIZE) {
 		yield items.slice(index, index + INDEX_BATCH_SIZE);
 	}
+}
+
+function formatDuration(startedAt: number) {
+	return `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
 }

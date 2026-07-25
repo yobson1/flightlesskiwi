@@ -1,5 +1,5 @@
 import { getBenchmarkRunMetadata } from '$lib/server/benchmarks';
-import { info, warn } from '$lib/logger';
+import { warn } from '$lib/logger';
 import { db } from '$lib/server/db';
 import { benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
 import { createMeilisearchIndex } from '$lib/server/meilisearch';
@@ -51,11 +51,7 @@ export function startBenchmarkSearchSync() {
 	if (syncGlobal.flightlesskiwiBenchmarkSearchSync) return;
 
 	const sync = prepareBenchmarkSearch()
-		.then((indexedBenchmarks) => {
-			if (indexedBenchmarks > 0) {
-				info(`Indexed ${indexedBenchmarks} benchmarks in Meilisearch`);
-			}
-		})
+		.then(() => undefined)
 		.catch((cause) => {
 			warn('Meilisearch is unavailable; benchmark search indexing will retry on restart', cause);
 		})
