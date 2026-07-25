@@ -4,7 +4,7 @@ import { error as logError } from '$lib/logger';
 import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from '$lib/mangohud';
 import { requireVerifiedSession } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles, readBenchmarkFile } from '$lib/server/benchmark-files';
-import { removeBenchmarksFromSearch } from '$lib/server/benchmark-search';
+import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, user } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
@@ -91,16 +91,20 @@ export const actions: Actions = {
 			.map(({ id }) => id);
 
 		try {
-			const deleted = db
-				.delete(benchmarkResult)
-				.where(
-					and(
-						eq(benchmarkResult.id, event.params.id),
-						eq(benchmarkResult.userId, authResult.authenticated.user.id)
+			const deleted = db.transaction((tx) => {
+				const result = tx
+					.delete(benchmarkResult)
+					.where(
+						and(
+							eq(benchmarkResult.id, event.params.id),
+							eq(benchmarkResult.userId, authResult.authenticated.user.id)
+						)
 					)
-				)
-				.returning({ id: benchmarkResult.id })
-				.get();
+					.returning({ id: benchmarkResult.id })
+					.get();
+				if (result) queueBenchmarksForSearch([result.id], tx);
+				return result;
+			});
 			if (!deleted) return fail(404, { message: 'Benchmark not found' });
 		} catch (cause) {
 			logError(`Failed to delete benchmark ${event.params.id}`, cause);
@@ -113,7 +117,7 @@ export const actions: Actions = {
 			logError(`Failed to clean up files for deleted benchmark ${event.params.id}`, cause);
 		}
 		try {
-			await removeBenchmarksFromSearch([event.params.id]);
+			await flushBenchmarkSearchQueue();
 		} catch (cause) {
 			logError(`Failed to remove deleted benchmark ${event.params.id} from search`, cause);
 		}

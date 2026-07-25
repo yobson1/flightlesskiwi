@@ -1,18 +1,16 @@
 import { getBenchmarkRunMetadata } from '$lib/server/benchmarks';
 import { db } from '$lib/server/db';
 import { benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
-import { createMeilisearchIndex, waitForMeilisearchTask } from '$lib/server/meilisearch';
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { createMeilisearchIndex } from '$lib/server/meilisearch';
+import { and, eq, inArray } from 'drizzle-orm';
 
 const INDEX_NAME = 'benchmarks';
-const INDEX_BATCH_SIZE = 1_000;
 const SEARCH_LIMIT = 100;
-const INDEX_DOCUMENT_VERSION = 2;
+const INDEX_DOCUMENT_VERSION = 3;
 const SEARCHABLE_ATTRIBUTES = ['title', 'gameNames', 'runMetadata'];
 const DISPLAYED_ATTRIBUTES = ['id', 'cpus', 'gpus'];
 
 interface BenchmarkSearchDocument {
-	schemaVersion: number;
 	id: string;
 	title: string;
 	gameNames: string[];
@@ -21,11 +19,28 @@ interface BenchmarkSearchDocument {
 	runMetadata: string[];
 }
 
-const { index, ready: getReadyIndex } = createMeilisearchIndex<BenchmarkSearchDocument>({
+const {
+	index,
+	ready: getReadyIndex,
+	queue: queueBenchmarksForSearch,
+	flush: flushBenchmarkSearchQueue,
+	prepare: prepareBenchmarkSearch
+} = createMeilisearchIndex<BenchmarkSearchDocument, string>({
 	name: INDEX_NAME,
 	searchableAttributes: SEARCHABLE_ATTRIBUTES,
-	displayedAttributes: DISPLAYED_ATTRIBUTES
+	displayedAttributes: DISPLAYED_ATTRIBUTES,
+	documentVersion: INDEX_DOCUMENT_VERSION,
+	getAllDocumentIds: () =>
+		db
+			.select({ id: benchmarkResult.id })
+			.from(benchmarkResult)
+			.all()
+			.map(({ id }) => id),
+	getDocuments: getSearchDocuments,
+	parseDocumentId: (documentId) => documentId
 });
+
+export { flushBenchmarkSearchQueue, prepareBenchmarkSearch, queueBenchmarksForSearch };
 
 async function getSearchDocuments(benchmarkIds: string[]) {
 	if (benchmarkIds.length === 0) return [];
@@ -48,7 +63,6 @@ async function getSearchDocuments(benchmarkIds: string[]) {
 			existing.gameNames.push(row.gameName);
 		} else {
 			documents.set(row.id, {
-				schemaVersion: INDEX_DOCUMENT_VERSION,
 				id: row.id,
 				title: row.title,
 				gameNames: [row.gameName],
@@ -108,59 +122,6 @@ function getBenchmarkListings(
 				gpus: document?.gpus ?? []
 			};
 		});
-}
-
-export async function prepareBenchmarkSearch() {
-	await getReadyIndex();
-
-	const databaseCount = db.select({ count: count() }).from(benchmarkResult).get()?.count ?? 0;
-	const { numberOfDocuments } = await index.getStats();
-	const indexedDocuments =
-		numberOfDocuments === 0
-			? []
-			: (
-					await index.getDocuments<Pick<BenchmarkSearchDocument, 'schemaVersion'>>({
-						fields: ['schemaVersion'],
-						limit: 1
-					})
-				).results;
-	const schemaIsCurrent =
-		numberOfDocuments === 0 || indexedDocuments[0]?.schemaVersion === INDEX_DOCUMENT_VERSION;
-	if (databaseCount === numberOfDocuments && schemaIsCurrent) return 0;
-
-	if (numberOfDocuments > 0) {
-		await waitForMeilisearchTask(index.deleteAllDocuments());
-	}
-	const benchmarkIds = db.select({ id: benchmarkResult.id }).from(benchmarkResult).all();
-	let indexedBenchmarks = 0;
-
-	for (let offset = 0; offset < benchmarkIds.length; offset += INDEX_BATCH_SIZE) {
-		const documents = await getSearchDocuments(
-			benchmarkIds.slice(offset, offset + INDEX_BATCH_SIZE).map(({ id }) => id)
-		);
-		if (documents.length > 0) {
-			await waitForMeilisearchTask(index.addDocuments(documents, { primaryKey: 'id' }));
-			indexedBenchmarks += documents.length;
-		}
-	}
-
-	return indexedBenchmarks;
-}
-
-export async function indexBenchmarks(benchmarkIds: string[]) {
-	if (benchmarkIds.length === 0) return;
-	await getReadyIndex();
-
-	const documents = await getSearchDocuments(benchmarkIds);
-	if (documents.length > 0) {
-		await waitForMeilisearchTask(index.addDocuments(documents, { primaryKey: 'id' }));
-	}
-}
-
-export async function removeBenchmarksFromSearch(benchmarkIds: string[]) {
-	if (benchmarkIds.length === 0) return;
-	await getReadyIndex();
-	await waitForMeilisearchTask(index.deleteDocuments(benchmarkIds));
 }
 
 export async function searchBenchmarks(query: string) {

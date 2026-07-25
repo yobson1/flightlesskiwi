@@ -278,11 +278,15 @@ export const benchmarkFile = sqliteTable(
 	]
 );
 
-export const gameSearchQueue = sqliteTable('game_search_queue', {
-	gameId: integer('game_id')
-		.primaryKey()
-		.references(() => game.id)
-});
+export const searchIndexQueue = sqliteTable(
+	'search_index_queue',
+	{
+		indexName: text('index_name').notNull(),
+		documentId: text('document_id').notNull(),
+		revision: integer('revision').notNull().default(1)
+	},
+	(table) => [primaryKey({ columns: [table.indexName, table.documentId] })]
+);
 
 export const syncState = sqliteTable('sync_state', {
 	lastSync: integer('last_sync', { mode: 'timestamp' }).notNull()

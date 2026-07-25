@@ -16,7 +16,7 @@ import {
 } from '$lib/server/auth';
 import { requireVerifiedPage } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
-import { removeBenchmarksFromSearch } from '$lib/server/benchmark-search';
+import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
 import {
 	checkCodeEmailSendRateLimit,
 	CodeEmailRateLimitError,
@@ -42,7 +42,6 @@ import { deleteUserTOTPKey, deleteTOTPSetupCookie, totpUpdateBucket } from '$lib
 import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
-	deleteUser,
 	isUserUniqueConstraintError,
 	normalizeEmail,
 	resetUserRecoveryCode,
@@ -53,7 +52,7 @@ import {
 } from '$lib/server/auth/user';
 import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
 import { db } from '$lib/server/db';
-import { benchmarkFile, benchmarkResult } from '$lib/server/db/schema';
+import { benchmarkFile, benchmarkResult, user as userTable } from '$lib/server/db/schema';
 import type { Actions, RequestEvent } from './$types';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>('password-update', 5, 30 * 60);
@@ -347,7 +346,15 @@ async function deleteAccount(event: RequestEvent) {
 		.where(eq(benchmarkResult.userId, event.locals.user.id))
 		.all()
 		.map(({ id }) => id);
-	if (!deleteUser(event.locals.user.id)) {
+	const deletedUser = db.transaction((tx) => {
+		queueBenchmarksForSearch(benchmarkIds, tx);
+		return tx
+			.delete(userTable)
+			.where(eq(userTable.id, event.locals.user!.id))
+			.returning({ id: userTable.id })
+			.get();
+	});
+	if (!deletedUser) {
 		return fail(404, { account: { message: 'Account not found' } });
 	}
 	try {
@@ -356,7 +363,7 @@ async function deleteAccount(event: RequestEvent) {
 		logError(`Failed to clean up benchmark files for deleted user ${event.locals.user.id}`, cause);
 	}
 	try {
-		await removeBenchmarksFromSearch(benchmarkIds);
+		await flushBenchmarkSearchQueue();
 	} catch (cause) {
 		logError(`Failed to remove deleted user benchmarks from search`, cause);
 	}

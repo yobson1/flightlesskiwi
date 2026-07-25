@@ -15,11 +15,19 @@ import {
 	store,
 	syncState,
 	gameName,
-	gameSearchQueue,
+	benchmarkResult,
 	STORES
 } from '$lib/server/db/schema';
-import { flushGameSearchQueue, prepareGameSearch } from '$lib/server/game-search';
-import { prepareBenchmarkSearch } from '$lib/server/benchmark-search';
+import {
+	flushGameSearchQueue,
+	prepareGameSearch,
+	queueGamesForSearch
+} from '$lib/server/game-search';
+import {
+	flushBenchmarkSearchQueue,
+	prepareBenchmarkSearch,
+	queueBenchmarksForSearch
+} from '$lib/server/benchmark-search';
 import * as auth from '$lib/server/auth';
 import { sleep } from 'bun';
 import { inArray, sql } from 'drizzle-orm';
@@ -374,10 +382,22 @@ function syncGames(igdbGames: IGDBGame[]) {
 				ids,
 				(id) => id,
 				() => {
-					tx.insert(gameSearchQueue)
-						.values(ids.map((gameId) => ({ gameId })))
-						.onConflictDoNothing()
-						.run();
+					queueGamesForSearch(ids, tx);
+				}
+			);
+
+			const benchmarkIds = tx
+				.select({ id: benchmarkResult.id })
+				.from(benchmarkResult)
+				.where(inArray(benchmarkResult.gameId, ids))
+				.all()
+				.map(({ id }) => id);
+			runSyncWrite(
+				'queueing affected benchmarks for search indexing',
+				benchmarkIds,
+				(id) => id,
+				() => {
+					queueBenchmarksForSearch(benchmarkIds, tx);
 				}
 			);
 		}
@@ -473,10 +493,7 @@ function syncGameRelationships(relationships: GameRelationship[]) {
 				ids,
 				(id) => id,
 				() => {
-					tx.insert(gameSearchQueue)
-						.values(ids.map((gameId) => ({ gameId })))
-						.onConflictDoNothing()
-						.run();
+					queueGamesForSearch(ids, tx);
 				}
 			);
 		}
@@ -636,6 +653,7 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 	info(`Found ${totalGames} games to sync`);
 
 	let importedGames = 0;
+	let benchmarkSearchReady = true;
 	const relationships = new Map<number, GameRelationship>();
 
 	while (importedGames < totalGames) {
@@ -659,6 +677,20 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 			} catch (cause) {
 				gameSearchReady = false;
 				warn('Game search indexing failed; queued games will be retried on restart', cause);
+			}
+		}
+		if (benchmarkSearchReady) {
+			try {
+				const indexedBenchmarks = await flushBenchmarkSearchQueue();
+				if (indexedBenchmarks > 0) {
+					info(`Reindexed ${indexedBenchmarks} benchmarks affected by game updates`);
+				}
+			} catch (cause) {
+				benchmarkSearchReady = false;
+				warn(
+					'Benchmark search indexing failed; queued benchmarks will be retried on restart',
+					cause
+				);
 			}
 		}
 
@@ -710,8 +742,7 @@ const syncGlobal = globalThis as typeof globalThis & {
 
 async function syncGameSearch() {
 	try {
-		await prepareGameSearch();
-		const indexedGames = await flushGameSearchQueue();
+		const indexedGames = await prepareGameSearch();
 		if (indexedGames > 0) info(`Indexed ${indexedGames} games in Meilisearch`);
 		return true;
 	} catch (cause) {

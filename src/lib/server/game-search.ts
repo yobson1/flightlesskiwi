@@ -1,13 +1,13 @@
 import { db } from '$lib/server/db';
-import { game, gameName, gameSearchQueue } from '$lib/server/db/schema';
-import { createMeilisearchIndex, waitForMeilisearchTask } from '$lib/server/meilisearch';
+import { game, gameName } from '$lib/server/db/schema';
+import { createMeilisearchIndex } from '$lib/server/meilisearch';
 import type { GameSearchResult } from '$lib/types/game';
-import { count, eq, inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 const INDEX_NAME = 'games';
-const INDEX_BATCH_SIZE = 1_000;
 const SEARCH_LIMIT = 15;
 const SEARCH_CANDIDATE_LIMIT = 50;
+const INDEX_DOCUMENT_VERSION = 1;
 const SEARCHABLE_ATTRIBUTES = ['name', 'names'];
 const DISPLAYED_ATTRIBUTES = [
 	'id',
@@ -23,11 +23,28 @@ interface GameSearchDocument extends GameSearchResult {
 	names: string[];
 }
 
-const { index, ready: getReadyIndex } = createMeilisearchIndex<GameSearchDocument>({
+const {
+	index,
+	ready: getReadyIndex,
+	queue: queueGamesForSearch,
+	flush: flushGameSearchQueue,
+	prepare: prepareGameSearch
+} = createMeilisearchIndex<GameSearchDocument, number>({
 	name: INDEX_NAME,
 	searchableAttributes: SEARCHABLE_ATTRIBUTES,
-	displayedAttributes: DISPLAYED_ATTRIBUTES
+	displayedAttributes: DISPLAYED_ATTRIBUTES,
+	documentVersion: INDEX_DOCUMENT_VERSION,
+	getAllDocumentIds: () =>
+		db
+			.select({ id: game.id })
+			.from(game)
+			.all()
+			.map(({ id }) => id),
+	getDocuments,
+	parseDocumentId: (documentId) => Number(documentId)
 });
+
+export { flushGameSearchQueue, prepareGameSearch, queueGamesForSearch };
 
 function getDocuments(gameIds: number[]) {
 	const rows = db
@@ -67,53 +84,6 @@ function getDocuments(gameIds: number[]) {
 	}
 
 	return [...documents.values()];
-}
-
-function queueGamesForSearch(gameIds: number[]) {
-	for (let index = 0; index < gameIds.length; index += INDEX_BATCH_SIZE) {
-		db.insert(gameSearchQueue)
-			.values(gameIds.slice(index, index + INDEX_BATCH_SIZE).map((gameId) => ({ gameId })))
-			.onConflictDoNothing()
-			.run();
-	}
-}
-
-export async function prepareGameSearch() {
-	await getReadyIndex();
-
-	const databaseCount = db.select({ count: count() }).from(game).get()?.count ?? 0;
-	const { numberOfDocuments } = await index.getStats();
-
-	if (databaseCount !== numberOfDocuments) {
-		if (numberOfDocuments > 0) {
-			await waitForMeilisearchTask(index.deleteAllDocuments());
-		}
-		const gameIds = db.select({ id: game.id }).from(game).all();
-		queueGamesForSearch(gameIds.map(({ id }) => id));
-	}
-}
-
-export async function flushGameSearchQueue() {
-	let indexedGames = 0;
-
-	while (true) {
-		const queuedGames = db
-			.select({ gameId: gameSearchQueue.gameId })
-			.from(gameSearchQueue)
-			.limit(INDEX_BATCH_SIZE)
-			.all();
-		if (queuedGames.length === 0) return indexedGames;
-
-		const gameIds = queuedGames.map(({ gameId }) => gameId);
-		const documents = getDocuments(gameIds);
-
-		if (documents.length > 0) {
-			await waitForMeilisearchTask(index.addDocuments(documents, { primaryKey: 'id' }));
-		}
-
-		db.delete(gameSearchQueue).where(inArray(gameSearchQueue.gameId, gameIds)).run();
-		indexedGames += documents.length;
-	}
 }
 
 export async function searchGames(query: string): Promise<GameSearchResult[]> {
