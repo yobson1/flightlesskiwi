@@ -11,7 +11,7 @@
 		TOTP_CODE_LENGTH,
 		TOTP_CODE_LENGTH_WORD
 	} from '$lib/auth-constants';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -128,14 +128,8 @@
 		}
 	}
 
-	function setResendAvailability(value: { retryAfterSeconds?: unknown }) {
-		const retryAfterSeconds =
-			typeof value.retryAfterSeconds === 'number' &&
-			Number.isFinite(value.retryAfterSeconds) &&
-			value.retryAfterSeconds >= 0
-				? Math.ceil(value.retryAfterSeconds)
-				: EMAIL_CODE_SEND_INTERVAL_SECONDS;
-		resendAvailableAt = Date.now() + retryAfterSeconds * 1000;
+	function setResendAvailability(value: unknown) {
+		resendAvailableAt = computeResendAvailableAt(value, EMAIL_CODE_SEND_INTERVAL_SECONDS);
 	}
 
 	async function logout() {

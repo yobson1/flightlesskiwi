@@ -12,7 +12,7 @@
 		MAX_PASSWORD_LENGTH,
 		MIN_PASSWORD_LENGTH
 	} from '$lib/auth-constants';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
 	import OTPForm from '$lib/components/otp-form.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -175,16 +175,7 @@
 	}
 
 	function setResendAvailability(value: unknown) {
-		const retryAfterSeconds =
-			typeof value === 'object' &&
-			value !== null &&
-			'retryAfterSeconds' in value &&
-			typeof value.retryAfterSeconds === 'number' &&
-			Number.isFinite(value.retryAfterSeconds) &&
-			value.retryAfterSeconds >= 0
-				? Math.ceil(value.retryAfterSeconds)
-				: EMAIL_CODE_SEND_INTERVAL_SECONDS;
-		resendAvailableAt = Date.now() + retryAfterSeconds * 1000;
+		resendAvailableAt = computeResendAvailableAt(value, EMAIL_CODE_SEND_INTERVAL_SECONDS);
 	}
 
 	function readState(value: unknown): {

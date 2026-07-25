@@ -10,7 +10,8 @@ import {
 	constantTimeEqual,
 	generateRandomOTP,
 	generateSecureRandomString,
-	hashSecret
+	hashSecret,
+	parseTwoPartToken
 } from '$lib/server/auth/utils';
 
 const cookieName = 'password_reset_session';
@@ -51,14 +52,14 @@ export function createPasswordResetSession(
 }
 
 function validatePasswordResetSessionToken(token: string): PasswordResetSessionValidationResult {
-	const tokenParts = token.split('.');
-	if (tokenParts.length !== 2 || !tokenParts[0] || !tokenParts[1]) {
+	const tokenParts = parseTwoPartToken(token);
+	if (tokenParts === null) {
 		return { session: null, user: null };
 	}
-	const row = db.select().from(sessionTable).where(eq(sessionTable.id, tokenParts[0])).get();
+	const row = db.select().from(sessionTable).where(eq(sessionTable.id, tokenParts.id)).get();
 	if (
 		!row ||
-		!constantTimeEqual(row.secretHash, hashSecret(tokenParts[1])) ||
+		!constantTimeEqual(row.secretHash, hashSecret(tokenParts.secret)) ||
 		row.expiresAt <= new Date()
 	) {
 		if (row?.expiresAt && row.expiresAt <= new Date()) {

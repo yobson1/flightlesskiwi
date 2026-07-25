@@ -15,6 +15,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { toast } from 'svelte-sonner';
+	import { getMessage } from '$lib/utils';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
 
@@ -44,18 +45,6 @@
 			await update({ reset: false });
 		};
 	};
-
-	function getMessage(value: unknown, fallback: string): string {
-		if (
-			typeof value === 'object' &&
-			value !== null &&
-			'message' in value &&
-			typeof value.message === 'string'
-		) {
-			return value.message;
-		}
-		return fallback;
-	}
 </script>
 
 <svelte:head>

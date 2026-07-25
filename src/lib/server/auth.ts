@@ -4,7 +4,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { session as sessionTable } from '$lib/server/db/schema';
 import { getUserById, type AuthUser } from '$lib/server/auth/user';
-import { constantTimeEqual, generateSecureRandomString, hashSecret } from '$lib/server/auth/utils';
+import { constantTimeEqual, generateSecureRandomString, hashSecret, parseTwoPartToken } from '$lib/server/auth/utils';
 
 const DAY_IN_MS = 1000 * 60 * 60 * 24;
 const INACTIVITY_TIMEOUT_MS = DAY_IN_MS * 30;
@@ -19,7 +19,7 @@ function generateSessionToken(): string {
 }
 
 function createSession(token: string, userId: string, flags: SessionFlags): Session {
-	const tokenParts = parseSessionToken(token);
+	const tokenParts = parseTwoPartToken(token);
 	if (tokenParts === null) {
 		throw new Error('Invalid session token');
 	}
@@ -62,7 +62,7 @@ export function createSessionAndSetCookie(
 }
 
 export function validateSessionToken(token: string): SessionValidationResult {
-	const tokenParts = parseSessionToken(token);
+	const tokenParts = parseTwoPartToken(token);
 	if (tokenParts === null) {
 		return { session: null, user: null };
 	}
@@ -139,7 +139,7 @@ export function rotateSessionAfterReauthentication(
 	currentSession: Session
 ): Session {
 	const currentToken = event.cookies.get(sessionCookieName);
-	const currentTokenParts = currentToken ? parseSessionToken(currentToken) : null;
+	const currentTokenParts = currentToken ? parseTwoPartToken(currentToken) : null;
 	if (currentTokenParts === null || currentTokenParts.id !== currentSession.id) {
 		throw new Error('Current session token is unavailable');
 	}
@@ -185,7 +185,7 @@ export function rotateSessionAfter2FAEnrollment(
 	currentSession: Session
 ): Session {
 	const currentToken = event.cookies.get(sessionCookieName);
-	const currentTokenParts = currentToken ? parseSessionToken(currentToken) : null;
+	const currentTokenParts = currentToken ? parseTwoPartToken(currentToken) : null;
 	if (currentTokenParts === null || currentTokenParts.id !== currentSession.id) {
 		throw new Error('Current session token is unavailable');
 	}
@@ -256,14 +256,6 @@ export function deleteSessionTokenCookie(event: RequestEvent): void {
 		secure: !dev,
 		sameSite: 'lax'
 	});
-}
-
-function parseSessionToken(token: string): { id: string; secret: string } | null {
-	const tokenParts = token.split('.');
-	if (tokenParts.length !== 2 || !tokenParts[0] || !tokenParts[1]) {
-		return null;
-	}
-	return { id: tokenParts[0], secret: tokenParts[1] };
 }
 
 export interface SessionFlags {

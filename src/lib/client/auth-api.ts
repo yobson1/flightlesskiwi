@@ -82,3 +82,19 @@ function isErrorResponse(value: unknown): value is AuthAPIErrorResponse {
 		typeof value.message === 'string'
 	);
 }
+
+export function computeResendAvailableAt(
+	value: unknown,
+	defaultIntervalSeconds: number
+): number {
+	const retryAfterSeconds =
+		typeof value === 'object' &&
+		value !== null &&
+		'retryAfterSeconds' in value &&
+		typeof value.retryAfterSeconds === 'number' &&
+		Number.isFinite(value.retryAfterSeconds) &&
+		value.retryAfterSeconds >= 0
+			? Math.ceil(value.retryAfterSeconds)
+			: defaultIntervalSeconds;
+	return Date.now() + retryAfterSeconds * 1000;
+}

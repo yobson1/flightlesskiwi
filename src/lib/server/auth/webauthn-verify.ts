@@ -31,7 +31,8 @@ import {
 	verifyWebAuthnChallenge,
 	type WebAuthnUserCredential
 } from '$lib/server/auth/webauthn';
-import { hashSecret, isRecord } from '$lib/server/auth/utils';
+import { isRecord } from '$lib/utils';
+import { hashSecret } from '$lib/server/auth/utils';
 import { formatAAGUID } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 

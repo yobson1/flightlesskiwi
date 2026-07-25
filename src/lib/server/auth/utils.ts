@@ -44,6 +44,10 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
 	return difference === 0;
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+export function parseTwoPartToken(token: string): { id: string; secret: string } | null {
+	const parts = token.split('.');
+	if (parts.length !== 2 || !parts[0] || !parts[1]) {
+		return null;
+	}
+	return { id: parts[0], secret: parts[1] };
 }

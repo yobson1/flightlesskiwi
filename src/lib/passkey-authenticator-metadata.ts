@@ -1,4 +1,4 @@
-import { isRecord } from '$lib/server/auth/utils';
+import { isRecord } from '$lib/utils';
 
 export const PASSKEY_AUTHENTICATOR_AAGUIDS_URL =
 	'https://raw.githubusercontent.com/passkeydeveloper/passkey-authenticator-aaguids/refs/heads/main/aaguid.json';

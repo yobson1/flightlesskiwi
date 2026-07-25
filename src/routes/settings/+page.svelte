@@ -33,6 +33,7 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
+	import { getActionMessage } from '$lib/utils';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
 
@@ -141,18 +142,6 @@
 			'reauthenticationRequired' in value &&
 			value.reauthenticationRequired === true
 		);
-	}
-
-	function getActionMessage(value: unknown, fallback: string): string {
-		if (typeof value !== 'object' || value === null) return fallback;
-		if ('message' in value && typeof value.message === 'string') return value.message;
-		for (const nested of Object.values(value)) {
-			if (typeof nested === 'object' && nested !== null && 'message' in nested) {
-				const message = nested.message;
-				if (typeof message === 'string') return message;
-			}
-		}
-		return fallback;
 	}
 </script>
 

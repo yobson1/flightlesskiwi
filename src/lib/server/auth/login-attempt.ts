@@ -4,7 +4,7 @@ import { eq, lt } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { loginAttempt as loginAttemptTable } from '$lib/server/db/schema';
 import { getUserById, type AuthUser } from '$lib/server/auth/user';
-import { constantTimeEqual, generateSecureRandomString, hashSecret } from '$lib/server/auth/utils';
+import { constantTimeEqual, generateSecureRandomString, hashSecret, parseTwoPartToken } from '$lib/server/auth/utils';
 
 const LOGIN_ATTEMPT_TTL_MS = 5 * 60 * 1000;
 const cookieName = 'login_attempt';
@@ -61,7 +61,7 @@ export function validateLoginAttemptRequest(event: RequestEvent): LoginAttemptVa
 
 export function consumeLoginAttemptRequest(event: RequestEvent, attemptId: string): boolean {
 	const token = event.cookies.get(cookieName);
-	const tokenParts = token ? parseLoginAttemptToken(token) : null;
+	const tokenParts = token ? parseTwoPartToken(token) : null;
 	if (tokenParts === null || tokenParts.id !== attemptId) {
 		deleteLoginAttemptCookie(event);
 		return false;
@@ -94,7 +94,7 @@ export function consumeLoginAttemptRequest(event: RequestEvent, attemptId: strin
 
 export function invalidateLoginAttemptRequest(event: RequestEvent): void {
 	const token = event.cookies.get(cookieName);
-	const tokenParts = token ? parseLoginAttemptToken(token) : null;
+	const tokenParts = token ? parseTwoPartToken(token) : null;
 	if (tokenParts !== null) {
 		const row = db
 			.select({ secretHash: loginAttemptTable.secretHash })
@@ -109,7 +109,7 @@ export function invalidateLoginAttemptRequest(event: RequestEvent): void {
 }
 
 function validateLoginAttemptToken(token: string): LoginAttempt | null {
-	const tokenParts = parseLoginAttemptToken(token);
+	const tokenParts = parseTwoPartToken(token);
 	if (tokenParts === null) {
 		return null;
 	}
@@ -148,14 +148,6 @@ function deleteLoginAttemptCookie(event: RequestEvent): void {
 		secure: !dev,
 		sameSite: 'lax'
 	});
-}
-
-function parseLoginAttemptToken(token: string): { id: string; secret: string } | null {
-	const tokenParts = token.split('.');
-	if (tokenParts.length !== 2 || !tokenParts[0] || !tokenParts[1]) {
-		return null;
-	}
-	return { id: tokenParts[0], secret: tokenParts[1] };
 }
 
 export interface LoginAttempt {

@@ -15,6 +15,7 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import { getMessage } from '$lib/utils';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
 
@@ -56,18 +57,6 @@
 
 	function selectGame(gameId: number) {
 		selectedGameId = gameId;
-	}
-
-	function getMessage(value: unknown, fallback: string): string {
-		if (
-			typeof value === 'object' &&
-			value !== null &&
-			'message' in value &&
-			typeof value.message === 'string'
-		) {
-			return value.message;
-		}
-		return fallback;
 	}
 
 	function getSubmittedValues(value: unknown):
