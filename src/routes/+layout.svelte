@@ -8,6 +8,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { SvelteURL } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
+	import SimpleIconsGithub from '~icons/simple-icons/github';
 	import favicon from '$lib/assets/favicon.svg';
 	import {
 		authModalDataEndpoint,
@@ -20,6 +21,7 @@
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import AuthModal from '$lib/components/auth-modal.svelte';
 	import Nav from '$lib/components/nav.svelte';
+	import { Separator } from '$lib/components/ui/separator';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import Wordmark from '$lib/components/wordmark.svelte';
 	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
@@ -38,6 +40,7 @@
 	let returnHash = $state('');
 	let modalRequestId = 0;
 	let visibleAuth = $derived(data.auth);
+	const currentYear = new Date().getFullYear();
 
 	provideAuthModal({
 		open: (view, options) => openAuthModal(view, options),
@@ -257,7 +260,7 @@
 <Toaster richColors position="top-right" />
 
 <div class="flex min-h-screen flex-col">
-	<header class="flex w-full justify-center border-b bg-background/90 backdrop-blur">
+	<header class="flex w-full justify-center bg-background/90 backdrop-blur">
 		<nav class="mx-2 flex w-full max-w-7xl min-w-80 items-center justify-between py-2">
 			<a href="/">
 				<Wordmark />
@@ -265,13 +268,26 @@
 			<Nav auth={visibleAuth} />
 		</nav>
 	</header>
+	<Separator />
 	<main class="flex flex-1 justify-center px-4 py-8">
 		<div class="w-full max-w-7xl">
 			{@render children?.()}
 		</div>
 	</main>
-	<footer class="w-full p-4 text-center">
-		<p>&copy; 2025</p>
+	<footer class="w-full text-muted-foreground">
+		<Separator />
+		<div class="mx-auto flex w-full max-w-7xl items-center justify-between p-4">
+			<p>&copy; {currentYear} flightlesskiwi</p>
+			<a
+				href="https://github.com/yobson1/flightlesskiwi"
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label="flightlesskiwi on GitHub"
+				class="transition-colors hover:text-foreground"
+			>
+				<SimpleIconsGithub class="size-5" />
+			</a>
+		</div>
 	</footer>
 </div>
 
