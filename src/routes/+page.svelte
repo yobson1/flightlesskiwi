@@ -113,7 +113,7 @@
 	/>
 
 	{#if benchmarks.length > 0}
-		<div class="min-h-80 flex-1">
+		<div class="relative left-1/2 min-h-80 w-screen flex-1 -translate-x-1/2">
 			{#key activeSearchQuery}
 				<SvelteVirtualList
 					items={benchmarks}
@@ -124,7 +124,11 @@
 					viewportLabel={activeSearchQuery ? 'Benchmark search results' : 'Recent benchmarks'}
 				>
 					{#snippet renderItem(benchmark)}
-						<BenchmarkListing {benchmark} />
+						<div class="px-4">
+							<div class="mx-auto w-full max-w-7xl">
+								<BenchmarkListing {benchmark} />
+							</div>
+						</div>
 					{/snippet}
 				</SvelteVirtualList>
 			{/key}
