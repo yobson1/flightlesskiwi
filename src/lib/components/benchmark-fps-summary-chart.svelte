@@ -63,10 +63,12 @@
 	showLegend
 />
 
-<BenchmarkHorizontalBarChart
-	title="Average FPS comparison (%)"
-	description="Average FPS relative to the slowest run, which is the 100% baseline."
-	data={relativeAverageData}
-	series={relativeAverageSeries}
-	unit="%"
-/>
+{#if chartData.length > 1}
+	<BenchmarkHorizontalBarChart
+		title="Average FPS comparison (%)"
+		description="Average FPS relative to the slowest run, which is the 100% baseline."
+		data={relativeAverageData}
+		series={relativeAverageSeries}
+		unit="%"
+	/>
+{/if}
