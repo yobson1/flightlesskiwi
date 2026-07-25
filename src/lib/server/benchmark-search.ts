@@ -1,4 +1,5 @@
 import { getBenchmarkRunMetadata } from '$lib/server/benchmarks';
+import { info, warn } from '$lib/logger';
 import { db } from '$lib/server/db';
 import { benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
 import { createMeilisearchIndex } from '$lib/server/meilisearch';
@@ -41,6 +42,31 @@ const {
 });
 
 export { flushBenchmarkSearchQueue, prepareBenchmarkSearch, queueBenchmarksForSearch };
+
+const syncGlobal = globalThis as typeof globalThis & {
+	flightlesskiwiBenchmarkSearchSync?: Promise<void>;
+};
+
+export function startBenchmarkSearchSync() {
+	if (syncGlobal.flightlesskiwiBenchmarkSearchSync) return;
+
+	const sync = prepareBenchmarkSearch()
+		.then((indexedBenchmarks) => {
+			if (indexedBenchmarks > 0) {
+				info(`Indexed ${indexedBenchmarks} benchmarks in Meilisearch`);
+			}
+		})
+		.catch((cause) => {
+			warn('Meilisearch is unavailable; benchmark search indexing will retry on restart', cause);
+		})
+		.finally(() => {
+			if (syncGlobal.flightlesskiwiBenchmarkSearchSync === sync) {
+				delete syncGlobal.flightlesskiwiBenchmarkSearchSync;
+			}
+		});
+
+	syncGlobal.flightlesskiwiBenchmarkSearchSync = sync;
+}
 
 async function getSearchDocuments(benchmarkIds: string[]) {
 	if (benchmarkIds.length === 0) return [];
