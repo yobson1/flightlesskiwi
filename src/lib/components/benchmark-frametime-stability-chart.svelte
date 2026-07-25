@@ -40,10 +40,7 @@
 			key: 'p99Overhead',
 			label: 'P99 overhead above median',
 			value: 'p99Overhead',
-			colorIndex: getBenchmarkChartColorIndex(
-				benchmarkId,
-				'performance:frametime-p99-overhead'
-			)
+			colorIndex: getBenchmarkChartColorIndex(benchmarkId, 'performance:frametime-p99-overhead')
 		}
 	]);
 </script>
