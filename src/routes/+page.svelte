@@ -93,7 +93,7 @@
 	<title>Home · flightlesskiwi</title>
 </svelte:head>
 
-<div class="flex flex-col gap-6">
+<div class="-mb-8 flex h-[calc(100%+2rem)] min-h-0 flex-col gap-6">
 	<div>
 		<p class="text-sm font-medium text-primary">Community results</p>
 		<h1 class="text-3xl font-bold tracking-tight">Recent benchmarks</h1>
@@ -113,7 +113,7 @@
 	/>
 
 	{#if benchmarks.length > 0}
-		<div class="h-[calc(100dvh-22rem)] min-h-80">
+		<div class="min-h-80 flex-1">
 			{#key activeSearchQuery}
 				<SvelteVirtualList
 					items={benchmarks}
