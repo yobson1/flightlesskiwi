@@ -46,6 +46,7 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 	parseDocumentId
 }: MeilisearchIndexOptions<Document, Id>) {
 	const index = client.index<VersionedDocument<Document>>(name);
+	const storedDisplayedAttributes = [...new Set([...displayedAttributes, 'schemaVersion'])];
 	let readyPromise: Promise<void> | undefined;
 	let flushPromise: Promise<number> | undefined;
 
@@ -68,13 +69,13 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 		const settings = await index.getSettings();
 		if (
 			!arraysEqual(settings.searchableAttributes, searchableAttributes) ||
-			!arraysEqual(settings.displayedAttributes, displayedAttributes)
+			!arraysEqual(settings.displayedAttributes, storedDisplayedAttributes)
 		) {
 			info(`Updating settings for Meilisearch index "${name}"`);
 			await waitForMeilisearchTask(
 				index.updateSettings({
 					searchableAttributes,
-					displayedAttributes
+					displayedAttributes: storedDisplayedAttributes
 				})
 			);
 		}
