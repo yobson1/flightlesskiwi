@@ -70,6 +70,41 @@ export function averageMetricValues(values: Array<number | null>): number | null
 	return count === 0 ? null : total / count;
 }
 
+export function calculateFrametimeStability(values: Array<number | null>): {
+	standardDeviation: number;
+	p99Overhead: number;
+} | null {
+	const average = averageMetricValues(values);
+	const median = percentileMetricValue(values, 0.5);
+	const p99 = percentileMetricValue(values, 0.99);
+
+	if (
+		average === null ||
+		median === null ||
+		p99 === null ||
+		!Number.isFinite(average) ||
+		!Number.isFinite(median) ||
+		average <= 0 ||
+		median <= 0
+	) {
+		return null;
+	}
+
+	let squaredDifferenceTotal = 0;
+	let count = 0;
+	for (const value of values) {
+		if (value === null) continue;
+		squaredDifferenceTotal += (value - average) ** 2;
+		count++;
+	}
+	if (count === 0) return null;
+
+	return {
+		standardDeviation: (Math.sqrt(squaredDifferenceTotal / count) / average) * 100,
+		p99Overhead: ((p99 - median) / median) * 100
+	};
+}
+
 export function hasNonZeroMetricValues(values: Array<number | null>): boolean {
 	return values.some((value) => value !== null && value !== 0);
 }

@@ -6,6 +6,7 @@
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
 	import BenchmarkFpsSummaryChart from '$lib/components/benchmark-fps-summary-chart.svelte';
+	import BenchmarkFrametimeStabilityChart from '$lib/components/benchmark-frametime-stability-chart.svelte';
 	import BenchmarkMetricAverageChart from '$lib/components/benchmark-metric-average-chart.svelte';
 	import BenchmarkMetricLineChart from '$lib/components/benchmark-metric-line-chart.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
@@ -56,6 +57,7 @@
 					<BenchmarkFpsSummaryChart {benchmarkId} runs={orderedRuns} />
 				{/if}
 				{#if hasFrametime}
+					<BenchmarkFrametimeStabilityChart {benchmarkId} runs={orderedRuns} />
 					<BenchmarkMetricLineChart
 						runs={orderedRuns}
 						metricKey="frametime"

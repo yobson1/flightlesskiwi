@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
 	averageMetricValues,
 	buildSharedMetricChartData,
+	calculateFrametimeStability,
 	formatBenchmarkMetricName,
 	formatMetricValue,
 	getBenchmarkChartColorIndex,
@@ -40,6 +41,18 @@ describe('benchmark chart metric helpers', () => {
 		expect(percentileMetricValue([0, null, 100], 0.25)).toBe(25);
 		expect(averageMetricValues([null])).toBe(null);
 		expect(percentileMetricValue([], 0.5)).toBe(null);
+	});
+
+	test('calculates normalized frametime stability while ignoring missing samples', () => {
+		const stability = calculateFrametimeStability([10, null, 20, 30]);
+
+		expect(stability?.standardDeviation).toBeCloseTo(40.8248);
+		expect(stability?.p99Overhead).toBeCloseTo(49);
+		expect(calculateFrametimeStability([10, 10, 10])).toEqual({
+			standardDeviation: 0,
+			p99Overhead: 0
+		});
+		expect(calculateFrametimeStability([])).toBe(null);
 	});
 
 	test('distinguishes captured metrics from all-zero placeholder data', () => {
