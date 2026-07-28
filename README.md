@@ -27,7 +27,6 @@ bun run build
 Run the built Bun server with:
 
 ```sh
-bun install --production --frozen-lockfile
 bun --bun run build/index.js
 ```
 
