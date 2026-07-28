@@ -100,7 +100,13 @@
 		<p class="text-sm font-medium text-primary">Share your results</p>
 		<h1 class="text-3xl font-bold tracking-tight">Upload benchmark</h1>
 		<p class="mt-2 text-muted-foreground">
-			Add your MangoHud and/or PresentMon output and describe the run
+			Add your MangoHud and/or PresentMon output and describe the run. Before recording,
+			<a
+				href="/help#capture-settings"
+				class="font-medium text-foreground underline underline-offset-4"
+			>
+				check the recommended capture settings
+			</a>.
 		</p>
 	</div>
 

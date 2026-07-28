@@ -66,7 +66,7 @@
 			<div>
 				<p class="text-sm font-medium">MangoHud or PresentMon output</p>
 				<p class="text-sm text-muted-foreground">
-					CSV or text files are expected. They will be kept raw for later processing.
+					CSV files are expected. They will be kept raw for later processing.
 				</p>
 			</div>
 		</div>

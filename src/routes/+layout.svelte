@@ -278,15 +278,18 @@
 		<Separator />
 		<div class="mx-auto flex w-full max-w-7xl items-center justify-between p-4">
 			<p>&copy; {currentYear} flightlesskiwi</p>
-			<a
-				href="https://github.com/yobson1/flightlesskiwi"
-				target="_blank"
-				rel="noopener noreferrer"
-				aria-label="flightlesskiwi on GitHub"
-				class="transition-colors hover:text-foreground"
-			>
-				<SimpleIconsGithub class="size-5" />
-			</a>
+			<nav class="flex items-center gap-4" aria-label="Footer">
+				<a href="/help" class="text-sm transition-colors hover:text-foreground"> About </a>
+				<a
+					href="https://github.com/yobson1/flightlesskiwi"
+					target="_blank"
+					rel="noopener noreferrer"
+					aria-label="flightlesskiwi on GitHub"
+					class="transition-colors hover:text-foreground"
+				>
+					<SimpleIconsGithub class="size-5" />
+				</a>
+			</nav>
 		</div>
 	</footer>
 </div>
