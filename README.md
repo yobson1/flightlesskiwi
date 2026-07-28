@@ -24,11 +24,11 @@ bun install --frozen-lockfile
 bun run build
 ```
 
-Install production dependencies and run the built Bun server with:
+Run the built Bun server with:
 
 ```sh
 bun install --production --frozen-lockfile
-bun run build/index.js
+bun --bun run build/index.js
 ```
 
 The tagged GitHub releases contain this build output, its runtime package files, and
@@ -52,6 +52,12 @@ application and Meilisearch:
 docker compose up -d
 ```
 
+Environment variables are declared and validated in `src/env.ts` using SvelteKit's
+explicit environment variable API. Required runtime values may be omitted while
+building the image, but the server validates all of them together and exits before
+starting if any are missing or invalid. The upload directory, Meilisearch host, SMTP
+port, and SMTP security mode have operational defaults.
+
 The example uses the latest GHCR image by default. Set `FLIGHTLESSKIWI_IMAGE` to use
 another image tag, or run `docker compose up -d --build` to build the image from the
 local checkout. `APP_PORT` and `MEILI_PORT` control the host ports.
@@ -65,9 +71,6 @@ When changing the schema, generate and commit a migration:
 ```sh
 bun run db:generate
 ```
-
-Do not ignore the `drizzle/` directory: its SQL and metadata are the database
-upgrade history used by deployed images.
 
 For TLS in production, put the application behind a reverse proxy such as
 [nginx](https://nginx.org/en/), and set `ORIGIN`, `WEBAUTHN_ORIGIN`, and

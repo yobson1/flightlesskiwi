@@ -1,22 +1,15 @@
+import { building } from '$app/env';
+import { AUTH_ENCRYPTION_KEY } from '$app/env/private';
 import { decodeBase64 } from '@oslojs/encoding';
 import { createCipheriv, createDecipheriv } from 'node:crypto';
-import { getRequiredEnvironmentVariable } from '$lib/server/env';
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
-const AUTH_ENCRYPTION_KEY = getRequiredEnvironmentVariable(
-	'AUTH_ENCRYPTION_KEY',
-	'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
-);
-const key = decodeBase64(AUTH_ENCRYPTION_KEY);
-
-if (key.byteLength !== 32) {
-	throw new Error('AUTH_ENCRYPTION_KEY must be a base64-encoded 32-byte key');
-}
+const key = building ? undefined : decodeBase64(AUTH_ENCRYPTION_KEY!);
 
 export function encrypt(data: Uint8Array): Buffer {
 	const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-	const cipher = createCipheriv('aes-256-gcm', key, iv);
+	const cipher = createCipheriv('aes-256-gcm', key!, iv);
 	const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
 	return Buffer.concat([iv, encrypted, cipher.getAuthTag()]);
 }
@@ -32,7 +25,7 @@ export function decrypt(encrypted: Uint8Array): Uint8Array {
 	const iv = encrypted.slice(0, IV_LENGTH);
 	const tag = encrypted.slice(-AUTH_TAG_LENGTH);
 	const ciphertext = encrypted.slice(IV_LENGTH, -AUTH_TAG_LENGTH);
-	const decipher = createDecipheriv('aes-256-gcm', key, iv);
+	const decipher = createDecipheriv('aes-256-gcm', key!, iv);
 	decipher.setAuthTag(tag);
 	return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
@@ -42,7 +35,7 @@ export function decryptToString(data: Uint8Array): string {
 }
 
 export function hashAuthCode(code: string): Buffer {
-	const hasher = new Bun.CryptoHasher('sha256', key);
+	const hasher = new Bun.CryptoHasher('sha256', key!);
 	hasher.update(code);
 	return hasher.digest();
 }

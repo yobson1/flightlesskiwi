@@ -1,4 +1,4 @@
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
 import { and, eq, ne } from 'drizzle-orm';
 import { db } from '$lib/server/db';

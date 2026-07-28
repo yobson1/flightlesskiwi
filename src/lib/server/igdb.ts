@@ -1,11 +1,8 @@
 import apicalypse from 'apicalypse';
 import type { ApicalypseConfig } from 'apicalypse';
-import { version } from '$app/environment';
+import { version } from '$app/env';
+import { IGDB_CLIENT_ID, IGDB_CLIENT_SECRET } from '$app/env/private';
 import { info } from '$lib/logger';
-import { getRequiredEnvironmentVariable } from '$lib/server/env';
-
-const IGDB_CLIENT_ID = getRequiredEnvironmentVariable('IGDB_CLIENT_ID', 'build');
-const IGDB_CLIENT_SECRET = getRequiredEnvironmentVariable('IGDB_CLIENT_SECRET', 'build');
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const tokenCache: { token: string | null; expiry: number } = {
@@ -27,8 +24,8 @@ async function refreshAccessToken() {
 			'Content-Type': 'application/x-www-form-urlencoded'
 		},
 		body: new URLSearchParams({
-			client_id: IGDB_CLIENT_ID,
-			client_secret: IGDB_CLIENT_SECRET,
+			client_id: IGDB_CLIENT_ID!,
+			client_secret: IGDB_CLIENT_SECRET!,
 			grant_type: 'client_credentials'
 		}),
 		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
@@ -67,7 +64,7 @@ export async function igdb(query?: string) {
 		queryMethod: 'body',
 		baseURL: 'https://api.igdb.com/v4',
 		headers: {
-			'Client-ID': IGDB_CLIENT_ID,
+			'Client-ID': IGDB_CLIENT_ID!,
 			Authorization: `Bearer ${token}`,
 			'X-User-Agent': `flightlesskiwi v${version}`,
 			Accept: 'application/json'

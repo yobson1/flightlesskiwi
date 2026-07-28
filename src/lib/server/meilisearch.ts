@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { MEILI_HOST, MEILI_MASTER_KEY } from '$app/env/private';
 import { debug, info } from '$lib/logger';
 import { db } from '$lib/server/db';
 import { searchIndexQueue } from '$lib/server/db/schema';
@@ -15,8 +15,8 @@ const TASK_TIMEOUT_MS = 300_000;
 const INDEX_BATCH_SIZE = 1_000;
 
 const client = new Meilisearch({
-	host: env.MEILI_HOST || 'http://localhost:7700',
-	apiKey: env.MEILI_MASTER_KEY || undefined,
+	host: MEILI_HOST,
+	apiKey: MEILI_MASTER_KEY,
 	timeout: 5_000
 });
 

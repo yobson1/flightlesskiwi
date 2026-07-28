@@ -1,4 +1,4 @@
-import { building } from '$app/environment';
+import { building } from '$app/env';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { error } from '$lib/logger';
 import * as auth from '$lib/server/auth';

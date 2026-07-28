@@ -6,7 +6,7 @@ import { createTestDatabase } from '$lib/server/test-db';
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
 
-mock.module('$app/environment', () => ({ dev: true }));
+mock.module('$app/env', () => ({ dev: true }));
 mock.module('$lib/server/db', () => ({ db: testDb }));
 mock.module('$lib/server/auth/email', () => ({ EMAIL_CODE_TTL_MS: 10 * 60 * 1000 }));
 mock.module('$lib/server/auth/encryption', () => ({

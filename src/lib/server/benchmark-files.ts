@@ -1,11 +1,11 @@
-import { env } from '$env/dynamic/private';
+import { BENCHMARK_UPLOAD_DIR } from '$app/env/private';
 import { mkdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const FILE_ID_PATTERN = /^[a-z2-7]+$/;
 
 function getUploadDirectory(): string {
-	return resolve(env.BENCHMARK_UPLOAD_DIR || 'uploads/benchmarks');
+	return resolve(BENCHMARK_UPLOAD_DIR);
 }
 
 export function getBenchmarkFilePath(fileId: string): string {
