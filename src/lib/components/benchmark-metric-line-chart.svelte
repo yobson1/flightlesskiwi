@@ -53,6 +53,7 @@
 		getBenchmarkEChartAxis,
 		getBenchmarkEChartBaseOption,
 		getBenchmarkEChartLegend,
+		getBenchmarkEChartPlotXAxis,
 		getBenchmarkEChartSeriesColor,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
@@ -205,8 +206,7 @@
 				trigger: 'axis'
 			},
 			xAxis: {
-				...getBenchmarkEChartAxis(theme, (value: number) => formatMetricValue(value)),
-				max: chartData.at(-1)?.timeSeconds,
+				...getBenchmarkEChartPlotXAxis(theme, (value: number) => formatMetricValue(value)),
 				min: 0,
 				name: 'Time (seconds)',
 				nameGap: 28,

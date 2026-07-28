@@ -12,6 +12,7 @@
 		getBenchmarkEChartAxis,
 		getBenchmarkEChartBaseOption,
 		getBenchmarkEChartLegend,
+		getBenchmarkEChartPlotXAxis,
 		getBenchmarkEChartSeriesColor,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
@@ -95,7 +96,7 @@
 					typeof value === 'number' ? formatMetricValue(value, '%') : String(value)
 			},
 			xAxis: {
-				...getBenchmarkEChartAxis(theme, (value: number) => formatMetricValue(value)),
+				...getBenchmarkEChartPlotXAxis(theme, (value: number) => formatMetricValue(value)),
 				min: 0,
 				name: 'Frametime (ms)',
 				nameGap: 28,

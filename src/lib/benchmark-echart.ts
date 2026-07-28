@@ -73,6 +73,17 @@ export function getBenchmarkEChartAxis<Value>(
 	};
 }
 
+export function getBenchmarkEChartPlotXAxis<Value>(
+	theme: BenchmarkEChartTheme,
+	formatter?: (value: Value) => string
+) {
+	return {
+		...getBenchmarkEChartAxis(theme, formatter),
+		boundaryGap: [0, 0],
+		max: 'dataMax'
+	};
+}
+
 export function getBenchmarkEChartLegend(theme: BenchmarkEChartTheme) {
 	return {
 		icon: 'roundRect',
