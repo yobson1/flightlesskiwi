@@ -3,14 +3,37 @@ import {
 	isBenchmarkMetricKey,
 	type BenchmarkData,
 	type BenchmarkMetricKey,
+	type BenchmarkRun,
 	type BenchmarkSystemInfo
 } from '$lib/benchmark-run-model';
 
 const REQUIRED_SYSTEM_HEADERS = ['os', 'cpu', 'gpu', 'ram', 'kernel'] as const;
 const MAXIMUM_DATA_RECORDS = 100_000;
 
+interface MangoHudMetricColumn {
+	key: BenchmarkMetricKey;
+	index: number;
+	values: Array<number | null>;
+}
+
 export function parseMangoHudSystemInfo(csv: string): BenchmarkSystemInfo | null {
-	const records = parseCsvRecords(csv, 2);
+	const records: string[][] = [];
+	visitCsvRecords(csv, 2, (record) => {
+		records.push(record);
+	});
+	return buildMangoHudSystemInfo(records);
+}
+
+export function parseMangoHudBenchmarkRun(csv: string): BenchmarkRun | null {
+	const parsed = parseMangoHudCsv(csv);
+	return parsed ? { source: 'mangohud', ...parsed } : null;
+}
+
+export function parseMangoHudBenchmarkData(csv: string): BenchmarkData | null {
+	return parseMangoHudCsv(csv)?.data ?? null;
+}
+
+function buildMangoHudSystemInfo(records: string[][]): BenchmarkSystemInfo | null {
 	const headerRecord = records[0];
 	const valueRecord = records[1];
 	if (!headerRecord || !valueRecord) return null;
@@ -45,38 +68,54 @@ export function parseMangoHudSystemInfo(csv: string): BenchmarkSystemInfo | null
 	};
 }
 
-export function parseMangoHudBenchmarkData(csv: string): BenchmarkData | null {
-	if (parseMangoHudSystemInfo(csv) === null) return null;
-
-	const records = parseCsvRecords(csv, MAXIMUM_DATA_RECORDS + 3);
-	const headerIndex = records.findIndex((record, index) => {
-		if (index < 2) return false;
-		const headers = record.map(normalizeHeader);
-		return headers.includes('fps') || headers.includes('frametime');
-	});
-	if (headerIndex === -1) return null;
-
-	const headers = records[headerIndex]!.map(normalizeHeader);
-	const elapsedIndex = headers.indexOf('elapsed');
-	const frametimeIndex = headers.indexOf('frametime');
-	const metricColumns: Array<{ key: BenchmarkMetricKey; index: number }> = [];
-	const seenMetrics = new Set<string>();
-
-	for (const [index, key] of headers.entries()) {
-		if (!isBenchmarkMetricKey(key) || seenMetrics.has(key)) continue;
-		seenMetrics.add(key);
-		metricColumns.push({ key, index });
-	}
-	if (metricColumns.length === 0) return null;
-
+function parseMangoHudCsv(
+	csv: string
+): { systemInfo: BenchmarkSystemInfo; data: BenchmarkData } | null {
+	const systemRecords: string[][] = [];
+	let systemInfo: BenchmarkSystemInfo | null = null;
+	let metricColumns: MangoHudMetricColumn[] | null = null;
+	let parsedValues: Array<number | null> = [];
+	let elapsedIndex = -1;
+	let frametimeIndex = -1;
 	const timeSeconds: number[] = [];
-	const metricValues = new Map(metricColumns.map(({ key }) => [key, [] as Array<number | null>]));
 	let firstElapsed: number | null = null;
 	let previousTime = 0;
 
-	for (const record of records.slice(headerIndex + 1, headerIndex + 1 + MAXIMUM_DATA_RECORDS)) {
-		const parsedValues = metricColumns.map(({ index }) => parseNumber(record[index]));
-		if (parsedValues.every((value) => value === null)) continue;
+	visitCsvRecords(csv, MAXIMUM_DATA_RECORDS + 3, (record, recordIndex) => {
+		if (recordIndex < 2) {
+			systemRecords.push(record);
+			if (recordIndex === 1) {
+				systemInfo = buildMangoHudSystemInfo(systemRecords);
+				if (systemInfo === null) return false;
+			}
+			return;
+		}
+
+		if (metricColumns === null) {
+			const headers = record.map(normalizeHeader);
+			if (!headers.includes('fps') && !headers.includes('frametime')) return;
+
+			elapsedIndex = headers.indexOf('elapsed');
+			frametimeIndex = headers.indexOf('frametime');
+			const seenMetrics = new Set<string>();
+			metricColumns = [];
+			for (const [index, key] of headers.entries()) {
+				if (!isBenchmarkMetricKey(key) || seenMetrics.has(key)) continue;
+				seenMetrics.add(key);
+				metricColumns.push({ key, index, values: [] });
+			}
+			if (metricColumns.length === 0) return false;
+			parsedValues = new Array<number | null>(metricColumns.length);
+			return;
+		}
+
+		let hasMetricValue = false;
+		for (let index = 0; index < metricColumns.length; index++) {
+			const value = parseNumber(record[metricColumns[index]!.index]);
+			parsedValues[index] = value;
+			if (value !== null) hasMetricValue = true;
+		}
+		if (!hasMetricValue) return;
 
 		const elapsed = elapsedIndex === -1 ? null : parseNumber(record[elapsedIndex]);
 		const frametime = frametimeIndex === -1 ? null : parseNumber(record[frametimeIndex]);
@@ -95,19 +134,22 @@ export function parseMangoHudBenchmarkData(csv: string): BenchmarkData | null {
 
 		timeSeconds.push(sampleTime);
 		previousTime = sampleTime;
-		for (const [index, { key }] of metricColumns.entries()) {
-			metricValues.get(key)!.push(parsedValues[index] ?? null);
+		for (let index = 0; index < metricColumns.length; index++) {
+			metricColumns[index]!.values.push(parsedValues[index] ?? null);
 		}
+	});
+
+	const completedMetricColumns = metricColumns as MangoHudMetricColumn[] | null;
+	if (systemInfo === null || completedMetricColumns === null || timeSeconds.length === 0) {
+		return null;
 	}
 
-	if (timeSeconds.length === 0) return null;
-
-	const metrics = metricColumns
-		.map(({ key }) => createBenchmarkMetric(key, [...timeSeconds], metricValues.get(key)!))
+	const metrics = completedMetricColumns
+		.map(({ key, values }) => createBenchmarkMetric(key, [...timeSeconds], values))
 		.filter(({ values }) => values.some((value) => value !== null));
 	if (metrics.length === 0) return null;
 
-	return { metrics };
+	return { systemInfo, data: { metrics } };
 }
 
 function normalizeHeader(header: string, index: number): string {
@@ -125,11 +167,17 @@ function fallbackSampleTime(sampleCount: number, previousTime: number, frametime
 	return previousTime + (frametime !== null && frametime > 0 ? frametime / 1_000 : 1);
 }
 
-function parseCsvRecords(csv: string, maximumRecords: number): string[][] {
-	const records: string[][] = [];
+function visitCsvRecords(
+	csv: string,
+	maximumRecords: number,
+	visit: (record: string[], recordIndex: number) => boolean | void
+): void {
 	let record: string[] = [];
 	let field = '';
+	let fieldStart = 0;
 	let quoted = false;
+	let wasQuoted = false;
+	let recordCount = 0;
 
 	for (let index = 0; index < csv.length; index++) {
 		const character = csv[index]!;
@@ -146,27 +194,33 @@ function parseCsvRecords(csv: string, maximumRecords: number): string[][] {
 			continue;
 		}
 
-		if (character === '"' && field.length === 0) {
+		if (character === '"' && index === fieldStart) {
 			quoted = true;
+			wasQuoted = true;
 		} else if (character === ',') {
-			record.push(field);
+			record.push(wasQuoted ? field : csv.slice(fieldStart, index));
 			field = '';
+			fieldStart = index + 1;
+			wasQuoted = false;
 		} else if (character === '\n' || character === '\r') {
-			record.push(field);
-			records.push(record);
-			if (records.length === maximumRecords) return records;
+			record.push(wasQuoted ? field : csv.slice(fieldStart, index));
+			if (visit(record, recordCount) === false) return;
+			recordCount++;
+			if (recordCount === maximumRecords) return;
 			record = [];
 			field = '';
 			if (character === '\r' && csv[index + 1] === '\n') index++;
-		} else {
+			fieldStart = index + 1;
+			wasQuoted = false;
+		} else if (wasQuoted) {
 			field += character;
+		} else {
+			continue;
 		}
 	}
 
-	if (!quoted && (field.length > 0 || record.length > 0)) {
-		record.push(field);
-		records.push(record);
+	if (!quoted && (field.length > 0 || fieldStart < csv.length || record.length > 0)) {
+		record.push(wasQuoted ? field : csv.slice(fieldStart));
+		visit(record, recordCount);
 	}
-
-	return records;
 }

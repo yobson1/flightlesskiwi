@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { createBenchmarkMetric } from './benchmark-run-model';
-import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from './mangohud';
+import {
+	parseMangoHudBenchmarkData,
+	parseMangoHudBenchmarkRun,
+	parseMangoHudSystemInfo
+} from './mangohud';
 
 describe('MangoHud system information parsing', () => {
 	test('parses the system header and values from a MangoHud CSV', () => {
@@ -50,6 +54,36 @@ describe('MangoHud system information parsing', () => {
 });
 
 describe('MangoHud benchmark data parsing', () => {
+	test('parses system information and metrics together in one pass', () => {
+		const csv = [
+			'os,cpu,gpu,ram,kernel',
+			'Linux,Example CPU,Example GPU,16777216,6.12',
+			'fps,frametime',
+			'60,16.67'
+		].join('\n');
+
+		expect(parseMangoHudBenchmarkRun(csv)).toEqual({
+			source: 'mangohud',
+			systemInfo: {
+				os: 'Linux',
+				cpu: 'Example CPU',
+				gpu: 'Example GPU',
+				ramBytes: 16777216 * 1_024,
+				ramDescription: '',
+				kernel: '6.12',
+				driver: '',
+				cpuScheduler: '',
+				motherboard: ''
+			},
+			data: {
+				metrics: [
+					createBenchmarkMetric('fps', [0], [60]),
+					createBenchmarkMetric('frametime', [0], [16.67])
+				]
+			}
+		});
+	});
+
 	test('parses time-series metrics and normalizes elapsed nanoseconds', () => {
 		const csv = [
 			'os,cpu,gpu,ram,kernel,driver,cpuscheduler',
