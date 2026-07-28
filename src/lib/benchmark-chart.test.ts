@@ -13,6 +13,27 @@ import {
 	sortBenchmarkChartRunsByAverageFps,
 	stripFileExtension
 } from './benchmark-chart';
+import type { BenchmarkRun } from './benchmark-run';
+
+function parsedBenchmarkRun(fps: number[]): BenchmarkRun {
+	return {
+		source: 'mangohud',
+		systemInfo: {
+			os: '',
+			cpu: '',
+			gpu: '',
+			ramBytes: null,
+			ramDescription: '',
+			kernel: '',
+			driver: '',
+			cpuScheduler: '',
+			motherboard: ''
+		},
+		data: {
+			metrics: [{ key: 'fps', timeSeconds: fps.map((_, index) => index), values: fps }]
+		}
+	};
+}
 
 describe('benchmark chart metric helpers', () => {
 	test('formats known acronyms and title-cases other metric words', () => {
@@ -84,23 +105,17 @@ describe('benchmark chart metric helpers', () => {
 			{
 				id: 'slow',
 				originalName: 'Slow',
-				mangoHudData: {
-					timeSeconds: [0, 1],
-					metrics: [{ key: 'fps', values: [59, 61] }]
-				}
+				benchmarkRun: parsedBenchmarkRun([59, 61])
 			},
 			{
 				id: 'missing',
 				originalName: 'Missing',
-				mangoHudData: null
+				benchmarkRun: null
 			},
 			{
 				id: 'fast',
 				originalName: 'Fast',
-				mangoHudData: {
-					timeSeconds: [0, 1],
-					metrics: [{ key: 'fps', values: [65, 67] }]
-				}
+				benchmarkRun: parsedBenchmarkRun([65, 67])
 			}
 		];
 

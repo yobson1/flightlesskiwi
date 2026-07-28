@@ -17,7 +17,7 @@
 
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
-			const frametime = run.mangoHudData?.metrics.find(({ key }) => key === 'frametime');
+			const frametime = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'frametime');
 			if (!frametime || !hasNonZeroMetricValues(frametime.values)) return [];
 
 			const stability = calculateFrametimeStability(frametime.values);

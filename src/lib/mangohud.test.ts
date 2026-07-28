@@ -13,10 +13,12 @@ describe('MangoHud system information parsing', () => {
 			os: 'Arch Linux',
 			cpu: 'AMD Ryzen 9 5950X 16-Core Processor',
 			gpu: 'AMD Radeon RX 9070 XT (RADV GFX1201)',
-			ramKiB: 32771172,
+			ramBytes: 32771172 * 1_024,
+			ramDescription: '',
 			kernel: '6.16.7-2-cachyos',
 			driver: '',
-			cpuScheduler: 'performance'
+			cpuScheduler: 'performance',
+			motherboard: ''
 		});
 	});
 
@@ -29,10 +31,12 @@ describe('MangoHud system information parsing', () => {
 			os: 'Fedora',
 			cpu: 'Example CPU, 16-Core',
 			gpu: 'Example "Fast" GPU',
-			ramKiB: 16777216,
+			ramBytes: 16777216 * 1_024,
+			ramDescription: '',
 			kernel: '6.12.1',
 			driver: 'mesa',
-			cpuScheduler: 'sched-ext'
+			cpuScheduler: 'sched-ext',
+			motherboard: ''
 		});
 	});
 
@@ -55,12 +59,11 @@ describe('MangoHud benchmark data parsing', () => {
 		].join('\n');
 
 		expect(parseMangoHudBenchmarkData(csv)).toEqual({
-			timeSeconds: [0, 0.02528377],
 			metrics: [
-				{ key: 'fps', values: [114.136, 122.986] },
-				{ key: 'frametime', values: [8.7615, 8.13101] },
-				{ key: 'cpu_load', values: [23.2298, null] },
-				{ key: 'gpu_power', values: [81, 82] }
+				{ key: 'fps', timeSeconds: [0, 0.02528377], values: [114.136, 122.986] },
+				{ key: 'frametime', timeSeconds: [0, 0.02528377], values: [8.7615, 8.13101] },
+				{ key: 'cpu_load', timeSeconds: [0, 0.02528377], values: [23.2298, null] },
+				{ key: 'gpu_power', timeSeconds: [0, 0.02528377], values: [81, 82] }
 			]
 		});
 	});
@@ -75,12 +78,26 @@ describe('MangoHud benchmark data parsing', () => {
 		].join('\n');
 
 		expect(parseMangoHudBenchmarkData(csv)).toEqual({
-			timeSeconds: [0, 0.02],
 			metrics: [
-				{ key: 'fps', values: [60, 50] },
-				{ key: 'frametime', values: [16.67, 20] }
+				{ key: 'fps', timeSeconds: [0, 0.02], values: [60, 50] },
+				{ key: 'frametime', timeSeconds: [0, 0.02], values: [16.67, 20] }
 			]
 		});
+	});
+
+	test('only exposes metrics shared with CapFrameX', () => {
+		const csv = [
+			'os,cpu,gpu,ram,kernel',
+			'Linux,Example CPU,Example GPU,16777216,6.12',
+			'fps,frametime,cpu_load,cpu_mhz,swap_used,unknown_metric',
+			'60,16.67,20,5000,1.5,123'
+		].join('\n');
+
+		expect(parseMangoHudBenchmarkData(csv)?.metrics.map(({ key }) => key)).toEqual([
+			'fps',
+			'frametime',
+			'cpu_load'
+		]);
 	});
 
 	test('does not parse unrelated CSV data as benchmark metrics', () => {

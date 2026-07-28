@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
+import { parseBenchmarkRun } from '$lib/benchmark-run';
 import { error as logError } from '$lib/logger';
-import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from '$lib/mangohud';
 import { requireVerifiedSession } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles, readBenchmarkFile } from '$lib/server/benchmark-files';
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
@@ -49,12 +49,11 @@ export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) 
 				const contents = await readBenchmarkFile(file.id);
 				return {
 					...file,
-					mangoHud: parseMangoHudSystemInfo(contents),
-					mangoHudData: parseMangoHudBenchmarkData(contents)
+					benchmarkRun: parseBenchmarkRun(contents)
 				};
 			} catch (cause) {
 				logError(`Failed to read benchmark file ${file.id}`, cause);
-				return { ...file, mangoHud: null, mangoHudData: null };
+				return { ...file, benchmarkRun: null };
 			}
 		})
 	);

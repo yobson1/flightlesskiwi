@@ -19,7 +19,7 @@
 
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
-			const fps = run.mangoHudData?.metrics.find(({ key }) => key === 'fps');
+			const fps = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'fps');
 			if (!fps || !hasNonZeroMetricValues(fps.values)) return [];
 
 			const low = percentileMetricValue(fps.values, 0.01);

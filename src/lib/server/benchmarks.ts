@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, lt, or } from 'drizzle-orm';
-import { parseMangoHudSystemInfo } from '$lib/mangohud';
+import { parseBenchmarkSystemInfo } from '$lib/benchmark-run';
 import { readBenchmarkFilePrefix } from '$lib/server/benchmark-files';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
@@ -36,7 +36,7 @@ export async function getBenchmarkRunMetadata(benchmarkIds: string[]) {
 		files.map(async (file) => {
 			try {
 				const contents = await readBenchmarkFilePrefix(file.id);
-				const systemInfo = parseMangoHudSystemInfo(contents);
+				const systemInfo = parseBenchmarkSystemInfo(contents);
 				return { ...file, systemInfo };
 			} catch {
 				// A missing or unreadable upload should not prevent the benchmark listing from loading.
@@ -64,17 +64,19 @@ export async function getBenchmarkRunMetadata(benchmarkIds: string[]) {
 		if (gpu) metadata.gpus.add(gpu);
 
 		const ram =
-			systemInfo.ramKiB === null
+			systemInfo.ramBytes === null
 				? ''
-				: `${(systemInfo.ramKiB / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')} GiB`;
+				: `${(systemInfo.ramBytes / 1024 ** 3).toFixed(1).replace(/\.0$/, '')} GiB`;
 		for (const value of [
 			systemInfo.os,
 			cpu,
 			gpu,
 			ram,
+			systemInfo.ramDescription,
 			systemInfo.kernel,
 			systemInfo.driver,
-			systemInfo.cpuScheduler
+			systemInfo.cpuScheduler,
+			systemInfo.motherboard
 		]) {
 			const normalized = value.trim();
 			if (normalized) metadata.searchableValues.add(normalized);

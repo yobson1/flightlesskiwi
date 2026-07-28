@@ -1,27 +1,14 @@
-export interface MangoHudSystemInfo {
-	os: string;
-	cpu: string;
-	gpu: string;
-	ramKiB: number | null;
-	kernel: string;
-	driver: string;
-	cpuScheduler: string;
-}
-
-export interface MangoHudMetric {
-	key: string;
-	values: Array<number | null>;
-}
-
-export interface MangoHudBenchmarkData {
-	timeSeconds: number[];
-	metrics: MangoHudMetric[];
-}
+import {
+	isBenchmarkMetricKey,
+	type BenchmarkData,
+	type BenchmarkMetricKey,
+	type BenchmarkSystemInfo
+} from '$lib/benchmark-run-model';
 
 const REQUIRED_SYSTEM_HEADERS = ['os', 'cpu', 'gpu', 'ram', 'kernel'] as const;
 const MAXIMUM_DATA_RECORDS = 100_000;
 
-export function parseMangoHudSystemInfo(csv: string): MangoHudSystemInfo | null {
+export function parseMangoHudSystemInfo(csv: string): BenchmarkSystemInfo | null {
 	const records = parseCsvRecords(csv, 2);
 	const headerRecord = records[0];
 	const valueRecord = records[1];
@@ -48,14 +35,16 @@ export function parseMangoHudSystemInfo(csv: string): MangoHudSystemInfo | null 
 		os,
 		cpu,
 		gpu,
-		ramKiB: Number.isFinite(parsedRam) && parsedRam > 0 ? parsedRam : null,
+		ramBytes: Number.isFinite(parsedRam) && parsedRam > 0 ? parsedRam * 1_024 : null,
+		ramDescription: '',
 		kernel: value('kernel'),
 		driver: value('driver'),
-		cpuScheduler: value('cpuscheduler')
+		cpuScheduler: value('cpuscheduler'),
+		motherboard: ''
 	};
 }
 
-export function parseMangoHudBenchmarkData(csv: string): MangoHudBenchmarkData | null {
+export function parseMangoHudBenchmarkData(csv: string): BenchmarkData | null {
 	if (parseMangoHudSystemInfo(csv) === null) return null;
 
 	const records = parseCsvRecords(csv, MAXIMUM_DATA_RECORDS + 3);
@@ -69,11 +58,11 @@ export function parseMangoHudBenchmarkData(csv: string): MangoHudBenchmarkData |
 	const headers = records[headerIndex]!.map(normalizeHeader);
 	const elapsedIndex = headers.indexOf('elapsed');
 	const frametimeIndex = headers.indexOf('frametime');
-	const metricColumns: Array<{ key: string; index: number }> = [];
+	const metricColumns: Array<{ key: BenchmarkMetricKey; index: number }> = [];
 	const seenMetrics = new Set<string>();
 
 	for (const [index, key] of headers.entries()) {
-		if (!key || key === 'elapsed' || seenMetrics.has(key)) continue;
+		if (!isBenchmarkMetricKey(key) || seenMetrics.has(key)) continue;
 		seenMetrics.add(key);
 		metricColumns.push({ key, index });
 	}
@@ -113,11 +102,11 @@ export function parseMangoHudBenchmarkData(csv: string): MangoHudBenchmarkData |
 	if (timeSeconds.length === 0) return null;
 
 	const metrics = metricColumns
-		.map(({ key }) => ({ key, values: metricValues.get(key)! }))
+		.map(({ key }) => ({ key, timeSeconds: [...timeSeconds], values: metricValues.get(key)! }))
 		.filter(({ values }) => values.some((value) => value !== null));
 	if (metrics.length === 0) return null;
 
-	return { timeSeconds, metrics };
+	return { metrics };
 }
 
 function normalizeHeader(header: string, index: number): string {

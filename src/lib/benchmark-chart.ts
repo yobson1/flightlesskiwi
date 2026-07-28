@@ -1,9 +1,9 @@
-import type { MangoHudBenchmarkData } from '$lib/mangohud';
+import type { BenchmarkRun } from '$lib/benchmark-run';
 
 export interface BenchmarkChartRun {
 	id: string;
 	originalName: string;
-	mangoHudData: MangoHudBenchmarkData | null;
+	benchmarkRun: BenchmarkRun | null;
 }
 
 export interface BenchmarkMetricSeries {
@@ -27,9 +27,7 @@ const METRIC_UNITS: Record<string, string> = {
 	gpu_vram_used: 'GiB',
 	gpu_power: 'W',
 	ram_used: 'GiB',
-	swap_used: 'GiB',
-	process_rss: 'GiB',
-	cpu_mhz: 'MHz'
+	process_rss: 'GiB'
 };
 
 export function formatBenchmarkMetricName(key: string): string {
@@ -135,7 +133,7 @@ export function sortBenchmarkChartRunsByAverageFps(
 ): BenchmarkChartRun[] {
 	return runs
 		.map((run, index) => {
-			const fps = run.mangoHudData?.metrics.find(({ key }) => key === 'fps');
+			const fps = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'fps');
 			const average =
 				fps && hasNonZeroMetricValues(fps.values) ? averageMetricValues(fps.values) : null;
 			return {

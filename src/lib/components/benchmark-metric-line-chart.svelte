@@ -70,13 +70,11 @@
 	const title = $derived(formatBenchmarkMetricName(metricKey));
 	const metricSeries = $derived.by(() =>
 		runs.flatMap((run) => {
-			const metric = run.mangoHudData?.metrics.find(({ key }) => key === metricKey);
-			if (!metric || !run.mangoHudData || !hasNonZeroMetricValues(metric.values)) return [];
+			const metric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metricKey);
+			if (!metric || !hasNonZeroMetricValues(metric.values)) return [];
 
 			const points = metric.values.flatMap((value, pointIndex) =>
-				value === null
-					? []
-					: [{ timeSeconds: run.mangoHudData!.timeSeconds[pointIndex] ?? pointIndex, value }]
+				value === null ? [] : [{ timeSeconds: metric.timeSeconds[pointIndex] ?? pointIndex, value }]
 			);
 			if (points.length === 0) return [];
 

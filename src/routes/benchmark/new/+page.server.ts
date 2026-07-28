@@ -9,6 +9,8 @@ import {
 	MAX_BENCHMARK_TOTAL_SIZE,
 	formatFileSize
 } from '$lib/benchmark';
+import { parseBenchmarkRun } from '$lib/benchmark-run';
+import { getCapFrameXRunCount } from '$lib/capframex';
 import { error as logError, warn } from '$lib/logger';
 import { requireVerifiedPage, requireVerifiedSession } from '$lib/server/auth/api';
 import { generateSecureRandomString } from '$lib/server/auth/utils';
@@ -49,7 +51,7 @@ export const actions: Actions = {
 			return fail(400, { message: 'Select valid benchmark files', values });
 		}
 		const files = rawFiles as File[];
-		const fileValidationMessage = validateFiles(files);
+		const fileValidationMessage = await validateFiles(files);
 		if (fileValidationMessage) {
 			return fail(400, { message: fileValidationMessage, values });
 		}
@@ -154,7 +156,7 @@ function validateValues(values: SubmittedValues): string | null {
 	return null;
 }
 
-function validateFiles(files: File[]): string | null {
+async function validateFiles(files: File[]): Promise<string | null> {
 	if (files.length === 0 || files.every((file) => file.size === 0 && file.name === '')) {
 		return 'Select at least one MangoHud or CapFrameX file';
 	}
@@ -177,6 +179,23 @@ function validateFiles(files: File[]): string | null {
 
 	if (totalSize > MAX_BENCHMARK_TOTAL_SIZE) {
 		return `Files exceed the ${formatFileSize(MAX_BENCHMARK_TOTAL_SIZE)} total limit`;
+	}
+
+	for (const file of files) {
+		const originalName = safeOriginalName(file.name);
+		let contents: string;
+		try {
+			contents = await file.text();
+		} catch {
+			return `${originalName} could not be read`;
+		}
+
+		if (parseBenchmarkRun(contents)) continue;
+		const capFrameXRunCount = getCapFrameXRunCount(contents);
+		if (capFrameXRunCount !== null && capFrameXRunCount !== 1) {
+			return `${originalName} must contain exactly one CapFrameX run (found ${capFrameXRunCount})`;
+		}
+		return `${originalName} is not a supported MangoHud CSV or CapFrameX JSON benchmark`;
 	}
 	return null;
 }

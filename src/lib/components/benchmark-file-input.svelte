@@ -74,7 +74,7 @@
 			{id}
 			{name}
 			type="file"
-			accept=".csv,.json,text/csv,text/json"
+			accept=".csv,.json,text/csv,text/json,application/json"
 			multiple
 			required
 			{disabled}

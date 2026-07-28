@@ -22,7 +22,7 @@
 	const metricKeys = $derived.by(() => {
 		const keys: string[] = [];
 		for (const run of orderedRuns) {
-			for (const metric of run.mangoHudData?.metrics ?? []) {
+			for (const metric of run.benchmarkRun?.data.metrics ?? []) {
 				if (hasNonZeroMetricValues(metric.values) && !keys.includes(metric.key)) {
 					keys.push(metric.key);
 				}
@@ -42,7 +42,7 @@
 
 	{#if metricKeys.length === 0}
 		<div class="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-			No MangoHud performance data could be read from the included files.
+			No supported performance data could be read from the included files.
 		</div>
 	{:else}
 		<Tabs.Root value="performance" class="gap-0">

@@ -22,7 +22,7 @@
 	const unit = $derived(getBenchmarkMetricUnit(metricKey));
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
-			const metric = run.mangoHudData?.metrics.find(({ key }) => key === metricKey);
+			const metric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metricKey);
 			if (!metric || !hasNonZeroMetricValues(metric.values)) return [];
 			const average = averageMetricValues(metric.values);
 			return average === null ? [] : [{ run: stripFileExtension(run.originalName), average }];
