@@ -21,43 +21,7 @@
 		</p>
 	</header>
 
-	<section id="capture-settings" class="scroll-mt-6 space-y-4" aria-labelledby="capture-heading">
-		<div>
-			<h2 id="capture-heading" class="text-2xl font-semibold tracking-tight">Capture timing</h2>
-			<p class="mt-1 text-muted-foreground">
-				The tools collect hardware telemetry at different fixed rates. This is expected; the
-				intervals do not need to match.
-			</p>
-		</div>
-
-		<div class="grid gap-4 sm:grid-cols-2">
-			<Card.Root>
-				<Card.Header>
-					<Card.Description>MangoHud</Card.Description>
-					<Card.Title class="text-2xl">25 ms logs · 40 Hz sensors</Card.Title>
-				</Card.Header>
-				<Card.Content class="text-muted-foreground">
-					Set the log interval to 25ms and leave hardware polling at MangoHud's default 40Hz.
-				</Card.Content>
-			</Card.Root>
-
-			<Card.Root>
-				<Card.Header>
-					<Card.Description>CapFrameX</Card.Description>
-					<Card.Title class="text-2xl">250 ms sensors</Card.Title>
-				</Card.Header>
-				<Card.Content class="text-muted-foreground">
-					Leave sensor polling at its default 250ms. CapFrameX does not offer a lower period.
-				</Card.Content>
-			</Card.Root>
-		</div>
-
-		<p class="text-sm text-muted-foreground">
-			flightlesskiwi handles each format using its tool-specific sampling rate.
-		</p>
-	</section>
-
-	<section class="space-y-4" aria-labelledby="tools-heading">
+	<section id="configure-your-tool" class="scroll-mt-6 space-y-4" aria-labelledby="tools-heading">
 		<div>
 			<h2 id="tools-heading" class="text-2xl font-semibold tracking-tight">Configure your tool</h2>
 			<p class="mt-1 text-muted-foreground">Apply the settings for the tool you use.</p>
@@ -80,9 +44,10 @@
 						<li>
 							Add or update
 							<code class="rounded bg-muted px-1.5 py-0.5 text-sm text-foreground"
-								>log_interval=25</code
+								>log_interval=0</code
 							>.
 						</li>
+						<li>This records every presented frame, matching CapFrameX's capture behavior.</li>
 						<li>Save the file, then start logging for your benchmark run.</li>
 					</ol>
 					<p class="text-sm text-muted-foreground">

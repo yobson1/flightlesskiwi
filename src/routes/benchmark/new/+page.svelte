@@ -102,7 +102,7 @@
 		<p class="mt-2 text-muted-foreground">
 			Add your MangoHud and/or CapFrameX output and describe the run. Before recording,
 			<a
-				href="/help#capture-settings"
+				href="/help#configure-your-tool"
 				class="font-medium text-foreground underline underline-offset-4"
 			>
 				check the recommended capture settings

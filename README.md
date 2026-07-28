@@ -84,12 +84,15 @@ be set before the header is trusted.
 
 ### MangoHud
 
-Keep MangoHud's default 40Hz hardware polling frequency and use a log interval of
-25ms. Edit `~/.config/MangoHud/MangoHud.conf` and set:
+Keep MangoHud's default 40Hz hardware polling frequency and set its log interval
+to `0`:
 
 ```conf
-log_interval=25
+log_interval=0
 ```
+
+This logs every presented frame, matching CapFrameX's per-frame capture behavior.
+Edit the setting in `~/.config/MangoHud/MangoHud.conf`.
 
 40Hz is MangoHud's
 [default hardware polling frequency](https://github.com/flightlessmango/MangoHud/blob/ff6e5954ea7e340d9bb4509754babf0db1b7c431/src/gpu_metrics_util.h#L36).
@@ -476,7 +479,7 @@ background_alpha=0.0
 ### Set amount of time in seconds that the logging will run for
 # log_duration=30
 ### Change the default log interval (ms), 0 is default
-log_interval=25
+log_interval=0
 ### Set location of the output files (required for logging)
 output_folder=/home/brad/mangologs
 ### Permit uploading logs directly to FlightlessMango.com
