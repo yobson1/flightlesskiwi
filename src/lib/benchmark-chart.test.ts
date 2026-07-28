@@ -2,7 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import {
 	averageMetricValues,
 	buildSharedMetricChartData,
+	calculateFrametimeClassification,
+	calculateFrametimeDistribution,
+	calculateFrametimeMovingAverage,
 	calculateFrametimeStability,
+	calculateFrametimeVariance,
 	formatMetricValue,
 	getBenchmarkChartColorIndex,
 	hasNonZeroMetricValues,
@@ -69,6 +73,47 @@ describe('benchmark chart metric helpers', () => {
 			p99Overhead: 0
 		});
 		expect(calculateFrametimeStability([])).toBe(null);
+	});
+
+	test('calculates the CapFrameX-style moving average and suppresses large spikes', () => {
+		const values = [10, 10, null, 40];
+
+		expect(calculateFrametimeMovingAverage(values)).toEqual([10, 10, null, 10]);
+		expect(calculateFrametimeMovingAverage([null, 0])).toEqual([null, null]);
+	});
+
+	test('classifies smooth, low FPS, and stuttering time with CapFrameX defaults', () => {
+		const classification = calculateFrametimeClassification([10, 10, 50, 30]);
+
+		expect(classification.map(({ label }) => label)).toEqual(['Smooth', 'Low FPS', 'Stuttering']);
+		expect(classification[0]?.durationSeconds).toBeCloseTo(0.05);
+		expect(classification[1]?.durationSeconds).toBe(0);
+		expect(classification[2]?.durationSeconds).toBeCloseTo(0.05);
+		expect(classification[0]?.percentage).toBeCloseTo(50);
+		expect(classification[2]?.percentage).toBeCloseTo(50);
+		expect(calculateFrametimeClassification([50, 50])).toEqual([
+			{ label: 'Smooth', durationSeconds: 0, percentage: 0 },
+			{ label: 'Low FPS', durationSeconds: 0.1, percentage: 100 },
+			{ label: 'Stuttering', durationSeconds: 0, percentage: 0 }
+		]);
+	});
+
+	test('groups consecutive frametime differences into CapFrameX variance buckets', () => {
+		expect(calculateFrametimeVariance([10, 11, 14, 20, 30, 45])).toEqual([
+			{ label: '< 2 ms', percentage: 20 },
+			{ label: '2–4 ms', percentage: 20 },
+			{ label: '4–8 ms', percentage: 20 },
+			{ label: '8–12 ms', percentage: 20 },
+			{ label: '≥ 12 ms', percentage: 20 }
+		]);
+		expect(calculateFrametimeVariance([10, null, 12])).toEqual([]);
+	});
+
+	test('builds a time-weighted frametime distribution in 0.1 ms bins', () => {
+		expect(calculateFrametimeDistribution([1.01, 1.09, 1.11, null])).toEqual([
+			{ frametime: 1.1, percentage: (2.1 / 3.21) * 100 },
+			{ frametime: 1.2, percentage: (1.11 / 3.21) * 100 }
+		]);
 	});
 
 	test('distinguishes captured metrics from all-zero placeholder data', () => {

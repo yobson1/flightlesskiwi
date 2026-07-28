@@ -11,7 +11,24 @@ export interface BenchmarkMetricSeries {
 	points: Array<{ timeSeconds: number; value: number }>;
 }
 
+export interface BenchmarkPieSlice {
+	label: string;
+	percentage: number;
+}
+
+export interface FrametimeClassificationSlice extends BenchmarkPieSlice {
+	durationSeconds: number;
+}
+
+export interface FrametimeDistributionPoint {
+	frametime: number;
+	percentage: number;
+}
+
 const BENCHMARK_CHART_COLOR_COUNT = 8;
+export const LOW_FPS_THRESHOLD = 25;
+export const STUTTER_FACTOR = 2.5;
+export const FRAMETIME_DISTRIBUTION_BIN_SIZE = 0.1;
 
 export function stripFileExtension(value: string): string {
 	const lastSeparator = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
@@ -67,6 +84,123 @@ export function calculateFrametimeStability(values: Array<number | null>): {
 		standardDeviation: (Math.sqrt(squaredDifferenceTotal / count) / average) * 100,
 		p99Overhead: ((p99 - median) / median) * 100
 	};
+}
+
+export function calculateFrametimeMovingAverage(
+	values: Array<number | null>
+): Array<number | null> {
+	const validValues = values.filter(isValidFrametime);
+	if (validValues.length === 0) return values.map(() => null);
+
+	const average = validValues.reduce((total, value) => total + value, 0) / validValues.length;
+	const sampleSize = Math.max(1, Math.round(Math.sqrt(average) * 10));
+	const movingAverage: Array<number | null> = [];
+	const validHistory: number[] = [];
+
+	for (const value of values) {
+		if (!isValidFrametime(value)) {
+			movingAverage.push(null);
+			continue;
+		}
+
+		validHistory.push(value);
+		const windowStart = Math.max(0, validHistory.length - sampleSize);
+		let windowTotal = 0;
+		for (let index = windowStart; index < validHistory.length; index++) {
+			const current = validHistory[index]!;
+			const previous = validHistory[index - 1];
+			windowTotal += previous !== undefined && current > previous * 3 ? previous : current;
+		}
+		movingAverage.push(windowTotal / (validHistory.length - windowStart));
+	}
+
+	return movingAverage;
+}
+
+export function calculateFrametimeClassification(
+	values: Array<number | null>,
+	stutterFactor = STUTTER_FACTOR,
+	lowFpsThreshold = LOW_FPS_THRESHOLD
+): FrametimeClassificationSlice[] {
+	const movingAverage = calculateFrametimeMovingAverage(values);
+	const durationByLabel = new Map([
+		['Smooth', 0],
+		['Low FPS', 0],
+		['Stuttering', 0]
+	]);
+
+	for (let index = 0; index < values.length; index++) {
+		const value = values[index];
+		const average = movingAverage[index];
+		if (!isValidFrametime(value) || !isValidFrametime(average)) continue;
+
+		const label =
+			value > average * stutterFactor
+				? 'Stuttering'
+				: 1_000 / value < lowFpsThreshold
+					? 'Low FPS'
+					: 'Smooth';
+		durationByLabel.set(label, durationByLabel.get(label)! + value);
+	}
+
+	const totalDuration = [...durationByLabel.values()].reduce((total, value) => total + value, 0);
+	if (totalDuration === 0) return [];
+
+	return [...durationByLabel].map(([label, duration]) => ({
+		label,
+		durationSeconds: duration / 1_000,
+		percentage: (duration / totalDuration) * 100
+	}));
+}
+
+export function calculateFrametimeVariance(values: Array<number | null>): BenchmarkPieSlice[] {
+	const bins = [
+		{ label: '< 2 ms', count: 0 },
+		{ label: '2–4 ms', count: 0 },
+		{ label: '4–8 ms', count: 0 },
+		{ label: '8–12 ms', count: 0 },
+		{ label: '≥ 12 ms', count: 0 }
+	];
+	let differenceCount = 0;
+
+	for (let index = 1; index < values.length; index++) {
+		const previous = values[index - 1];
+		const current = values[index];
+		if (!isValidFrametime(previous) || !isValidFrametime(current)) continue;
+
+		const difference = Math.abs(current - previous);
+		const binIndex =
+			difference < 2 ? 0 : difference < 4 ? 1 : difference < 8 ? 2 : difference < 12 ? 3 : 4;
+		bins[binIndex]!.count++;
+		differenceCount++;
+	}
+
+	if (differenceCount === 0) return [];
+	return bins.map(({ label, count }) => ({
+		label,
+		percentage: (count / differenceCount) * 100
+	}));
+}
+
+export function calculateFrametimeDistribution(
+	values: Array<number | null>
+): FrametimeDistributionPoint[] {
+	const validValues = values.filter(isValidFrametime);
+	const totalDuration = validValues.reduce((total, value) => total + value, 0);
+	if (totalDuration === 0) return [];
+
+	const durationByBin = new Map<number, number>();
+	for (const value of validValues) {
+		const binIndex = Math.floor(value / FRAMETIME_DISTRIBUTION_BIN_SIZE);
+		durationByBin.set(binIndex, (durationByBin.get(binIndex) ?? 0) + value);
+	}
+
+	return [...durationByBin]
+		.toSorted(([firstBin], [secondBin]) => firstBin - secondBin)
+		.map(([binIndex, duration]) => ({
+			frametime: Number(((binIndex + 1) * FRAMETIME_DISTRIBUTION_BIN_SIZE).toFixed(10)),
+			percentage: (duration / totalDuration) * 100
+		}));
 }
 
 export function hasNonZeroMetricValues(values: Array<number | null>): boolean {
@@ -191,4 +325,8 @@ function interpolateMetricValue(
 
 	const progress = (timeSeconds - lower.timeSeconds) / (upper.timeSeconds - lower.timeSeconds);
 	return lower.value + (upper.value - lower.value) * progress;
+}
+
+function isValidFrametime(value: number | null | undefined): value is number {
+	return value !== null && value !== undefined && Number.isFinite(value) && value > 0;
 }

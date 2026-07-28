@@ -1,4 +1,4 @@
-import { BarChart, LineChart } from 'echarts/charts';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import {
 	AriaComponent,
 	DataZoomComponent,
@@ -20,6 +20,7 @@ use([
 	LabelLayout,
 	LegendComponent,
 	LineChart,
+	PieChart,
 	ToolboxComponent,
 	TooltipComponent
 ]);

@@ -6,7 +6,10 @@
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
 	import BenchmarkFpsSummaryChart from '$lib/components/benchmark-fps-summary-chart.svelte';
+	import BenchmarkFrametimeClassificationChart from '$lib/components/benchmark-frametime-classification-chart.svelte';
+	import BenchmarkFrametimeDistributionChart from '$lib/components/benchmark-frametime-distribution-chart.svelte';
 	import BenchmarkFrametimeStabilityChart from '$lib/components/benchmark-frametime-stability-chart.svelte';
+	import BenchmarkFrametimeVarianceChart from '$lib/components/benchmark-frametime-variance-chart.svelte';
 	import BenchmarkMetricAverageChart from '$lib/components/benchmark-metric-average-chart.svelte';
 	import BenchmarkMetricLineChart from '$lib/components/benchmark-metric-line-chart.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
@@ -65,8 +68,17 @@
 					<BenchmarkMetricLineChart
 						runs={orderedRuns}
 						metric={frametimeMetric}
-						description="Frame pacing throughout each run. Lower and more consistent is better."
+						description="Frame pacing throughout each run with a moving average. Lower and more consistent is better."
 					/>
+					<div class="grid gap-4 lg:grid-cols-2">
+						<div class="lg:col-span-2">
+							<BenchmarkFrametimeDistributionChart runs={orderedRuns} />
+						</div>
+						{#each orderedRuns as run (run.id)}
+							<BenchmarkFrametimeClassificationChart {run} />
+							<BenchmarkFrametimeVarianceChart {run} />
+						{/each}
+					</div>
 				{/if}
 			</Tabs.Content>
 

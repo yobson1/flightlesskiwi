@@ -41,6 +41,7 @@
 <script lang="ts">
 	import {
 		buildSharedMetricChartData,
+		calculateFrametimeMovingAverage,
 		formatMetricValue,
 		hasNonZeroMetricValues,
 		stripFileExtension,
@@ -79,22 +80,48 @@
 			);
 			if (points.length === 0) return [];
 
+			const movingAveragePoints =
+				metric.key === 'frametime'
+					? calculateFrametimeMovingAverage(runMetric.values).flatMap((value, pointIndex) =>
+							value === null
+								? []
+								: [{ timeSeconds: runMetric.timeSeconds[pointIndex] ?? pointIndex, value }]
+						)
+					: [];
+
 			return [
 				{
 					key: run.id,
 					label: stripFileExtension(run.originalName),
+					movingAveragePoints,
 					points
 				}
 			];
 		})
 	);
-	const hasLegend = $derived(metricSeries.length > 1);
-	const chartData = $derived(buildSharedMetricChartData(metricSeries));
+	const plotSeries = $derived(
+		metricSeries.flatMap(({ key, label, movingAveragePoints, points }, colorIndex) => [
+			{ key, label, points, colorIndex, movingAverage: false },
+			...(movingAveragePoints.length > 0
+				? [
+						{
+							key: `${key}:moving-average`,
+							label: `${label} · moving average`,
+							points: movingAveragePoints,
+							colorIndex,
+							movingAverage: true
+						}
+					]
+				: [])
+		])
+	);
+	const hasLegend = $derived(plotSeries.length > 1);
+	const chartData = $derived(buildSharedMetricChartData(plotSeries));
 	const createOption = $derived((theme: BenchmarkEChartTheme): BenchmarkEChartOption => {
 		const baseOption = getBenchmarkEChartBaseOption(theme);
 		return {
 			...baseOption,
-			color: metricSeries.map((_, index) => getBenchmarkEChartSeriesColor(theme, index)),
+			color: plotSeries.map(({ colorIndex }) => getBenchmarkEChartSeriesColor(theme, colorIndex)),
 			dataZoom: [
 				{
 					filterMode: 'none',
@@ -155,10 +182,13 @@
 				show: true,
 				showTitle: false
 			},
-			series: metricSeries.map(({ key, label }) => ({
+			series: plotSeries.map(({ key, label, movingAverage }) => ({
 				data: chartData.map((row) => [row.timeSeconds, row[key]]),
 				emphasis: { focus: 'series' },
-				lineStyle: { width: 1.75 },
+				lineStyle: {
+					opacity: movingAverage ? 1 : metric.key === 'frametime' ? 0.55 : 1,
+					width: movingAverage ? 3 : 1.75
+				},
 				name: label,
 				showSymbol: false,
 				type: 'line'
