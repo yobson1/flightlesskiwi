@@ -5,6 +5,10 @@ import * as v from 'valibot';
 
 const nonEmptyString = v.pipe(v.string(), v.nonEmpty());
 const requiredAtRuntime = building ? v.optional(nonEmptyString) : nonEmptyString;
+const httpHeaderName = v.pipe(
+	nonEmptyString,
+	v.regex(/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/, 'Must be a valid HTTP header name')
+);
 const encryptionKey = v.pipe(
 	nonEmptyString,
 	v.check((value) => {
@@ -29,6 +33,14 @@ export const variables = defineEnvVars({
 	IGDB_CLIENT_SECRET: { schema: requiredAtRuntime },
 	AUTH_ENCRYPTION_KEY: {
 		schema: building ? v.optional(encryptionKey) : encryptionKey
+	},
+	CLIENT_IP_HEADER: {
+		schema: v.optional(httpHeaderName),
+		description: 'Header set by the trusted reverse proxy containing the original client IP'
+	},
+	TRUSTED_PROXY_ADDRESS: {
+		schema: v.optional(nonEmptyString),
+		description: 'Direct client address from which CLIENT_IP_HEADER may be trusted'
 	},
 	WEBAUTHN_RP_ID: { schema: requiredAtRuntime },
 	WEBAUTHN_RP_NAME: { schema: requiredAtRuntime },

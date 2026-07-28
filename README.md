@@ -73,7 +73,10 @@ bun run db:generate
 
 For TLS in production, put the application behind a reverse proxy such as
 [nginx](https://nginx.org/en/), and set `ORIGIN`, `WEBAUTHN_ORIGIN`, and
-`WEBAUTHN_RP_ID` for the public HTTPS URL.
+`WEBAUTHN_RP_ID` for the public HTTPS URL. To use the original client IP for
+authentication rate limits, set `CLIENT_IP_HEADER` to a header overwritten by the
+proxy and `TRUSTED_PROXY_ADDRESS` to the proxy's direct address. Both values must
+be set before the header is trusted.
 
 ## Usage
 
