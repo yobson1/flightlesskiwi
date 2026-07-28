@@ -29,6 +29,7 @@ interface MeilisearchIndexOptions<Document extends RecordAny, Id extends Documen
 	primaryKey?: string;
 	searchableAttributes: string[];
 	displayedAttributes: string[];
+	filterableAttributes?: string[];
 	documentVersion: number;
 	getAllDocumentIds: () => Id[] | Promise<Id[]>;
 	getDocuments: (documentIds: Id[]) => Document[] | Promise<Document[]>;
@@ -40,6 +41,7 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 	primaryKey = 'id',
 	searchableAttributes,
 	displayedAttributes,
+	filterableAttributes,
 	documentVersion,
 	getAllDocumentIds,
 	getDocuments,
@@ -69,13 +71,16 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 		const settings = await index.getSettings();
 		if (
 			!arraysEqual(settings.searchableAttributes, searchableAttributes) ||
-			!arraysEqual(settings.displayedAttributes, storedDisplayedAttributes)
+			!arraysEqual(settings.displayedAttributes, storedDisplayedAttributes) ||
+			(filterableAttributes !== undefined &&
+				!arraysEqual(settings.filterableAttributes, filterableAttributes))
 		) {
 			info(`Updating settings for Meilisearch index "${name}"`);
 			await waitForMeilisearchTask(
 				index.updateSettings({
 					searchableAttributes,
-					displayedAttributes: storedDisplayedAttributes
+					displayedAttributes: storedDisplayedAttributes,
+					...(filterableAttributes === undefined ? {} : { filterableAttributes })
 				})
 			);
 		}
@@ -276,7 +281,7 @@ function isMissingIndex(cause: unknown) {
 	);
 }
 
-function arraysEqual(left: string[] | null | undefined, right: string[]) {
+function arraysEqual(left: readonly unknown[] | null | undefined, right: readonly unknown[]) {
 	if (!left) return false;
 	return left.length === right.length && left.every((value, index) => value === right[index]);
 }

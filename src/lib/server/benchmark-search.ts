@@ -7,12 +7,14 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 const INDEX_NAME = 'benchmarks';
 const SEARCH_LIMIT = 100;
-const INDEX_DOCUMENT_VERSION = 3;
+const INDEX_DOCUMENT_VERSION = 4;
 const SEARCHABLE_ATTRIBUTES = ['title', 'gameNames', 'runMetadata'];
-const DISPLAYED_ATTRIBUTES = ['id', 'cpus', 'gpus'];
+const DISPLAYED_ATTRIBUTES = ['id', 'gameId', 'cpus', 'gpus'];
+const FILTERABLE_ATTRIBUTES = ['gameId'];
 
 interface BenchmarkSearchDocument {
 	id: string;
+	gameId: number;
 	title: string;
 	gameNames: string[];
 	cpus: string[];
@@ -30,6 +32,7 @@ const {
 	name: INDEX_NAME,
 	searchableAttributes: SEARCHABLE_ATTRIBUTES,
 	displayedAttributes: DISPLAYED_ATTRIBUTES,
+	filterableAttributes: FILTERABLE_ATTRIBUTES,
 	documentVersion: INDEX_DOCUMENT_VERSION,
 	getAllDocumentIds: () =>
 		db
@@ -70,6 +73,7 @@ async function getSearchDocuments(benchmarkIds: string[]) {
 	const rows = db
 		.select({
 			id: benchmarkResult.id,
+			gameId: benchmarkResult.gameId,
 			title: benchmarkResult.title,
 			gameName: gameName.name
 		})
@@ -86,6 +90,7 @@ async function getSearchDocuments(benchmarkIds: string[]) {
 		} else {
 			documents.set(row.id, {
 				id: row.id,
+				gameId: row.gameId,
 				title: row.title,
 				gameNames: [row.gameName],
 				cpus: [],
@@ -146,12 +151,13 @@ function getBenchmarkListings(
 		});
 }
 
-export async function searchBenchmarks(query: string) {
+export async function searchBenchmarks(query: string, gameId?: number) {
 	await getReadyIndex();
 
 	const response = await index.search<BenchmarkSearchDocument>(query, {
 		limit: SEARCH_LIMIT,
-		attributesToRetrieve: DISPLAYED_ATTRIBUTES
+		attributesToRetrieve: DISPLAYED_ATTRIBUTES,
+		filter: gameId === undefined ? undefined : `gameId = ${gameId}`
 	});
 	return getBenchmarkListings(response.hits);
 }

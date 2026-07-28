@@ -1,9 +1,16 @@
 <script lang="ts">
+	import FilterIcon from '@lucide/svelte/icons/list-filter';
+	import XIcon from '@lucide/svelte/icons/x';
 	import SvelteVirtualList from '@humanspeak/svelte-virtual-list';
 	import { resolve } from '$app/paths';
 	import BenchmarkListing from '$lib/components/benchmark-listing.svelte';
+	import GameSearch from '$lib/components/game-search.svelte';
 	import Search from '$lib/components/search.svelte';
-	import { untrack } from 'svelte';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Popover from '$lib/components/ui/popover';
+	import { constructImageUrl } from '$lib/igdb';
+	import type { GameSearchResult } from '$lib/types/game';
+	import { onDestroy, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import type { PageProps } from './$types';
 
@@ -15,12 +22,32 @@
 	let loadingMore = $state(false);
 	let loadMoreFailed = $state(false);
 	let activeSearchQuery = $state('');
-	let hasMore = $derived(activeSearchQuery.length === 0 && nextCursor !== null && !loadMoreFailed);
+	let selectedGame = $state<GameSearchResult | null>(null);
+	let gameFilterOpen = $state(false);
+	let loadingGameFilter = $state(false);
+	let benchmarkSearchKey = $state(0);
+	let filterController: AbortController | undefined;
+	let benchmarkListVersion = 0;
+	let hasMore = $derived(
+		activeSearchQuery.length === 0 && nextCursor !== null && !loadMoreFailed && !loadingGameFilter
+	);
 
 	type Benchmark = (typeof benchmarks)[number];
+	type BenchmarkPage = {
+		benchmarks: Array<Omit<Benchmark, 'createdAt'> & { createdAt: string }>;
+		nextCursor: typeof nextCursor;
+	};
+
+	onDestroy(() => filterController?.abort());
 
 	async function searchBenchmarks(query: string, signal: AbortSignal): Promise<Benchmark[]> {
-		const response = await fetch(resolve('/api/benchmarks/search/[query]', { query }), { signal });
+		const searchParams = new URLSearchParams();
+		if (selectedGame) searchParams.set('game_id', selectedGame.id.toString());
+		const searchSuffix = searchParams.size > 0 ? `?${searchParams}` : '';
+		const response = await fetch(
+			`${resolve('/api/benchmarks/search/[query]', { query })}${searchSuffix}`,
+			{ signal }
+		);
 		const data = await response.json();
 		if (!response.ok) {
 			throw new Error(data.error || `Failed to search benchmarks (${response.status})`);
@@ -53,8 +80,62 @@
 		loadMoreFailed = false;
 	}
 
+	function mapBenchmarkDates(page: BenchmarkPage) {
+		return page.benchmarks.map((benchmark) => ({
+			...benchmark,
+			createdAt: new Date(benchmark.createdAt)
+		}));
+	}
+
+	async function applyGameFilter(game: GameSearchResult | null) {
+		filterController?.abort();
+		const controller = new AbortController();
+		filterController = controller;
+		benchmarkListVersion += 1;
+		selectedGame = game;
+		gameFilterOpen = false;
+		benchmarkSearchKey += 1;
+		activeSearchQuery = '';
+		benchmarks = [];
+		browsedBenchmarks = [];
+		nextCursor = null;
+		loadMoreFailed = false;
+		loadingGameFilter = true;
+
+		try {
+			const searchParams = new URLSearchParams();
+			if (game) searchParams.set('game_id', game.id.toString());
+			const suffix = searchParams.size > 0 ? `?${searchParams}` : '';
+			const response = await fetch(`${resolve('/api/benchmarks')}${suffix}`, {
+				signal: controller.signal
+			});
+			const page = (await response.json()) as BenchmarkPage & { message?: string };
+			if (!response.ok) {
+				throw new Error(page.message || 'Unable to apply the game filter');
+			}
+			if (controller.signal.aborted || activeSearchQuery) return;
+
+			benchmarks = mapBenchmarkDates(page);
+			browsedBenchmarks = [...benchmarks];
+			nextCursor = page.nextCursor;
+		} catch (cause) {
+			if (cause instanceof Error && cause.name === 'AbortError') return;
+			toast.error(cause instanceof Error ? cause.message : 'Unable to apply the game filter');
+		} finally {
+			if (filterController === controller) {
+				filterController = undefined;
+				loadingGameFilter = false;
+			}
+		}
+	}
+
+	function selectGame(_: number, game: GameSearchResult) {
+		void applyGameFilter(game);
+	}
+
 	async function loadMore() {
-		if (loadingMore || nextCursor === null || activeSearchQuery) return;
+		if (loadingMore || loadingGameFilter || nextCursor === null || activeSearchQuery) return;
+		const requestedListVersion = benchmarkListVersion;
 		loadingMore = true;
 		loadMoreFailed = false;
 
@@ -63,21 +144,13 @@
 				before: nextCursor.createdAt.toString(),
 				before_id: nextCursor.id
 			});
+			if (selectedGame) searchParams.set('game_id', selectedGame.id.toString());
 			const response = await fetch(`${resolve('/api/benchmarks')}?${searchParams}`);
 			if (!response.ok) throw new Error('Unable to load more benchmarks');
 
-			const page = (await response.json()) as {
-				benchmarks: Array<Omit<Benchmark, 'createdAt'> & { createdAt: string }>;
-				nextCursor: typeof nextCursor;
-			};
-			if (activeSearchQuery) return;
-			benchmarks = [
-				...benchmarks,
-				...page.benchmarks.map((benchmark) => ({
-					...benchmark,
-					createdAt: new Date(benchmark.createdAt)
-				}))
-			];
+			const page = (await response.json()) as BenchmarkPage;
+			if (activeSearchQuery || requestedListVersion !== benchmarkListVersion) return;
+			benchmarks = [...benchmarks, ...mapBenchmarkDates(page)];
 			browsedBenchmarks = [...benchmarks];
 			nextCursor = page.nextCursor;
 		} catch (cause) {
@@ -102,17 +175,80 @@
 		</p>
 	</div>
 
-	<label for="benchmark-search" class="sr-only">Search benchmarks</label>
-	<Search
-		search={searchBenchmarks}
-		onResults={setSearchResults}
-		onQueryChange={setActiveSearchQuery}
-		onClear={resetBenchmarkList}
-		inputId="benchmark-search"
-		placeholder="Search benchmarks by title, game or run configuration..."
-	/>
+	<div class="flex flex-col gap-2">
+		<div class="flex items-start gap-2">
+			<div class="min-w-0 flex-1">
+				<label for="benchmark-search" class="sr-only">Search benchmarks</label>
+				{#key benchmarkSearchKey}
+					<Search
+						search={searchBenchmarks}
+						onResults={setSearchResults}
+						onQueryChange={setActiveSearchQuery}
+						onClear={resetBenchmarkList}
+						inputId="benchmark-search"
+						placeholder="Search by title, game or run configuration..."
+					/>
+				{/key}
+			</div>
+			<Popover.Root bind:open={gameFilterOpen}>
+				<Popover.Trigger
+					class={buttonVariants({
+						variant: selectedGame ? 'secondary' : 'outline',
+						size: 'icon'
+					})}
+					aria-label="Filter benchmarks by game"
+					title="Filter by game"
+				>
+					<FilterIcon />
+				</Popover.Trigger>
+				<Popover.Content align="end" class="w-[min(24rem,calc(100vw-2rem))]">
+					<Popover.Header>
+						<Popover.Title>Filter by game</Popover.Title>
+						<Popover.Description>
+							Choose a game, then search within its benchmark results.
+						</Popover.Description>
+					</Popover.Header>
+					<label for="benchmark-game-filter" class="sr-only">Search for a game</label>
+					<GameSearch onSelected={selectGame} noParent inputId="benchmark-game-filter" />
+				</Popover.Content>
+			</Popover.Root>
+		</div>
 
-	{#if benchmarks.length > 0}
+		{#if selectedGame}
+			<div
+				class="flex w-fit max-w-full items-center gap-2 rounded-full border bg-muted/50 py-1 pr-1 pl-1.5 text-sm"
+			>
+				{#if selectedGame.coverImgId}
+					<img
+						src={constructImageUrl(selectedGame.coverImgId, 'cover_small')}
+						alt=""
+						class="size-6 rounded-full object-cover"
+					/>
+				{:else}
+					<FilterIcon class="ml-1 size-3.5 text-muted-foreground" />
+				{/if}
+				<span class="truncate">
+					<span class="text-muted-foreground">Game:</span>
+					{selectedGame.name}
+				</span>
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					aria-label={`Remove ${selectedGame.name} filter`}
+					title="Remove game filter"
+					onclick={() => void applyGameFilter(null)}
+				>
+					<XIcon />
+				</Button>
+			</div>
+		{/if}
+	</div>
+
+	{#if loadingGameFilter}
+		<div class="rounded-xl border border-dashed p-8 text-center">
+			<p class="text-sm text-muted-foreground">Loading benchmark results…</p>
+		</div>
+	{:else if benchmarks.length > 0}
 		<div class="relative left-1/2 min-h-80 w-screen flex-1 -translate-x-1/2">
 			{#key activeSearchQuery}
 				<SvelteVirtualList
@@ -121,7 +257,11 @@
 					onLoadMore={loadMore}
 					loadMoreThreshold={5}
 					{hasMore}
-					viewportLabel={activeSearchQuery ? 'Benchmark search results' : 'Recent benchmarks'}
+					viewportLabel={activeSearchQuery
+						? 'Benchmark search results'
+						: selectedGame
+							? `${selectedGame.name} benchmarks`
+							: 'Recent benchmarks'}
 				>
 					{#snippet renderItem(benchmark)}
 						<div class="px-4">
@@ -145,7 +285,14 @@
 		<div class="rounded-xl border border-dashed p-8 text-center">
 			{#if activeSearchQuery}
 				<h2 class="font-semibold">No matching benchmarks</h2>
-				<p class="mt-1 text-sm text-muted-foreground">Try a different benchmark title or game.</p>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Try a different title, GPU, CPU or run name.
+				</p>
+			{:else if selectedGame}
+				<h2 class="font-semibold">No benchmarks for {selectedGame.name}</h2>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Remove the game filter to browse all benchmarks.
+				</p>
 			{:else}
 				<h2 class="font-semibold">No benchmarks yet</h2>
 				<p class="mt-1 text-sm text-muted-foreground">Uploaded benchmarks will appear here.</p>

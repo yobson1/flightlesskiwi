@@ -85,7 +85,7 @@ export async function getBenchmarkRunMetadata(benchmarkIds: string[]) {
 	return benchmarkMetadata;
 }
 
-export async function getPublicBenchmarksPage(cursor?: PublicBenchmarkCursor) {
+export async function getPublicBenchmarksPage(cursor?: PublicBenchmarkCursor, gameId?: number) {
 	const cursorCondition = cursor
 		? or(
 				lt(benchmarkResult.createdAt, new Date(cursor.createdAt)),
@@ -109,7 +109,9 @@ export async function getPublicBenchmarksPage(cursor?: PublicBenchmarkCursor) {
 		.innerJoin(user, eq(benchmarkResult.userId, user.id))
 		.innerJoin(game, eq(benchmarkResult.gameId, game.id))
 		.leftJoin(gameName, and(eq(gameName.gameId, game.id), eq(gameName.isPrimary, true)))
-		.where(cursorCondition)
+		.where(
+			and(cursorCondition, gameId === undefined ? undefined : eq(benchmarkResult.gameId, gameId))
+		)
 		.orderBy(desc(benchmarkResult.createdAt), desc(benchmarkResult.id))
 		.limit(PUBLIC_BENCHMARK_PAGE_SIZE + 1)
 		.all();

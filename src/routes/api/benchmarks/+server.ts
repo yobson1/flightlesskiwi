@@ -7,8 +7,12 @@ export const GET: RequestHandler = async ({ url }) => {
 	if (cursor === false) {
 		return json({ message: 'Invalid benchmark cursor' }, { status: 400 });
 	}
+	const gameId = parseGameId(url.searchParams);
+	if (gameId === false) {
+		return json({ message: 'Invalid game filter' }, { status: 400 });
+	}
 
-	return json(await getPublicBenchmarksPage(cursor));
+	return json(await getPublicBenchmarksPage(cursor, gameId));
 };
 
 function parseCursor(searchParams: URLSearchParams): PublicBenchmarkCursor | undefined | false {
@@ -23,4 +27,12 @@ function parseCursor(searchParams: URLSearchParams): PublicBenchmarkCursor | und
 	}
 
 	return { createdAt, id };
+}
+
+function parseGameId(searchParams: URLSearchParams): number | undefined | false {
+	const value = searchParams.get('game_id');
+	if (value === null) return undefined;
+
+	const gameId = Number(value);
+	return Number.isSafeInteger(gameId) && gameId > 0 ? gameId : false;
 }
