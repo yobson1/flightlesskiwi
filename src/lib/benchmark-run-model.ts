@@ -12,7 +12,7 @@ export const BENCHMARK_METRIC_DEFINITIONS = {
 	gpu_vram_used: { prettyName: 'GPU VRAM Used', unit: 'GiB' },
 	gpu_power: { prettyName: 'GPU Power', unit: 'W' },
 	ram_used: { prettyName: 'RAM Used', unit: 'GiB' },
-	process_rss: { prettyName: 'Process RSS', unit: 'GiB' }
+	process_rss: { prettyName: 'Process RAM Usage', unit: 'GiB' }
 } as const;
 
 export type BenchmarkSource = 'mangohud' | 'capframex';
