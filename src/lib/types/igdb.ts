@@ -1,4 +1,4 @@
-export type ImageSize =
+type BaseImageSize =
 	| 'cover_small'
 	| 'cover_big'
 	| 'screenshot_med'
@@ -9,6 +9,8 @@ export type ImageSize =
 	| 'micro'
 	| '720p'
 	| '1080p';
+
+export type ImageSize = BaseImageSize | `${BaseImageSize}_2x`;
 
 interface Cover {
 	id: number;

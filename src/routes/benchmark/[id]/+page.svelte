@@ -14,6 +14,7 @@
 	import MarkdownPreview from '$lib/components/markdown-preview.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { constructImageUrl } from '$lib/igdb';
 	import { toast } from 'svelte-sonner';
 	import { getMessage } from '$lib/utils';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -22,6 +23,15 @@
 	let { data }: PageProps = $props();
 	let deleting = $state(false);
 	let descriptionPreviewOpen = $state(false);
+	let previewDescription = $derived(
+		`${data.benchmark.gameName ?? 'Game'} benchmark shared by ${data.benchmark.username}, with ${data.runs.length} recorded ${data.runs.length === 1 ? 'run' : 'runs'}.`
+	);
+	let previewImage = $derived(
+		data.benchmark.coverImgId ? constructImageUrl(data.benchmark.coverImgId, 'cover_big_2x') : null
+	);
+	let previewImageAlt = $derived(
+		data.benchmark.gameName ? `${data.benchmark.gameName} cover art` : 'Game cover art'
+	);
 
 	const dateFormatter = new Intl.DateTimeFormat('en', {
 		dateStyle: 'long',
@@ -49,6 +59,29 @@
 
 <svelte:head>
 	<title>{data.benchmark.title} · flightlesskiwi</title>
+	<meta name="description" content={previewDescription} />
+	<link rel="canonical" href={data.canonicalUrl} />
+
+	<meta property="og:title" content={data.benchmark.title} />
+	<meta property="og:description" content={previewDescription} />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={data.canonicalUrl} />
+	<meta property="og:site_name" content="flightlesskiwi" />
+	<meta property="og:locale" content="en_GB" />
+
+	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:title" content={data.benchmark.title} />
+	<meta name="twitter:description" content={previewDescription} />
+
+	{#if previewImage}
+		<meta property="og:image" content={previewImage} />
+		<meta property="og:image:type" content="image/webp" />
+		<meta property="og:image:width" content="528" />
+		<meta property="og:image:height" content="704" />
+		<meta property="og:image:alt" content={previewImageAlt} />
+		<meta name="twitter:image" content={previewImage} />
+		<meta name="twitter:image:alt" content={previewImageAlt} />
+	{/if}
 </svelte:head>
 
 <div class="grid items-stretch gap-8 lg:grid-cols-2">

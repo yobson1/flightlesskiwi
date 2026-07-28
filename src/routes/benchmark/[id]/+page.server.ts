@@ -6,10 +6,10 @@ import { requireVerifiedSession } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles, readBenchmarkFile } from '$lib/server/benchmark-files';
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
 import { db } from '$lib/server/db';
-import { benchmarkFile, benchmarkResult, user } from '$lib/server/db/schema';
+import { benchmarkFile, benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
+export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) => {
 	setHeaders({ 'cache-control': 'private, no-store' });
 
 	const benchmark = db
@@ -20,10 +20,14 @@ export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
 			description: benchmarkResult.description,
 			createdAt: benchmarkResult.createdAt,
 			gameId: benchmarkResult.gameId,
-			username: user.username
+			username: user.username,
+			gameName: gameName.name,
+			coverImgId: game.coverImgId
 		})
 		.from(benchmarkResult)
 		.innerJoin(user, eq(benchmarkResult.userId, user.id))
+		.innerJoin(game, eq(benchmarkResult.gameId, game.id))
+		.leftJoin(gameName, and(eq(gameName.gameId, game.id), eq(gameName.isPrimary, true)))
 		.where(eq(benchmarkResult.id, params.id))
 		.get();
 
@@ -59,7 +63,8 @@ export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
 	return {
 		benchmark: publicBenchmark,
 		runs,
-		canDelete: locals.user?.id === userId
+		canDelete: locals.user?.id === userId,
+		canonicalUrl: new URL(url.pathname, url.origin).href
 	};
 };
 
