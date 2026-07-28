@@ -1,3 +1,4 @@
+import { dev } from '$app/env';
 import winston from 'winston';
 import path from 'path';
 
@@ -28,7 +29,7 @@ const addCallerInfo = winston.format((info) => {
 	return info;
 });
 
-const log_level = process.env.NODE_ENV === 'production' ? 'info' : 'debug';
+const log_level = dev ? 'debug' : 'info';
 const logger = winston.createLogger({
 	level: log_level,
 	format: winston.format.combine(
