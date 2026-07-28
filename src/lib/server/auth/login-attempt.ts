@@ -4,7 +4,12 @@ import { eq, lt } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { loginAttempt as loginAttemptTable } from '$lib/server/db/schema';
 import { getUserById, type AuthUser } from '$lib/server/auth/user';
-import { constantTimeEqual, generateSecureRandomString, hashSecret, parseTwoPartToken } from '$lib/server/auth/utils';
+import {
+	constantTimeEqual,
+	generateSecureRandomString,
+	hashSecret,
+	parseTwoPartToken
+} from '$lib/server/auth/utils';
 
 const LOGIN_ATTEMPT_TTL_MS = 5 * 60 * 1000;
 const cookieName = 'login_attempt';
