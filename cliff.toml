@@ -70,7 +70,7 @@ body = """
       `{{ remote.github.repo }}_{{ version | trim_start_matches(pat="v") }}.tar.gz`.
     - Install runtime dependencies with `bun install --production --frozen-lockfile`.
     - Apply database migrations with `bun run db:migrate:deploy`.
-    - Start the server with `bun run build/index.js`.
+    - Start the server with `bun --bun run build/index.js`.
 {% endif %}
 """
 footer = """
