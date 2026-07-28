@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { createBenchmarkMetric } from './benchmark-run-model';
 import {
 	getCapFrameXRunCount,
 	parseCapFrameXBenchmarkData,
@@ -107,16 +108,12 @@ describe('CapFrameX benchmark data parsing', () => {
 			'process_rss',
 			'ram_used'
 		]);
-		expect(data?.metrics.find(({ key }) => key === 'fps')).toEqual({
-			key: 'fps',
-			timeSeconds: [0, 0.09999999999999964, 0.25, 0.5],
-			values: [100, 50, 200, 125]
-		});
-		expect(data?.metrics.find(({ key }) => key === 'cpu_load')).toEqual({
-			key: 'cpu_load',
-			timeSeconds: [0, 0.25, 0.5],
-			values: [20, 30, 40]
-		});
+		expect(data?.metrics.find(({ key }) => key === 'fps')).toEqual(
+			createBenchmarkMetric('fps', [0, 0.09999999999999964, 0.25, 0.5], [100, 50, 200, 125])
+		);
+		expect(data?.metrics.find(({ key }) => key === 'cpu_load')).toEqual(
+			createBenchmarkMetric('cpu_load', [0, 0.25, 0.5], [20, 30, 40])
+		);
 		expect(data?.metrics.find(({ key }) => key === 'cpu_mhz')?.values).toEqual([5000, 5000, 5000]);
 		expect(data?.metrics.find(({ key }) => key === 'gpu_power')?.values).toEqual([200, 210, 220]);
 		expect(parseCapFrameXBenchmarkRun(capFrameXJson())?.source).toBe('capframex');
@@ -144,10 +141,10 @@ describe('CapFrameX benchmark data parsing', () => {
 
 		expect(parseCapFrameXBenchmarkData(json)?.metrics).toEqual(
 			expect.arrayContaining([
-				{ key: 'cpu_load', timeSeconds: [0, 0.25], values: [20, 30] },
-				{ key: 'cpu_mhz', timeSeconds: [0, 0.25], values: [4800, 4900] },
-				{ key: 'process_rss', timeSeconds: [0, 0.25], values: [2, 3] },
-				{ key: 'gpu_vram_used', timeSeconds: [0, 0.25], values: [2, 3] }
+				createBenchmarkMetric('cpu_load', [0, 0.25], [20, 30]),
+				createBenchmarkMetric('cpu_mhz', [0, 0.25], [4800, 4900]),
+				createBenchmarkMetric('process_rss', [0, 0.25], [2, 3]),
+				createBenchmarkMetric('gpu_vram_used', [0, 0.25], [2, 3])
 			])
 		);
 	});

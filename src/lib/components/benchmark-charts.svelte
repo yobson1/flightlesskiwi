@@ -10,6 +10,7 @@
 	import BenchmarkMetricAverageChart from '$lib/components/benchmark-metric-average-chart.svelte';
 	import BenchmarkMetricLineChart from '$lib/components/benchmark-metric-line-chart.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
+	import type { BenchmarkMetric } from '$lib/benchmark-run';
 
 	interface Props {
 		benchmarkId: string;
@@ -19,19 +20,22 @@
 	let { benchmarkId, runs }: Props = $props();
 
 	const orderedRuns = $derived(sortBenchmarkChartRunsByAverageFps(runs));
-	const metricKeys = $derived.by(() => {
-		const keys: string[] = [];
+	const metrics = $derived.by(() => {
+		const metrics: BenchmarkMetric[] = [];
 		for (const run of orderedRuns) {
 			for (const metric of run.benchmarkRun?.data.metrics ?? []) {
-				if (hasNonZeroMetricValues(metric.values) && !keys.includes(metric.key)) {
-					keys.push(metric.key);
+				if (
+					hasNonZeroMetricValues(metric.values) &&
+					!metrics.some(({ key }) => key === metric.key)
+				) {
+					metrics.push(metric);
 				}
 			}
 		}
-		return keys;
+		return metrics;
 	});
-	const hasFps = $derived(metricKeys.includes('fps'));
-	const hasFrametime = $derived(metricKeys.includes('frametime'));
+	const hasFps = $derived(metrics.some(({ key }) => key === 'fps'));
+	const frametimeMetric = $derived(metrics.find(({ key }) => key === 'frametime'));
 </script>
 
 <section class="mt-8" aria-labelledby="benchmark-charts-heading">
@@ -40,7 +44,7 @@
 		<h2 id="benchmark-charts-heading" class="text-xl font-semibold">Benchmark charts</h2>
 	</div>
 
-	{#if metricKeys.length === 0}
+	{#if metrics.length === 0}
 		<div class="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
 			No supported performance data could be read from the included files.
 		</div>
@@ -56,25 +60,25 @@
 				{#if hasFps}
 					<BenchmarkFpsSummaryChart {benchmarkId} runs={orderedRuns} />
 				{/if}
-				{#if hasFrametime}
+				{#if frametimeMetric}
 					<BenchmarkFrametimeStabilityChart {benchmarkId} runs={orderedRuns} />
 					<BenchmarkMetricLineChart
 						runs={orderedRuns}
-						metricKey="frametime"
+						metric={frametimeMetric}
 						description="Frame pacing throughout each run. Lower and more consistent is better."
 					/>
 				{/if}
 			</Tabs.Content>
 
 			<Tabs.Content value="summary" class="mt-4 grid gap-4 lg:grid-cols-2">
-				{#each metricKeys as metricKey (metricKey)}
-					<BenchmarkMetricAverageChart {benchmarkId} runs={orderedRuns} {metricKey} />
+				{#each metrics as metric (metric.key)}
+					<BenchmarkMetricAverageChart {benchmarkId} runs={orderedRuns} {metric} />
 				{/each}
 			</Tabs.Content>
 
 			<Tabs.Content value="all-data" class="mt-4 space-y-4">
-				{#each metricKeys as metricKey (metricKey)}
-					<BenchmarkMetricLineChart runs={orderedRuns} {metricKey} />
+				{#each metrics as metric (metric.key)}
+					<BenchmarkMetricLineChart runs={orderedRuns} {metric} />
 				{/each}
 			</Tabs.Content>
 		</Tabs.Root>

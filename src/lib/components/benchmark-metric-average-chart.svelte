@@ -1,30 +1,29 @@
 <script lang="ts">
 	import {
 		averageMetricValues,
-		formatBenchmarkMetricName,
 		getBenchmarkChartColorIndex,
-		getBenchmarkMetricUnit,
 		hasNonZeroMetricValues,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
+	import type { BenchmarkMetric } from '$lib/benchmark-run';
 	import BenchmarkHorizontalBarChart from '$lib/components/benchmark-horizontal-bar-chart.svelte';
 
 	interface Props {
 		benchmarkId: string;
 		runs: BenchmarkChartRun[];
-		metricKey: string;
+		metric: BenchmarkMetric;
 	}
 
-	let { benchmarkId, runs, metricKey }: Props = $props();
+	let { benchmarkId, runs, metric }: Props = $props();
 
-	const title = $derived(formatBenchmarkMetricName(metricKey));
-	const unit = $derived(getBenchmarkMetricUnit(metricKey));
+	const title = $derived(metric.prettyName);
+	const unit = $derived(metric.unit);
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
-			const metric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metricKey);
-			if (!metric || !hasNonZeroMetricValues(metric.values)) return [];
-			const average = averageMetricValues(metric.values);
+			const runMetric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metric.key);
+			if (!runMetric || !hasNonZeroMetricValues(runMetric.values)) return [];
+			const average = averageMetricValues(runMetric.values);
 			return average === null ? [] : [{ run: stripFileExtension(run.originalName), average }];
 		})
 	);
@@ -33,7 +32,7 @@
 			key: 'average',
 			label: `Average ${title}`,
 			value: 'average',
-			colorIndex: getBenchmarkChartColorIndex(benchmarkId, `summary:${metricKey}`)
+			colorIndex: getBenchmarkChartColorIndex(benchmarkId, `summary:${metric.key}`)
 		}
 	]);
 </script>

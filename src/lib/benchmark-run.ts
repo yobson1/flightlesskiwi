@@ -4,6 +4,8 @@ import type { BenchmarkRun, BenchmarkSystemInfo } from '$lib/benchmark-run-model
 
 export {
 	BENCHMARK_METRIC_KEYS,
+	BENCHMARK_METRIC_DEFINITIONS,
+	createBenchmarkMetric,
 	isBenchmarkMetricKey,
 	type BenchmarkData,
 	type BenchmarkMetric,

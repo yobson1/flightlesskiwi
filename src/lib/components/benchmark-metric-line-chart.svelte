@@ -41,13 +41,12 @@
 <script lang="ts">
 	import {
 		buildSharedMetricChartData,
-		formatBenchmarkMetricName,
 		formatMetricValue,
-		getBenchmarkMetricUnit,
 		hasNonZeroMetricValues,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
+	import type { BenchmarkMetric } from '$lib/benchmark-run';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
 	import {
 		getBenchmarkEChartAxis,
@@ -60,21 +59,23 @@
 
 	interface Props {
 		runs: BenchmarkChartRun[];
-		metricKey: string;
+		metric: BenchmarkMetric;
 		description?: string;
 	}
 
-	let { runs, metricKey, description }: Props = $props();
+	let { runs, metric, description }: Props = $props();
 
-	const unit = $derived(getBenchmarkMetricUnit(metricKey));
-	const title = $derived(formatBenchmarkMetricName(metricKey));
+	const unit = $derived(metric.unit);
+	const title = $derived(metric.prettyName);
 	const metricSeries = $derived.by(() =>
 		runs.flatMap((run) => {
-			const metric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metricKey);
-			if (!metric || !hasNonZeroMetricValues(metric.values)) return [];
+			const runMetric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metric.key);
+			if (!runMetric || !hasNonZeroMetricValues(runMetric.values)) return [];
 
-			const points = metric.values.flatMap((value, pointIndex) =>
-				value === null ? [] : [{ timeSeconds: metric.timeSeconds[pointIndex] ?? pointIndex, value }]
+			const points = runMetric.values.flatMap((value, pointIndex) =>
+				value === null
+					? []
+					: [{ timeSeconds: runMetric.timeSeconds[pointIndex] ?? pointIndex, value }]
 			);
 			if (points.length === 0) return [];
 

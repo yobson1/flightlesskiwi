@@ -1,4 +1,5 @@
 import {
+	createBenchmarkMetric,
 	isBenchmarkMetricKey,
 	type BenchmarkData,
 	type BenchmarkMetricKey,
@@ -102,7 +103,7 @@ export function parseMangoHudBenchmarkData(csv: string): BenchmarkData | null {
 	if (timeSeconds.length === 0) return null;
 
 	const metrics = metricColumns
-		.map(({ key }) => ({ key, timeSeconds: [...timeSeconds], values: metricValues.get(key)! }))
+		.map(({ key }) => createBenchmarkMetric(key, [...timeSeconds], metricValues.get(key)!))
 		.filter(({ values }) => values.some((value) => value !== null));
 	if (metrics.length === 0) return null;
 

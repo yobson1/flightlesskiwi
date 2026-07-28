@@ -3,17 +3,15 @@ import {
 	averageMetricValues,
 	buildSharedMetricChartData,
 	calculateFrametimeStability,
-	formatBenchmarkMetricName,
 	formatMetricValue,
 	getBenchmarkChartColorIndex,
-	getBenchmarkMetricUnit,
 	hasNonZeroMetricValues,
 	percentagesRelativeToMinimum,
 	percentileMetricValue,
 	sortBenchmarkChartRunsByAverageFps,
 	stripFileExtension
 } from './benchmark-chart';
-import type { BenchmarkRun } from './benchmark-run';
+import { createBenchmarkMetric, type BenchmarkRun } from './benchmark-run';
 
 function parsedBenchmarkRun(fps: number[]): BenchmarkRun {
 	return {
@@ -30,24 +28,21 @@ function parsedBenchmarkRun(fps: number[]): BenchmarkRun {
 			motherboard: ''
 		},
 		data: {
-			metrics: [{ key: 'fps', timeSeconds: fps.map((_, index) => index), values: fps }]
+			metrics: [
+				createBenchmarkMetric(
+					'fps',
+					fps.map((_, index) => index),
+					fps
+				)
+			]
 		}
 	};
 }
 
 describe('benchmark chart metric helpers', () => {
-	test('formats known acronyms and title-cases other metric words', () => {
-		expect(formatBenchmarkMetricName('fps')).toBe('FPS');
-		expect(formatBenchmarkMetricName('cpu_load')).toBe('CPU Load');
-		expect(formatBenchmarkMetricName('gpu_vram_used')).toBe('GPU VRAM Used');
-		expect(formatBenchmarkMetricName('frametime')).toBe('Frametime');
-	});
-
-	test('provides units for known MangoHud metrics', () => {
-		expect(getBenchmarkMetricUnit('frametime')).toBe('ms');
-		expect(getBenchmarkMetricUnit('gpu_temp')).toBe('°C');
-		expect(getBenchmarkMetricUnit('unknown_metric')).toBe('');
+	test('formats metric values with and without units', () => {
 		expect(formatMetricValue(110, '%')).toBe('110%');
+		expect(formatMetricValue(110)).toBe('110');
 	});
 
 	test('strips the final extension from benchmark filenames', () => {

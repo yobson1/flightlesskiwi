@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { createBenchmarkMetric } from './benchmark-run-model';
 import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from './mangohud';
 
 describe('MangoHud system information parsing', () => {
@@ -60,10 +61,10 @@ describe('MangoHud benchmark data parsing', () => {
 
 		expect(parseMangoHudBenchmarkData(csv)).toEqual({
 			metrics: [
-				{ key: 'fps', timeSeconds: [0, 0.02528377], values: [114.136, 122.986] },
-				{ key: 'frametime', timeSeconds: [0, 0.02528377], values: [8.7615, 8.13101] },
-				{ key: 'cpu_load', timeSeconds: [0, 0.02528377], values: [23.2298, null] },
-				{ key: 'gpu_power', timeSeconds: [0, 0.02528377], values: [81, 82] }
+				createBenchmarkMetric('fps', [0, 0.02528377], [114.136, 122.986]),
+				createBenchmarkMetric('frametime', [0, 0.02528377], [8.7615, 8.13101]),
+				createBenchmarkMetric('cpu_load', [0, 0.02528377], [23.2298, null]),
+				createBenchmarkMetric('gpu_power', [0, 0.02528377], [81, 82])
 			]
 		});
 	});
@@ -79,8 +80,8 @@ describe('MangoHud benchmark data parsing', () => {
 
 		expect(parseMangoHudBenchmarkData(csv)).toEqual({
 			metrics: [
-				{ key: 'fps', timeSeconds: [0, 0.02], values: [60, 50] },
-				{ key: 'frametime', timeSeconds: [0, 0.02], values: [16.67, 20] }
+				createBenchmarkMetric('fps', [0, 0.02], [60, 50]),
+				createBenchmarkMetric('frametime', [0, 0.02], [16.67, 20])
 			]
 		});
 	});

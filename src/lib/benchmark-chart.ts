@@ -12,37 +12,6 @@ export interface BenchmarkMetricSeries {
 }
 
 const BENCHMARK_CHART_COLOR_COUNT = 8;
-const ACRONYMS = new Set(['cpu', 'fps', 'gpu', 'mhz', 'ram', 'rss', 'vram']);
-
-const METRIC_UNITS: Record<string, string> = {
-	fps: 'FPS',
-	frametime: 'ms',
-	cpu_load: '%',
-	cpu_mhz: 'MHz',
-	cpu_power: 'W',
-	gpu_load: '%',
-	cpu_temp: '°C',
-	gpu_temp: '°C',
-	gpu_core_clock: 'MHz',
-	gpu_mem_clock: 'MHz',
-	gpu_vram_used: 'GiB',
-	gpu_power: 'W',
-	ram_used: 'GiB',
-	process_rss: 'GiB'
-};
-
-export function formatBenchmarkMetricName(key: string): string {
-	return key
-		.split(/[_\s-]+/)
-		.filter(Boolean)
-		.map((word) => {
-			const normalized = word.toLowerCase();
-			return ACRONYMS.has(normalized)
-				? normalized.toUpperCase()
-				: normalized.charAt(0).toUpperCase() + normalized.slice(1);
-		})
-		.join(' ');
-}
 
 export function stripFileExtension(value: string): string {
 	const lastSeparator = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
@@ -50,10 +19,6 @@ export function stripFileExtension(value: string): string {
 	return lastDot > lastSeparator + 1 && lastDot < value.length - 1
 		? value.slice(0, lastDot)
 		: value;
-}
-
-export function getBenchmarkMetricUnit(key: string): string {
-	return METRIC_UNITS[key] ?? '';
 }
 
 export function averageMetricValues(values: Array<number | null>): number | null {

@@ -1,9 +1,10 @@
-import type {
-	BenchmarkData,
-	BenchmarkMetric,
-	BenchmarkMetricKey,
-	BenchmarkRun,
-	BenchmarkSystemInfo
+import {
+	createBenchmarkMetric,
+	type BenchmarkData,
+	type BenchmarkMetric,
+	type BenchmarkMetricKey,
+	type BenchmarkRun,
+	type BenchmarkSystemInfo
 } from '$lib/benchmark-run-model';
 
 const MAXIMUM_DATA_POINTS = 100_000;
@@ -106,7 +107,7 @@ function parseCaptureMetrics(captureData: Record<string, unknown>): BenchmarkMet
 			return value === null ? null : transform(value);
 		});
 		if (values.some((value) => value !== null)) {
-			metrics.push({ key, timeSeconds: [...timeSeconds], values });
+			metrics.push(createBenchmarkMetric(key, [...timeSeconds], values));
 		}
 	};
 
@@ -189,11 +190,11 @@ function buildSensorMetrics(
 		if (!values.some((value) => value !== null)) return [];
 
 		return [
-			{
-				key: mapping.key,
-				timeSeconds: sampleIndexes.map((index) => rawTimes[index]!),
+			createBenchmarkMetric(
+				mapping.key,
+				sampleIndexes.map((index) => rawTimes[index]!),
 				values
-			}
+			)
 		];
 	});
 }
