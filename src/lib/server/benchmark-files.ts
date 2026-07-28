@@ -1,5 +1,13 @@
 import { BENCHMARK_UPLOAD_DIR } from '$app/env/private';
-import { mkdir, unlink } from 'node:fs/promises';
+import {
+	BENCHMARK_PARSER_VERSION,
+	deserializeParsedBenchmarkRun,
+	getParsedBenchmarkRunVersion,
+	serializeParsedBenchmarkRun
+} from '$lib/benchmark-run-cache';
+import type { BenchmarkRun } from '$lib/benchmark-run-model';
+import { randomUUID } from 'node:crypto';
+import { mkdir, rename, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const FILE_ID_PATTERN = /^[a-z2-7]+$/;
@@ -13,6 +21,71 @@ export function getBenchmarkFilePath(fileId: string): string {
 		throw new Error('Invalid benchmark file ID');
 	}
 	return resolve(getUploadDirectory(), fileId);
+}
+
+function getParsedBenchmarkFilePath(fileId: string): string {
+	return `${getBenchmarkFilePath(fileId)}.parsed`;
+}
+
+export type ParsedBenchmarkFileResult =
+	| {
+			status: 'hit';
+			benchmarkRun: BenchmarkRun;
+	  }
+	| {
+			status: 'missing';
+			benchmarkRun: null;
+	  }
+	| {
+			status: 'invalid';
+			benchmarkRun: null;
+	  }
+	| {
+			status: 'stale' | 'newer';
+			benchmarkRun: null;
+	  };
+
+export async function readParsedBenchmarkFile(fileId: string): Promise<ParsedBenchmarkFileResult> {
+	const file = Bun.file(getParsedBenchmarkFilePath(fileId));
+	if (!(await file.exists())) {
+		return { status: 'missing', benchmarkRun: null };
+	}
+
+	const version = getParsedBenchmarkRunVersion(await file.slice(0, 128).text());
+	if (version === null) {
+		return { status: 'invalid', benchmarkRun: null };
+	}
+	if (version < BENCHMARK_PARSER_VERSION) {
+		return { status: 'stale', benchmarkRun: null };
+	}
+	if (version > BENCHMARK_PARSER_VERSION) {
+		return { status: 'newer', benchmarkRun: null };
+	}
+
+	const benchmarkRun = deserializeParsedBenchmarkRun(await file.text());
+	return benchmarkRun ? { status: 'hit', benchmarkRun } : { status: 'invalid', benchmarkRun: null };
+}
+
+export async function writeParsedBenchmarkFile(
+	fileId: string,
+	benchmarkRun: BenchmarkRun
+): Promise<number> {
+	await mkdir(getUploadDirectory(), { recursive: true });
+	const parsedFilePath = getParsedBenchmarkFilePath(fileId);
+	const temporaryFilePath = `${parsedFilePath}.${randomUUID()}.tmp`;
+
+	try {
+		const bytes = await Bun.write(temporaryFilePath, serializeParsedBenchmarkRun(benchmarkRun));
+		await rename(temporaryFilePath, parsedFilePath);
+		return bytes;
+	} catch (cause) {
+		try {
+			await unlink(temporaryFilePath);
+		} catch {
+			// Best-effort cleanup; preserve the original cache write failure.
+		}
+		throw cause;
+	}
 }
 
 export async function readBenchmarkFilePrefix(
@@ -43,14 +116,16 @@ export async function writeBenchmarkFiles(files: Array<{ id: string; file: File 
 
 export async function deleteBenchmarkFiles(fileIds: string[]): Promise<void> {
 	const results = await Promise.allSettled(
-		fileIds.map(async (fileId) => {
-			try {
-				await unlink(getBenchmarkFilePath(fileId));
-			} catch (cause) {
-				if (isMissingFileError(cause)) return;
-				throw cause;
-			}
-		})
+		fileIds
+			.flatMap((fileId) => [getBenchmarkFilePath(fileId), getParsedBenchmarkFilePath(fileId)])
+			.map(async (filePath) => {
+				try {
+					await unlink(filePath);
+				} catch (cause) {
+					if (isMissingFileError(cause)) return;
+					throw cause;
+				}
+			})
 	);
 	const failures = results
 		.filter((result): result is PromiseRejectedResult => result.status === 'rejected')

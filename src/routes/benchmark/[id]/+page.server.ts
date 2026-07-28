@@ -1,9 +1,9 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
-import { parseBenchmarkRun } from '$lib/benchmark-run';
 import { error as logError } from '$lib/logger';
 import { requireVerifiedSession } from '$lib/server/auth/api';
-import { deleteBenchmarkFiles, readBenchmarkFile } from '$lib/server/benchmark-files';
+import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
+import { parseBenchmarkRun } from '$lib/server/benchmark-run';
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
@@ -46,10 +46,13 @@ export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) 
 	const runs = await Promise.all(
 		files.map(async (file) => {
 			try {
-				const contents = await readBenchmarkFile(file.id);
+				const benchmarkRun = await parseBenchmarkRun({
+					fileId: file.id,
+					label: file.originalName
+				});
 				return {
 					...file,
-					benchmarkRun: parseBenchmarkRun(contents)
+					benchmarkRun
 				};
 			} catch (cause) {
 				logError(`Failed to read benchmark file ${file.id}`, cause);

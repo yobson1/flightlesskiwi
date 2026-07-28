@@ -1,4 +1,4 @@
-import { parseMangoHudBenchmarkData, parseMangoHudSystemInfo } from '$lib/mangohud';
+import { parseMangoHudBenchmarkRun, parseMangoHudSystemInfo } from '$lib/mangohud';
 import { parseCapFrameXBenchmarkRun, parseCapFrameXSystemInfo } from '$lib/capframex';
 import type { BenchmarkRun, BenchmarkSystemInfo } from '$lib/benchmark-run-model';
 
@@ -15,16 +15,9 @@ export {
 	type BenchmarkSystemInfo
 } from '$lib/benchmark-run-model';
 
-export function parseBenchmarkRun(contents: string): BenchmarkRun | null {
+export function parseBenchmarkContents(contents: string): BenchmarkRun | null {
 	if (looksLikeJson(contents)) return parseCapFrameXBenchmarkRun(contents);
-
-	const mangoHudSystemInfo = parseMangoHudSystemInfo(contents);
-	if (mangoHudSystemInfo) {
-		const data = parseMangoHudBenchmarkData(contents);
-		return data ? { source: 'mangohud', systemInfo: mangoHudSystemInfo, data } : null;
-	}
-
-	return null;
+	return parseMangoHudBenchmarkRun(contents);
 }
 
 export function parseBenchmarkSystemInfo(contents: string): BenchmarkSystemInfo | null {
