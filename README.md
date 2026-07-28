@@ -5,6 +5,8 @@
 
 [flightlessmango.com](https://github.com/flightlessmango/flightlessmango.com)/[flightlesssomething](https://github.com/erkexzcx/flightlesssomething) clone
 
+![Screenshot](screenshots/sign-up.png)
+
 ## Developing
 
 This project uses [Bun](https://bun.sh/):
