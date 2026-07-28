@@ -90,6 +90,6 @@
 	</Card.Root>
 
 	<p class="relative max-w-xs p-8 leading-relaxed text-balance text-muted-foreground">
-		Upload MangoHud or PresentMon output and see exactly how each run compares.
+		Upload MangoHud or CapFrameX output and see exactly how each run compares.
 	</p>
 </div>

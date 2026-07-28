@@ -156,7 +156,7 @@ function validateValues(values: SubmittedValues): string | null {
 
 function validateFiles(files: File[]): string | null {
 	if (files.length === 0 || files.every((file) => file.size === 0 && file.name === '')) {
-		return 'Select at least one MangoHud or PresentMon file';
+		return 'Select at least one MangoHud or CapFrameX file';
 	}
 	if (files.length > MAX_BENCHMARK_FILES) {
 		return `Select no more than ${MAX_BENCHMARK_FILES} files`;

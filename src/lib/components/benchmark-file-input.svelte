@@ -64,9 +64,9 @@
 				<FileIcon class="size-5" />
 			</div>
 			<div>
-				<p class="text-sm font-medium">MangoHud or PresentMon output</p>
+				<p class="text-sm font-medium">MangoHud or CapFrameX output</p>
 				<p class="text-sm text-muted-foreground">
-					CSV files are expected. They will be kept raw for later processing.
+					CSV or JSON files are expected. They will be kept raw for later processing.
 				</p>
 			</div>
 		</div>
@@ -74,7 +74,7 @@
 			{id}
 			{name}
 			type="file"
-			accept=".csv,.txt,text/csv,text/plain"
+			accept=".csv,.json,text/csv,text/json"
 			multiple
 			required
 			{disabled}

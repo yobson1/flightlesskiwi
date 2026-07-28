@@ -6,7 +6,7 @@
 	<title>About · flightlesskiwi</title>
 	<meta
 		name="description"
-		content="Recommended MangoHud and PresentMon capture settings for flightlesskiwi benchmarks."
+		content="Recommended MangoHud and CapFrameX capture settings for flightlesskiwi benchmarks."
 	/>
 </svelte:head>
 
@@ -15,7 +15,7 @@
 		<p class="text-sm font-medium text-primary">Create consistent benchmark captures</p>
 		<h1 class="text-3xl font-bold tracking-tight">About</h1>
 		<p class="mt-2 text-muted-foreground">
-			flightlesskiwi turns raw MangoHud and PresentMon logs into benchmark pages that are easy to
+			flightlesskiwi turns raw MangoHud and CapFrameX logs into benchmark pages that are easy to
 			share and compare. Use the same capture frequency for every run so the charts represent your
 			results consistently.
 		</p>
@@ -97,7 +97,7 @@
 
 			<Card.Root>
 				<Card.Header>
-					<Card.Title>PresentMon</Card.Title>
+					<Card.Title>CapFrameX</Card.Title>
 					<Card.Description>Set both data collection frequencies in the app.</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
@@ -115,7 +115,7 @@
 					<p class="text-sm text-muted-foreground">
 						See the
 						<a
-							href="https://github.com/GameTechDev/PresentMon"
+							href="https://github.com/CXWorld/CapFrameX"
 							target="_blank"
 							rel="noopener noreferrer"
 							class="font-medium text-foreground underline underline-offset-4"
@@ -133,8 +133,8 @@
 		<div>
 			<h2 id="upload-heading" class="text-2xl font-semibold tracking-tight">Upload your result</h2>
 			<p class="mt-1 text-muted-foreground">
-				When the run is complete, upload the raw CSV output. You can include multiple runs to be
-				compared and add notes about the hardware, graphics settings, test route, etc.
+				When the run is complete, upload the raw CSV or JSON output. You can include multiple runs
+				to be compared and add notes about the hardware, graphics settings, test route, etc.
 			</p>
 		</div>
 

@@ -171,7 +171,7 @@
 		<p class="text-sm font-medium text-primary">Community results</p>
 		<h1 class="text-3xl font-bold tracking-tight">Recent benchmarks</h1>
 		<p class="mt-2 text-muted-foreground">
-			Browse the latest MangoHud and PresentMon benchmark results.
+			Browse the latest MangoHud and CapFrameX benchmark results.
 		</p>
 	</div>
 
