@@ -220,7 +220,7 @@
 			>
 				{#if selectedGame.coverImgId}
 					<img
-						src={constructImageUrl(selectedGame.coverImgId, 'cover_small')}
+						src={constructImageUrl(selectedGame.coverImgId, 'micro')}
 						alt=""
 						class="size-6 rounded-full object-cover"
 					/>
