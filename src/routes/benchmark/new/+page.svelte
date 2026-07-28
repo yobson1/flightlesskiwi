@@ -119,7 +119,7 @@
 					>
 						<Field.Label for="benchmark-game-search">Game</Field.Label>
 						{#key gameSearchKey}
-							<GameSearch onSelected={selectGame} noParent inputId="benchmark-game-search" />
+							<GameSearch onSelected={selectGame} inputId="benchmark-game-search" />
 						{/key}
 						<input type="hidden" name="game_id" value={selectedGameId ?? ''} />
 						{#if selectedGameId !== null}
