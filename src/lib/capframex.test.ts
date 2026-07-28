@@ -97,6 +97,7 @@ describe('CapFrameX benchmark data parsing', () => {
 			'cpu_load',
 			'cpu_power',
 			'cpu_temp',
+			'cpu_mhz',
 			'gpu_load',
 			'gpu_temp',
 			'gpu_core_clock',
@@ -116,11 +117,12 @@ describe('CapFrameX benchmark data parsing', () => {
 			timeSeconds: [0, 0.25, 0.5],
 			values: [20, 30, 40]
 		});
+		expect(data?.metrics.find(({ key }) => key === 'cpu_mhz')?.values).toEqual([5000, 5000, 5000]);
 		expect(data?.metrics.find(({ key }) => key === 'gpu_power')?.values).toEqual([200, 210, 220]);
 		expect(parseCapFrameXBenchmarkRun(capFrameXJson())?.source).toBe('capframex');
 	});
 
-	test('supports the legacy sensor object without exposing CPU Max values', () => {
+	test('supports the legacy sensor object without exposing CPU Max load', () => {
 		const json = capFrameXJson({
 			Runs: [
 				{
@@ -131,6 +133,7 @@ describe('CapFrameX benchmark data parsing', () => {
 					SensorData: {
 						MeasureTime: [0, 0.25],
 						CpuUsage: [20, 30],
+						CpuMaxClock: [4800, 4900],
 						CpuMaxThreadUsage: [90, 95],
 						RamUsage: [2, 3],
 						VRamUsage: [2048, 3072]
@@ -142,6 +145,7 @@ describe('CapFrameX benchmark data parsing', () => {
 		expect(parseCapFrameXBenchmarkData(json)?.metrics).toEqual(
 			expect.arrayContaining([
 				{ key: 'cpu_load', timeSeconds: [0, 0.25], values: [20, 30] },
+				{ key: 'cpu_mhz', timeSeconds: [0, 0.25], values: [4800, 4900] },
 				{ key: 'process_rss', timeSeconds: [0, 0.25], values: [2, 3] },
 				{ key: 'gpu_vram_used', timeSeconds: [0, 0.25], values: [2, 3] }
 			])

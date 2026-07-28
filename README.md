@@ -106,6 +106,7 @@ to be changed.
 Enable the following sensors, matching both the name and type:
 
 - `CPU Total` (`Load`)
+- `CPU Max` (`Clock`)
 - `CPU Package` (`Power`)
 - `CPU Package (Tctl/Tdie)` (`Temperature`)
 - `GPU Core` (`Load`)
@@ -120,6 +121,7 @@ Enable the following sensors, matching both the name and type:
 Disable every other sensor. In particular, disable `CPU Max` (`Load`), which
 CapFrameX enables by default. `CPU Total` (`Load`) matches MangoHud's `cpu_load`;
 `CPU Max` reports the load of the most heavily used CPU core and is not equivalent.
+Keep `CPU Max` (`Clock`) enabled because it matches MangoHud's `cpu_mhz`.
 
 `RAM Game Used` is the closest CapFrameX equivalent to MangoHud's process resident
 memory measurement. CapFrameX records the game's private working set, while

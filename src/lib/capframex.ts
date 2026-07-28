@@ -156,6 +156,7 @@ function parseLegacySensorData(
 	};
 
 	add('cpu_load', 'CpuUsage');
+	add('cpu_mhz', 'CpuMaxClock');
 	add('cpu_power', 'CpuPower');
 	add('cpu_temp', 'CpuTemp');
 	add('gpu_load', 'GpuUsage');
@@ -200,10 +201,13 @@ function buildSensorMetrics(
 function mapSensor(name: string, type: string): SensorMapping | null {
 	const normalizedName = normalizeSensorLabel(name);
 	const normalizedType = normalizeSensorLabel(type);
-	if (!normalizedName || normalizedName.includes('cpu max')) return null;
+	if (!normalizedName) return null;
 
 	if (normalizedType === 'load' && normalizedName.includes('cpu total')) {
 		return { key: 'cpu_load', priority: 1 };
+	}
+	if (normalizedType === 'clock' && normalizedName.includes('cpu max')) {
+		return { key: 'cpu_mhz', priority: 1 };
 	}
 	if (
 		normalizedType === 'power' &&

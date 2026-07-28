@@ -82,6 +82,7 @@
 						<p class="mb-2 font-medium">Sensors to enable</p>
 						<ul class="grid gap-x-8 gap-y-2 text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
 							<li><span class="font-medium text-foreground">CPU Total</span> · Load</li>
+							<li><span class="font-medium text-foreground">CPU Max</span> · Clock</li>
 							<li><span class="font-medium text-foreground">CPU Package</span> · Power</li>
 							<li>
 								<span class="font-medium text-foreground">CPU Package (Tctl/Tdie)</span> · Temperature
@@ -104,7 +105,9 @@
 						<span class="font-medium text-foreground">CPU Max · Load</span>, which CapFrameX enables
 						by default. <span class="font-medium text-foreground">CPU Total · Load</span> matches
 						MangoHud's <code>cpu_load</code>; CPU Max reports the load of the most heavily used CPU
-						core and is not equivalent.
+						core and is not equivalent. Keep
+						<span class="font-medium text-foreground">CPU Max · Clock</span>
+						enabled because it matches MangoHud's <code>cpu_mhz</code>.
 					</p>
 
 					<p class="text-sm text-muted-foreground">

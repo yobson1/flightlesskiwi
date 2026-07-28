@@ -18,6 +18,7 @@ const METRIC_UNITS: Record<string, string> = {
 	fps: 'FPS',
 	frametime: 'ms',
 	cpu_load: '%',
+	cpu_mhz: 'MHz',
 	cpu_power: 'W',
 	gpu_load: '%',
 	cpu_temp: '°C',

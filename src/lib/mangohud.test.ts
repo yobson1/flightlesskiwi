@@ -96,7 +96,8 @@ describe('MangoHud benchmark data parsing', () => {
 		expect(parseMangoHudBenchmarkData(csv)?.metrics.map(({ key }) => key)).toEqual([
 			'fps',
 			'frametime',
-			'cpu_load'
+			'cpu_load',
+			'cpu_mhz'
 		]);
 	});
 

@@ -2,6 +2,7 @@ export const BENCHMARK_METRIC_KEYS = [
 	'fps',
 	'frametime',
 	'cpu_load',
+	'cpu_mhz',
 	'cpu_power',
 	'gpu_load',
 	'cpu_temp',
