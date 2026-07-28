@@ -82,10 +82,50 @@ be set before the header is trusted.
 
 ## Usage
 
-Configure [MangoHud](https://github.com/flightlessmango/mangohud)/[CapFrameX](https://github.com/CXWorld/CapFrameX) to use a log interval of 25ms and a hardware polling frequency of 40Hz  
-This is the default hardware polling period for [MangoHud](https://github.com/flightlessmango/MangoHud/blob/ff6e5954ea7e340d9bb4509754babf0db1b7c431/src/gpu_metrics_util.h#L36)  
-For CapFrameX navigate to settings > data and set polling rate to 40Hz and telemetry period 25ms  
-For MangoHud edit `~/.config/MangoHud/MangoHud.conf` and set `log_interval=25`
+### MangoHud
+
+Keep MangoHud's default 40Hz hardware polling frequency and use a log interval of
+25ms. Edit `~/.config/MangoHud/MangoHud.conf` and set:
+
+```conf
+log_interval=25
+```
+
+40Hz is MangoHud's
+[default hardware polling frequency](https://github.com/flightlessmango/MangoHud/blob/ff6e5954ea7e340d9bb4509754babf0db1b7c431/src/gpu_metrics_util.h#L36).
+
+### CapFrameX
+
+Leave the hardware sensor polling period at its default 250ms. CapFrameX does not
+offer a lower sensor polling period, so only the sensors selected for logging need
+to be changed.
+
+Enable the following sensors, matching both the name and type:
+
+- `CPU Total` (`Load`)
+- `CPU Package` (`Power`)
+- `CPU Package (Tctl/Tdie)` (`Temperature`)
+- `GPU Core` (`Load`)
+- `GPU Core` (`Temperature`)
+- `GPU Core` (`Clock`)
+- `GPU Memory` (`Clock`)
+- `GPU TBP` (`Power`)
+- `GPU Memory Dedicated` (`Data`)
+- `RAM Used` (`Data`)
+- `RAM Game Used` (`Data`)
+
+Disable every other sensor. In particular, disable `CPU Max` (`Load`), which
+CapFrameX enables by default. `CPU Total` (`Load`) matches MangoHud's `cpu_load`;
+`CPU Max` reports the load of the most heavily used CPU core and is not equivalent.
+
+`RAM Game Used` is the closest CapFrameX equivalent to MangoHud's process resident
+memory measurement. CapFrameX records the game's private working set, while
+MangoHud records the full resident set, so the values are comparable but will not
+be identical.
+
+MangoHud and CapFrameX therefore collect hardware telemetry at different fixed
+rates. flightlesskiwi handles each format using its tool-specific sampling rate;
+the intervals do not need to match.
 
 <details>
 	<summary>Example MangoHud configuration file</summary>

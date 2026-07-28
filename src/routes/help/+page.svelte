@@ -16,49 +16,54 @@
 		<h1 class="text-3xl font-bold tracking-tight">About</h1>
 		<p class="mt-2 text-muted-foreground">
 			flightlesskiwi turns raw MangoHud and CapFrameX logs into benchmark pages that are easy to
-			share and compare. Use the same capture frequency for every run so the charts represent your
-			results consistently.
+			share and compare. Follow the tool-specific capture settings below so your results contain
+			consistent performance and hardware data.
 		</p>
 	</header>
 
 	<section id="capture-settings" class="scroll-mt-6 space-y-4" aria-labelledby="capture-heading">
 		<div>
-			<h2 id="capture-heading" class="text-2xl font-semibold tracking-tight">
-				Recommended capture settings
-			</h2>
-			<p class="mt-1 text-muted-foreground">Configure these values before recording a benchmark.</p>
+			<h2 id="capture-heading" class="text-2xl font-semibold tracking-tight">Capture timing</h2>
+			<p class="mt-1 text-muted-foreground">
+				The tools collect hardware telemetry at different fixed rates. This is expected; the
+				intervals do not need to match.
+			</p>
 		</div>
 
 		<div class="grid gap-4 sm:grid-cols-2">
 			<Card.Root>
 				<Card.Header>
-					<Card.Description>Log / telemetry interval</Card.Description>
-					<Card.Title class="text-3xl">25 ms</Card.Title>
+					<Card.Description>MangoHud</Card.Description>
+					<Card.Title class="text-2xl">25 ms logs · 40 Hz sensors</Card.Title>
 				</Card.Header>
 				<Card.Content class="text-muted-foreground">
-					Records performance data 40 times per second.
+					Set the log interval to 25ms and leave hardware polling at MangoHud's default 40Hz.
 				</Card.Content>
 			</Card.Root>
 
 			<Card.Root>
 				<Card.Header>
-					<Card.Description>Hardware polling frequency</Card.Description>
-					<Card.Title class="text-3xl">40 Hz</Card.Title>
+					<Card.Description>CapFrameX</Card.Description>
+					<Card.Title class="text-2xl">250 ms sensors</Card.Title>
 				</Card.Header>
 				<Card.Content class="text-muted-foreground">
-					This matches MangoHud's default hardware polling period.
+					Leave sensor polling at its default 250ms. CapFrameX does not offer a lower period.
 				</Card.Content>
 			</Card.Root>
 		</div>
+
+		<p class="text-sm text-muted-foreground">
+			flightlesskiwi handles each format using its tool-specific sampling rate.
+		</p>
 	</section>
 
 	<section class="space-y-4" aria-labelledby="tools-heading">
 		<div>
 			<h2 id="tools-heading" class="text-2xl font-semibold tracking-tight">Configure your tool</h2>
-			<p class="mt-1 text-muted-foreground">Apply the settings each tool you use.</p>
+			<p class="mt-1 text-muted-foreground">Apply the settings for the tool you use.</p>
 		</div>
 
-		<div class="grid gap-4 lg:grid-cols-2">
+		<div class="space-y-4">
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>MangoHud</Card.Title>
@@ -98,20 +103,52 @@
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>CapFrameX</Card.Title>
-					<Card.Description>Set both data collection frequencies in the app.</Card.Description>
+					<Card.Description>
+						Leave sensor polling at 250ms and change the selected sensors only.
+					</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<ol class="list-decimal space-y-2 pl-5 text-muted-foreground marker:text-foreground">
-						<li>Open <span class="font-medium text-foreground">Settings → Data</span>.</li>
-						<li>
-							Set <span class="font-medium text-foreground">Polling rate</span> to
-							<span class="font-medium text-foreground">40 Hz</span>.
-						</li>
-						<li>
-							Set <span class="font-medium text-foreground">Telemetry period</span> to
-							<span class="font-medium text-foreground">25 ms</span>.
-						</li>
+						<li>Open the <span class="font-medium text-foreground">Sensor</span> view.</li>
+						<li>Select only the sensors listed below, then save the selection.</li>
 					</ol>
+
+					<div>
+						<p class="mb-2 font-medium">Sensors to enable</p>
+						<ul class="grid gap-x-8 gap-y-2 text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+							<li><span class="font-medium text-foreground">CPU Total</span> · Load</li>
+							<li><span class="font-medium text-foreground">CPU Package</span> · Power</li>
+							<li>
+								<span class="font-medium text-foreground">CPU Package (Tctl/Tdie)</span> · Temperature
+							</li>
+							<li><span class="font-medium text-foreground">GPU Core</span> · Load</li>
+							<li><span class="font-medium text-foreground">GPU Core</span> · Temperature</li>
+							<li><span class="font-medium text-foreground">GPU Core</span> · Clock</li>
+							<li><span class="font-medium text-foreground">GPU Memory</span> · Clock</li>
+							<li><span class="font-medium text-foreground">GPU TBP</span> · Power</li>
+							<li>
+								<span class="font-medium text-foreground">GPU Memory Dedicated</span> · Data
+							</li>
+							<li><span class="font-medium text-foreground">RAM Used</span> · Data</li>
+							<li><span class="font-medium text-foreground">RAM Game Used</span> · Data</li>
+						</ul>
+					</div>
+
+					<p class="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+						Disable every other sensor. In particular, disable
+						<span class="font-medium text-foreground">CPU Max · Load</span>, which CapFrameX enables
+						by default. <span class="font-medium text-foreground">CPU Total · Load</span> matches
+						MangoHud's <code>cpu_load</code>; CPU Max reports the load of the most heavily used CPU
+						core and is not equivalent.
+					</p>
+
+					<p class="text-sm text-muted-foreground">
+						<span class="font-medium text-foreground">RAM Game Used</span> is the closest CapFrameX equivalent
+						to MangoHud's process resident memory measurement. CapFrameX records the game's private working
+						set, while MangoHud records the full resident set, so the values are comparable but will not
+						be identical.
+					</p>
+
 					<p class="text-sm text-muted-foreground">
 						See the
 						<a
@@ -120,7 +157,7 @@
 							rel="noopener noreferrer"
 							class="font-medium text-foreground underline underline-offset-4"
 						>
-							PresentMon documentation
+							CapFrameX documentation
 						</a>
 						for installation and capture options.
 					</p>
