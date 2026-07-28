@@ -58,7 +58,6 @@ jobs:
             .env.example compose.example.yml \
             "$bundle/"
           tar -czf "$archive" "$bundle"
-          sha256sum "$archive" > "${archive}.sha256"
 
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
@@ -68,7 +67,6 @@ jobs:
           name: release-build
           path: |
             ${{ steps.package.outputs.archive }}
-            ${{ steps.package.outputs.archive }}.sha256
           if-no-files-found: error
 
   docker:
@@ -151,4 +149,3 @@ jobs:
           make_latest: true
           files: |
             artifacts/*.tar.gz
-            artifacts/*.sha256
