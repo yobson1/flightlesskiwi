@@ -37,8 +37,12 @@
 	aria-hidden="true"
 	{...restProps}
 >
-	<div class="absolute inset-0 opacity-[0.07]">
-		<ShaderRenderer {vertShaderSource} {fragShaderSource} class="absolute inset-0 size-full" />
+	<div class="absolute inset-0 opacity-[0.11] dark:opacity-[0.07]">
+		<ShaderRenderer
+			{vertShaderSource}
+			{fragShaderSource}
+			class="absolute inset-0 size-full invert dark:invert-0"
+		/>
 	</div>
 
 	<div class="relative p-8">
