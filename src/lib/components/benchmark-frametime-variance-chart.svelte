@@ -26,7 +26,7 @@
 
 {#if data.length > 0}
 	<BenchmarkPieChart
-		title={`Frame-to-frame variance — ${stripFileExtension(run.originalName)}`}
+		title={`Frame-to-frame variance · ${stripFileExtension(run.originalName)}`}
 		description="Absolute time difference between consecutive frames. Smaller differences indicate steadier pacing."
 		{data}
 	/>

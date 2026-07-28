@@ -29,7 +29,7 @@
 
 {#if data.length > 0}
 	<BenchmarkPieChart
-		title={`Frame classification — ${stripFileExtension(run.originalName)}`}
+		title={`Frame classification · ${stripFileExtension(run.originalName)}`}
 		description={`Share of captured time that was smooth, below ${LOW_FPS_THRESHOLD} FPS, or a stutter above ${STUTTER_FACTOR}× the moving average.`}
 		{data}
 	/>
