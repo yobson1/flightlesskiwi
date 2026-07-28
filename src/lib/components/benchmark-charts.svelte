@@ -69,6 +69,7 @@
 						runs={orderedRuns}
 						metric={frametimeMetric}
 						description="Frame pacing throughout each run with a moving average. Lower and more consistent is better."
+						showMovingAverage
 					/>
 					<div class="grid gap-4 lg:grid-cols-2">
 						<div class="lg:col-span-2">

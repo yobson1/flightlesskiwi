@@ -62,9 +62,10 @@
 		runs: BenchmarkChartRun[];
 		metric: BenchmarkMetric;
 		description?: string;
+		showMovingAverage?: boolean;
 	}
 
-	let { runs, metric, description }: Props = $props();
+	let { runs, metric, description, showMovingAverage = false }: Props = $props();
 
 	const unit = $derived(metric.unit);
 	const title = $derived(metric.prettyName);
@@ -81,7 +82,7 @@
 			if (points.length === 0) return [];
 
 			const movingAveragePoints =
-				metric.key === 'frametime'
+				metric.key === 'frametime' && showMovingAverage
 					? calculateFrametimeMovingAverage(runMetric.values).flatMap((value, pointIndex) =>
 							value === null
 								? []
@@ -186,7 +187,7 @@
 				data: chartData.map((row) => [row.timeSeconds, row[key]]),
 				emphasis: { focus: 'series' },
 				lineStyle: {
-					opacity: movingAverage ? 1 : metric.key === 'frametime' ? 0.55 : 1,
+					opacity: movingAverage ? 1 : showMovingAverage ? 0.55 : 1,
 					width: movingAverage ? 3 : 1.75
 				},
 				name: label,
