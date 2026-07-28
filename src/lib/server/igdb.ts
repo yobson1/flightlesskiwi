@@ -1,12 +1,11 @@
-import { IGDB_CLIENT_ID, IGDB_CLIENT_SECRET } from '$env/static/private';
 import apicalypse from 'apicalypse';
 import type { ApicalypseConfig } from 'apicalypse';
 import { version } from '$app/environment';
 import { info } from '$lib/logger';
+import { getRequiredEnvironmentVariable } from '$lib/server/env';
 
-if (!IGDB_CLIENT_ID || !IGDB_CLIENT_SECRET) {
-	throw new Error('IGDB_CLIENT_ID or IGDB_CLIENT_SECRET is not set');
-}
+const IGDB_CLIENT_ID = getRequiredEnvironmentVariable('IGDB_CLIENT_ID', 'build');
+const IGDB_CLIENT_SECRET = getRequiredEnvironmentVariable('IGDB_CLIENT_SECRET', 'build');
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const tokenCache: { token: string | null; expiry: number } = {

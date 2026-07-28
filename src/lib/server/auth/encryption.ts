@@ -1,9 +1,13 @@
-import { AUTH_ENCRYPTION_KEY } from '$env/static/private';
 import { decodeBase64 } from '@oslojs/encoding';
 import { createCipheriv, createDecipheriv } from 'node:crypto';
+import { getRequiredEnvironmentVariable } from '$lib/server/env';
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
+const AUTH_ENCRYPTION_KEY = getRequiredEnvironmentVariable(
+	'AUTH_ENCRYPTION_KEY',
+	'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+);
 const key = decodeBase64(AUTH_ENCRYPTION_KEY);
 
 if (key.byteLength !== 32) {

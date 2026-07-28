@@ -1,11 +1,4 @@
-import {
-	SMTP_FROM,
-	SMTP_HOST,
-	SMTP_PASSWORD,
-	SMTP_PORT,
-	SMTP_SECURE,
-	SMTP_USER
-} from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import nodemailer from 'nodemailer';
 import {
 	EMAIL_CODE_SEND_INTERVAL_SECONDS,
@@ -16,6 +9,7 @@ import { ExpiringMultiWindowTokenBucket } from '$lib/server/auth/rate-limit';
 
 export const EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
 
+const { SMTP_FROM, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_SECURE, SMTP_USER } = env;
 let transporter: nodemailer.Transporter | null = null;
 
 const codeEmailSendBucket = new ExpiringMultiWindowTokenBucket<string>('code-email-send', [

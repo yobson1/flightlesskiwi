@@ -1,0 +1,54 @@
+services:
+  app:
+    image: ${FLIGHTLESSKIWI_IMAGE:-ghcr.io/yobson1/flightlesskiwi:latest}
+    build:
+      context: .
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: /data/flightlesskiwi.db
+      BENCHMARK_UPLOAD_DIR: /uploads/benchmarks
+      HOST: 0.0.0.0
+      PORT: 3000
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      MEILI_HOST: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?Set MEILI_MASTER_KEY in .env}
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    volumes:
+      - app-data:/data
+      - app-uploads:/uploads
+    depends_on:
+      meilisearch:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    image: ${FLIGHTLESSKIWI_IMAGE:-ghcr.io/yobson1/flightlesskiwi:latest}
+    build:
+      context: .
+    command: ['bun', 'run', 'db:migrate:deploy']
+    environment:
+      DATABASE_URL: /data/flightlesskiwi.db
+    volumes:
+      - app-data:/data
+
+  meilisearch:
+    image: docker.io/getmeili/meilisearch:v1.45.1
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?Set MEILI_MASTER_KEY in .env}
+      MEILI_NO_ANALYTICS: 'true'
+    ports:
+      - '${MEILI_PORT:-7700}:7700'
+    volumes:
+      - meilisearch-data:/meili_data
+
+volumes:
+  app-data:
+  app-uploads:
+  meilisearch-data:

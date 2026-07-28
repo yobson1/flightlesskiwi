@@ -1,0 +1,16 @@
+.git
+.github
+.svelte-kit
+build
+node_modules
+
+.env
+.env.*
+
+*.db
+*.db-*
+data.ms
+uploads
+
+Dockerfile*
+compose*.yml

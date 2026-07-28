@@ -20,12 +20,58 @@ bun dev
 To create a production version of the app:
 
 ```sh
+bun install --frozen-lockfile
 bun run build
 ```
 
-You can preview the production build with `bun preview`.
+Install production dependencies and run the built Bun server with:
 
-For SSL in production use a reverse proxy, I use [nginx](https://nginx.org/en/)
+```sh
+bun install --production --frozen-lockfile
+bun run build/index.js
+```
+
+The tagged GitHub releases contain this build output, its runtime package files, and
+the versioned database migrations.
+
+## Docker
+
+Copy the example environment and Compose files:
+
+```sh
+cp .env.example .env
+cp compose.example.yml compose.yml
+```
+
+Configure `.env`, including a non-empty `MEILI_MASTER_KEY`, an
+`AUTH_ENCRYPTION_KEY`, the IGDB credentials, and the production WebAuthn values. The
+`WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` must match the public site URL. Then start the
+application and Meilisearch:
+
+```sh
+docker compose up -d
+```
+
+The example uses the latest GHCR image by default. Set `FLIGHTLESSKIWI_IMAGE` to use
+another image tag, or run `docker compose up -d --build` to build the image from the
+local checkout. `APP_PORT` and `MEILI_PORT` control the host ports.
+
+The one-off `migrate` service applies the versioned migrations bundled into the
+image before the app starts. SQLite, uploaded benchmark files, and Meilisearch data
+use separate named volumes.
+
+When changing the schema, generate and commit a migration:
+
+```sh
+bun run db:generate
+```
+
+Do not ignore the `drizzle/` directory: its SQL and metadata are the database
+upgrade history used by deployed images.
+
+For TLS in production, put the application behind a reverse proxy such as
+[nginx](https://nginx.org/en/), and set `ORIGIN`, `WEBAUTHN_ORIGIN`, and
+`WEBAUTHN_RP_ID` for the public HTTPS URL.
 
 ## Usage
 

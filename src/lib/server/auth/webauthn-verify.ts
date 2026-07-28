@@ -1,4 +1,3 @@
-import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from '$env/static/private';
 import { decodeBase64 } from '@oslojs/encoding';
 import {
 	ECDSAPublicKey,
@@ -34,7 +33,11 @@ import {
 import { isRecord } from '$lib/utils';
 import { hashSecret } from '$lib/server/auth/utils';
 import { formatAAGUID } from '$lib/passkey-authenticator-metadata';
+import { getRequiredEnvironmentVariable } from '$lib/server/env';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+
+const WEBAUTHN_ORIGIN = getRequiredEnvironmentVariable('WEBAUTHN_ORIGIN', 'http://localhost');
+const WEBAUTHN_RP_ID = getRequiredEnvironmentVariable('WEBAUTHN_RP_ID', 'localhost');
 
 export async function verifyWebAuthnAssertionRequest(
 	request: Request,

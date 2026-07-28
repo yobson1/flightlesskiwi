@@ -1,4 +1,3 @@
-import { WEBAUTHN_RP_NAME } from '$env/static/private';
 import { createTOTPKeyURI } from '@oslojs/otp';
 import { TOTP_CODE_LENGTH } from '$lib/auth-constants';
 import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
@@ -12,7 +11,10 @@ import {
 	updateUserTOTPKey,
 	verifyTOTPKey
 } from '$lib/server/auth/totp';
+import { getRequiredEnvironmentVariable } from '$lib/server/env';
 import type { RequestEvent } from './$types';
+
+const WEBAUTHN_RP_NAME = getRequiredEnvironmentVariable('WEBAUTHN_RP_NAME', 'flightlesskiwi');
 
 export function POST(event: RequestEvent) {
 	const guarded = requireVerifiedSession(event, { recentlyReauthenticated: true });

@@ -1,6 +1,8 @@
-import { WEBAUTHN_RP_NAME } from '$env/static/private';
 import { getUserEmailVerificationRequest } from '$lib/server/auth/email-verification';
+import { getRequiredEnvironmentVariable } from '$lib/server/env';
 import type { LayoutServerLoad } from './$types';
+
+const WEBAUTHN_RP_NAME = getRequiredEnvironmentVariable('WEBAUTHN_RP_NAME', 'flightlesskiwi');
 
 export const load: LayoutServerLoad = ({ locals }) => {
 	if (locals.user === null || locals.session === null) {

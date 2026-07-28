@@ -1,8 +1,8 @@
-import { DATABASE_URL } from '$env/static/private';
+import { getRequiredEnvironmentVariable } from '$lib/server/env';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from './schema';
 
-if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
+const DATABASE_URL = getRequiredEnvironmentVariable('DATABASE_URL', ':memory:');
 
 export const db = drizzle(DATABASE_URL, { schema });
 
