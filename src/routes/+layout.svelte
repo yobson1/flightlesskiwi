@@ -19,6 +19,7 @@
 		type AuthModalOpenOptions
 	} from '$lib/auth-modal';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { setupNavigationCursor } from '$lib/client/navigation-cursor';
 	import AuthModal from '$lib/components/auth-modal.svelte';
 	import Nav from '$lib/components/nav.svelte';
 	import { Separator } from '$lib/components/ui/separator';
@@ -41,6 +42,8 @@
 	let modalRequestId = 0;
 	let visibleAuth = $derived(data.auth);
 	const currentYear = new Date().getFullYear();
+
+	setupNavigationCursor();
 
 	provideAuthModal({
 		open: (view, options) => openAuthModal(view, options),

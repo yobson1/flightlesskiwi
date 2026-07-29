@@ -119,3 +119,8 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+html.navigation-pending,
+html.navigation-pending * {
+	cursor: progress !important;
+}
