@@ -14,7 +14,7 @@
 		class?: string;
 		createOption: (theme: BenchmarkEChartTheme) => BenchmarkEChartOption;
 		dragZoom?: boolean;
-		imageExporter?: () => void;
+		onImageExporterChange?: (imageExporter: (() => void) | undefined) => void;
 	}
 
 	let {
@@ -22,7 +22,7 @@
 		class: className,
 		createOption,
 		dragZoom = false,
-		imageExporter = $bindable()
+		onImageExporterChange
 	}: Props = $props();
 	let container: HTMLDivElement;
 	let chart = $state.raw<BenchmarkEChartInstance>();
@@ -75,7 +75,7 @@
 			if (!chart) {
 				theme = readBenchmarkEChartTheme();
 				chart = createBenchmarkEChart(container);
-				imageExporter = saveChartImage;
+				onImageExporterChange?.(saveChartImage);
 				if (dragZoom) {
 					resetZoom = (event: unknown) => {
 						const pointer = event as { offsetX?: number; offsetY?: number };
@@ -114,7 +114,7 @@
 			if (resetZoom) chart?.getZr().off('click', resetZoom);
 			chart?.dispose();
 			chart = undefined;
-			imageExporter = undefined;
+			onImageExporterChange?.(undefined);
 		};
 	});
 </script>

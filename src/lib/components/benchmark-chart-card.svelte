@@ -24,6 +24,10 @@
 	}: Props = $props();
 
 	let imageExporter = $state<() => void>();
+
+	function setImageExporter(exporter: (() => void) | undefined) {
+		imageExporter = exporter;
+	}
 </script>
 
 <article class="rounded-xl border bg-card p-4">
@@ -47,6 +51,12 @@
 	</div>
 
 	<div class={cn('mt-4 w-full', chartClass)}>
-		<BenchmarkEChart {ariaLabel} class="h-full" {createOption} {dragZoom} bind:imageExporter />
+		<BenchmarkEChart
+			{ariaLabel}
+			class="h-full"
+			{createOption}
+			{dragZoom}
+			onImageExporterChange={setImageExporter}
+		/>
 	</div>
 </article>

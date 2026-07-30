@@ -11,6 +11,7 @@
 	import { constructImageUrl } from '$lib/igdb';
 	import type { GameSearchResult } from '$lib/types/game';
 	import { onDestroy, untrack } from 'svelte';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import type { PageProps } from './$types';
 
@@ -41,7 +42,7 @@
 	onDestroy(() => filterController?.abort());
 
 	async function searchBenchmarks(query: string, signal: AbortSignal): Promise<Benchmark[]> {
-		const searchParams = new URLSearchParams();
+		const searchParams = new SvelteURLSearchParams();
 		if (selectedGame) searchParams.set('game_id', selectedGame.id.toString());
 		const searchSuffix = searchParams.size > 0 ? `?${searchParams}` : '';
 		const response = await fetch(
@@ -103,7 +104,7 @@
 		loadingGameFilter = true;
 
 		try {
-			const searchParams = new URLSearchParams();
+			const searchParams = new SvelteURLSearchParams();
 			if (game) searchParams.set('game_id', game.id.toString());
 			const suffix = searchParams.size > 0 ? `?${searchParams}` : '';
 			const response = await fetch(`${resolve('/api/benchmarks')}${suffix}`, {
@@ -140,7 +141,7 @@
 		loadMoreFailed = false;
 
 		try {
-			const searchParams = new URLSearchParams({
+			const searchParams = new SvelteURLSearchParams({
 				before: nextCursor.createdAt.toString(),
 				before_id: nextCursor.id
 			});
