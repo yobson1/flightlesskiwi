@@ -35,18 +35,29 @@
 	interface Props {
 		siteKey?: string | null;
 		align?: 'start' | 'center';
+		appearance?: 'always' | 'execute' | 'interaction-only';
 		onToken?: (token: string) => void;
 		onError?: (message: string) => void;
+		onInteractiveChange?: (interactive: boolean) => void;
 		onResetReady?: (reset: (() => void) | null) => void;
 	}
 
-	let { siteKey = null, align = 'center', onToken, onError, onResetReady }: Props = $props();
+	let {
+		siteKey = null,
+		align = 'center',
+		appearance = 'interaction-only',
+		onToken,
+		onError,
+		onInteractiveChange,
+		onResetReady
+	}: Props = $props();
 	let container = $state<HTMLDivElement>();
 	let widgetId: string | null = null;
 
 	onMount(() => {
 		if (!siteKey) return;
 		let active = true;
+		onInteractiveChange?.(appearance === 'always');
 
 		void loadTurnstile()
 			.then(() => {
@@ -56,8 +67,10 @@
 					sitekey: siteKey,
 					action: TURNSTILE_ACTION,
 					theme: 'auto',
+					appearance,
 					callback: (value) => {
 						onToken?.(value);
+						onInteractiveChange?.(false);
 					},
 					'expired-callback': () => {
 						reset();
@@ -65,6 +78,12 @@
 					'error-callback': () => {
 						onToken?.('');
 						onError?.('Unable to complete the verification challenge');
+					},
+					'before-interactive-callback': () => {
+						onInteractiveChange?.(true);
+					},
+					'after-interactive-callback': () => {
+						onInteractiveChange?.(false);
 					}
 				});
 				onResetReady?.(reset);
@@ -76,6 +95,7 @@
 
 		return () => {
 			active = false;
+			onInteractiveChange?.(false);
 			onError?.('Verification challenge cancelled');
 			onResetReady?.(null);
 			if (widgetId !== null && window.turnstile) window.turnstile.remove(widgetId);
@@ -96,5 +116,6 @@
 		class:justify-start={align === 'start'}
 		data-sitekey={siteKey}
 		data-action="turnstile-spin-v2"
+		data-appearance={appearance}
 	></div>
 {/if}

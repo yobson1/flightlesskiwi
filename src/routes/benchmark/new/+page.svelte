@@ -30,6 +30,7 @@
 	let description = $state(initialValues?.description ?? '');
 	let descriptionPreviewOpen = $state(false);
 	let turnstileToken = $state('');
+	let turnstileInteractive = $state(false);
 	let resetTurnstile: (() => void) | null = null;
 
 	const uploadSubmit: SubmitFunction = () => {
@@ -180,14 +181,22 @@
 						</p>
 					{/if}
 
-					<div class="flex items-center justify-between gap-4">
-						<Turnstile
-							siteKey={data.turnstileSiteKey}
-							align="start"
-							onToken={(token) => (turnstileToken = token)}
-							onResetReady={(reset) => (resetTurnstile = reset)}
-						/>
-						<div class="flex shrink-0 gap-2">
+					<div class="relative flex items-center gap-4">
+						<div
+							class:absolute={!turnstileInteractive}
+							class:top-0={!turnstileInteractive}
+							class:left-0={!turnstileInteractive}
+							aria-hidden={!turnstileInteractive}
+						>
+							<Turnstile
+								siteKey={data.turnstileSiteKey}
+								align="start"
+								onToken={(token) => (turnstileToken = token)}
+								onInteractiveChange={(interactive) => (turnstileInteractive = interactive)}
+								onResetReady={(reset) => (resetTurnstile = reset)}
+							/>
+						</div>
+						<div class="ml-auto flex shrink-0 gap-2">
 							<Button
 								type="button"
 								variant="outline"

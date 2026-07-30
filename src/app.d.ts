@@ -9,9 +9,12 @@ declare global {
 					sitekey: string;
 					action: string;
 					theme: 'auto' | 'light' | 'dark';
+					appearance: 'always' | 'execute' | 'interaction-only';
 					callback(token: string): void;
 					'expired-callback'(): void;
 					'error-callback'(): void;
+					'before-interactive-callback'(): void;
+					'after-interactive-callback'(): void;
 				}
 			): string;
 			remove(widgetId: string): void;
