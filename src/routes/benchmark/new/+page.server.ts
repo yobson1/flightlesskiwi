@@ -11,13 +11,15 @@ import {
 } from '$lib/benchmark';
 import { getCapFrameXRunCount } from '$lib/capframex';
 import { error as logError, warn } from '$lib/logger';
-import { requireVerifiedPage, requireVerifiedSession } from '$lib/server/auth/api';
+import { getClientIP, requireVerifiedPage, requireVerifiedSession } from '$lib/server/auth/api';
 import { generateSecureRandomString } from '$lib/server/auth/utils';
 import { deleteBenchmarkFiles, writeBenchmarkFiles } from '$lib/server/benchmark-files';
 import { parseBenchmarkRun } from '$lib/server/benchmark-run';
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game } from '$lib/server/db/schema';
+import { verifyTurnstileToken } from '$lib/server/turnstile';
+import { TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
 import type { Actions, PageServerLoad } from './$types';
 
 interface SubmittedValues {
@@ -43,6 +45,15 @@ export const actions: Actions = {
 
 		const formData = await event.request.formData();
 		const values = parseValues(formData);
+		if (
+			!(await verifyTurnstileToken(
+				formData.get(TURNSTILE_RESPONSE_FIELD),
+				getClientIP(event),
+				event.fetch
+			))
+		) {
+			return fail(403, { message: 'Complete the verification challenge', values });
+		}
 		const validationMessage = validateValues(values);
 		if (validationMessage) return fail(400, { message: validationMessage, values });
 

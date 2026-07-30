@@ -1,4 +1,6 @@
 import type { AuthAPIErrorResponse, AuthAPIResponse, AuthModalView } from '$lib/types/auth';
+import { resetAuthTurnstile, takeAuthTurnstileToken } from '$lib/client/auth-turnstile';
+import { isTurnstileProtectedAuthRequest, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
 
 export class AuthAPIError extends Error {
 	readonly modal: AuthModalView | null;
@@ -25,7 +27,19 @@ export async function authRequest(
 	endpoint: string,
 	init: RequestInit = {}
 ): Promise<AuthAPIResponse> {
-	const response = await fetch(endpoint, init);
+	const method = init.method ?? 'GET';
+	const pathname = new URL(endpoint, window.location.origin).pathname;
+	const protectedByTurnstile = isTurnstileProtectedAuthRequest(pathname, method);
+	const token = protectedByTurnstile ? await takeAuthTurnstileToken(init.signal) : null;
+	const headers = new Headers(init.headers);
+	if (token) headers.set(TURNSTILE_RESPONSE_FIELD, token);
+
+	let response: Response;
+	try {
+		response = await fetch(endpoint, { ...init, headers });
+	} finally {
+		if (token) resetAuthTurnstile();
+	}
 	const data = await readResponse(response);
 	if (!response.ok) {
 		const error = isErrorResponse(data) ? data : null;

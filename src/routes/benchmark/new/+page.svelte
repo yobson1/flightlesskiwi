@@ -5,6 +5,7 @@
 	import { enhance } from '$app/forms';
 	import { MAX_BENCHMARK_DESCRIPTION_LENGTH, MAX_BENCHMARK_TITLE_LENGTH } from '$lib/benchmark';
 	import BenchmarkFileInput from '$lib/components/benchmark-file-input.svelte';
+	import Turnstile from '$lib/components/turnstile.svelte';
 	import GameInline from '$lib/components/game-inline.svelte';
 	import GameSearch from '$lib/components/game-search.svelte';
 	import MarkdownPreview from '$lib/components/markdown-preview.svelte';
@@ -19,7 +20,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
 
-	let { form }: PageProps = $props();
+	let { form, data }: PageProps = $props();
 
 	const initialValues = untrack(() => getSubmittedValues(form));
 	let selectedGameId = $state<number | null>(initialValues?.gameId ?? null);
@@ -28,12 +29,15 @@
 	let gameSearchKey = $state(0);
 	let description = $state(initialValues?.description ?? '');
 	let descriptionPreviewOpen = $state(false);
+	let turnstileToken = $state('');
+	let resetTurnstile: (() => void) | null = null;
 
 	const uploadSubmit: SubmitFunction = () => {
 		submitting = true;
 
 		return async ({ result, update }) => {
 			submitting = false;
+			resetTurnstile?.();
 			if (result.type === 'failure') {
 				toast.error(getMessage(result.data, 'Unable to upload benchmark'));
 				await update({ reset: false });
@@ -168,6 +172,13 @@
 
 					<BenchmarkFileInput bind:files={selectedFiles} disabled={submitting} />
 
+					<Turnstile
+						siteKey={data.turnstileSiteKey}
+						align="start"
+						onToken={(token) => (turnstileToken = token)}
+						onResetReady={(reset) => (resetTurnstile = reset)}
+					/>
+
 					{#if form?.message && !form?.benchmarkId}
 						<Field.Error>{form.message}</Field.Error>
 					{:else if form?.benchmarkId}
@@ -186,7 +197,11 @@
 							<ScanEyeIcon />
 							Preview
 						</Button>
-						<Button type="submit" size="lg" disabled={submitting}>
+						<Button
+							type="submit"
+							size="lg"
+							disabled={submitting || (data.turnstileSiteKey !== null && !turnstileToken)}
+						>
 							{#if submitting}
 								<LoaderIcon class="animate-spin" />
 								Uploading…

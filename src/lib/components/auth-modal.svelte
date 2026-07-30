@@ -4,6 +4,11 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import {
+		failAuthTurnstile,
+		setAuthTurnstileReset,
+		setAuthTurnstileToken
+	} from '$lib/client/auth-turnstile';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
 	import LoginForm from '$lib/components/login-form.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
@@ -13,6 +18,7 @@
 	import RecoveryCode from '$lib/components/recovery-code.svelte';
 	import SignupForm from '$lib/components/signup-form.svelte';
 	import TOTPSetupForm from '$lib/components/totp-setup-form.svelte';
+	import Turnstile from '$lib/components/turnstile.svelte';
 	import TwoFactorSetup from '$lib/components/two-factor-setup.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -23,6 +29,7 @@
 		view: AuthModalView | null;
 		auth: ClientAuthState | null;
 		webAuthnRPName: string;
+		turnstileSiteKey: string | null;
 		viewData?: unknown;
 		required?: boolean;
 		onViewChange?: (view: AuthModalView) => void | Promise<void>;
@@ -34,6 +41,7 @@
 		view,
 		auth,
 		webAuthnRPName,
+		turnstileSiteKey,
 		viewData,
 		required = false,
 		onViewChange,
@@ -42,6 +50,11 @@
 	}: Props = $props();
 	let passkeyPending = $state(false);
 	let passkeyMessage = $state('');
+	let turnstileToken = $state('');
+
+	$effect(() => {
+		setAuthTurnstileToken(turnstileToken);
+	});
 
 	const wide = $derived(view === 'login' || view === 'signup');
 	const totpKeyURI = $derived(getStringProperty(viewData, 'keyURI'));
@@ -291,6 +304,16 @@
 					<ReauthenticationForm {auth} onComplete={(next) => onComplete?.(next)} />
 				{/if}
 			{/key}
+			{#if turnstileSiteKey}
+				<div class="mt-4 rounded-lg border bg-card p-3">
+					<Turnstile
+						siteKey={turnstileSiteKey}
+						onToken={(token) => (turnstileToken = token)}
+						onError={failAuthTurnstile}
+						onResetReady={setAuthTurnstileReset}
+					/>
+				</div>
+			{/if}
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>

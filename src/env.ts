@@ -61,6 +61,14 @@ export const variables = defineEnvVars({
 		schema: v.optional(nonEmptyString),
 		description: 'Direct client address from which CLIENT_IP_HEADER may be trusted'
 	},
+	TURNSTILE_SITE_KEY: {
+		schema: v.optional(nonEmptyString),
+		description: 'Cloudflare Turnstile site key; Turnstile is disabled when either key is unset'
+	},
+	TURNSTILE_SECRET: {
+		schema: v.optional(nonEmptyString),
+		description: 'Cloudflare Turnstile secret; Turnstile is disabled when either key is unset'
+	},
 	WEBAUTHN_RP_ID: { schema: requiredAtRuntime },
 	WEBAUTHN_RP_NAME: { schema: requiredAtRuntime },
 	WEBAUTHN_ORIGIN: {
