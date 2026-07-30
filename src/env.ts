@@ -69,6 +69,10 @@ export const variables = defineEnvVars({
 		schema: v.optional(nonEmptyString),
 		description: 'Cloudflare Turnstile secret; Turnstile is disabled when either key is unset'
 	},
+	CONTACT_EMAIL: {
+		schema: v.optional(v.pipe(nonEmptyString, v.email())),
+		description: 'Public contact address shown on the privacy page'
+	},
 	WEBAUTHN_RP_ID: { schema: requiredAtRuntime },
 	WEBAUTHN_RP_NAME: { schema: requiredAtRuntime },
 	WEBAUTHN_ORIGIN: {
