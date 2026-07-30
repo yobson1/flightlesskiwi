@@ -11,6 +11,11 @@
 
 This project uses [Bun](https://bun.sh/):
 
+> [!NOTE]
+> Development currently uses Bun canary for the timezone-aware cron APIs coming in
+> Bun 1.4. Once Bun 1.4 is released, switch the project and Docker image back to
+> stable and remove the temporary `@ts-expect-error` comments for those APIs.
+
 ```sh
 bun install
 bun run db:push
@@ -58,8 +63,10 @@ explicit environment variable API. Required runtime values may be omitted while
 building the image, but the server validates all of them together and exits before
 starting if any are missing or invalid. The upload directory, Meilisearch host, IGDB
 import schedule, SMTP port, and SMTP security mode have operational defaults. IGDB
-imports run on the five-field UTC cron schedule in `IGDB_IMPORT_CRON`, which defaults
-to `0 0 * * *`. An import also runs whenever the server starts.
+imports run on the five-field cron schedule in `IGDB_IMPORT_CRON`, which defaults to
+`0 0 * * *`. The schedule uses the system time zone by default; set
+`IGDB_IMPORT_TIME_ZONE` to an IANA time-zone name to override it. An import also runs
+whenever the server starts.
 
 The example uses the latest GHCR image by default. Set `FLIGHTLESSKIWI_IMAGE` to use
 another image tag, or run `docker compose up -d --build` to build the image from the

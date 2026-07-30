@@ -87,7 +87,7 @@
 		<p class="text-sm font-medium text-primary">System status</p>
 		<h1 class="text-3xl font-bold tracking-tight">IGDB imports</h1>
 		<p class="mt-2 max-w-3xl text-muted-foreground">
-			Updated game metadata is imported on a recurring UTC schedule.
+			Updated game metadata is imported on a recurring schedule.
 		</p>
 	</header>
 

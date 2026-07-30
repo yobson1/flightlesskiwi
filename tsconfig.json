@@ -2,7 +2,7 @@
 	"extends": "./.svelte-kit/tsconfig.json",
 	"files": ["drizzle.config.ts"],
 	"compilerOptions": {
-		"types": ["bun", "node", "unplugin-icons/types/svelte"],
+		"types": ["bun-types", "node", "unplugin-icons/types/svelte"],
 		"allowJs": true,
 		"checkJs": true,
 		"esModuleInterop": true,

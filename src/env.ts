@@ -19,6 +19,17 @@ const encryptionKey = v.pipe(
 		}
 	}, 'Must be a base64-encoded 32-byte key')
 );
+const timeZone = v.pipe(
+	nonEmptyString,
+	v.check((value) => {
+		try {
+			new Intl.DateTimeFormat('en', { timeZone: value }).format();
+			return true;
+		} catch {
+			return false;
+		}
+	}, 'Must be a valid IANA time-zone name')
+);
 
 export const variables = defineEnvVars({
 	DATABASE_URL: { schema: requiredAtRuntime },
@@ -33,7 +44,11 @@ export const variables = defineEnvVars({
 	IGDB_CLIENT_SECRET: { schema: requiredAtRuntime },
 	IGDB_IMPORT_CRON: {
 		schema: v.optional(nonEmptyString, '0 0 * * *'),
-		description: 'UTC cron schedule for importing updated games from IGDB'
+		description: 'Cron schedule for importing updated games from IGDB'
+	},
+	IGDB_IMPORT_TIME_ZONE: {
+		schema: v.optional(timeZone),
+		description: 'IANA time zone for IGDB imports; defaults to the system time zone'
 	},
 	AUTH_ENCRYPTION_KEY: {
 		schema: building ? v.optional(encryptionKey) : encryptionKey

@@ -18,7 +18,7 @@ export interface IgdbImportFailure {
 
 export interface IgdbImportStatus {
 	schedule: string;
-	timeZone: 'UTC';
+	timeZone: string;
 	nextImportAt: string | null;
 	lastSuccessfulImportAt: string | null;
 	activeImport: IgdbImportProgress | null;

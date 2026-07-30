@@ -3,7 +3,7 @@ import { igdb, invalidateIgdbAccessToken } from '$lib/server/igdb';
 import type { IgdbImportProgress, IgdbImportStatus } from '$lib/igdb';
 import type { Game as IGDBGame } from '$lib/types/igdb';
 import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
-import { IGDB_IMPORT_CRON } from '$app/env/private';
+import { IGDB_IMPORT_CRON, IGDB_IMPORT_TIME_ZONE } from '$app/env/private';
 import { db } from '$lib/server/db';
 import {
 	game,
@@ -45,6 +45,8 @@ const syncGlobal = globalThis as typeof globalThis & {
 	flightlesskiwiIgdbImportState?: IgdbImportSchedulerState;
 	flightlesskiwiIgdbSync?: Promise<void>;
 };
+const importTimeZone = IGDB_IMPORT_TIME_ZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+const importCronOptions = { tz: importTimeZone };
 let importScheduler: Bun.CronJob | undefined;
 
 const SOURCE_TO_STORE: Record<number, number> = {
@@ -735,7 +737,8 @@ function getImportSchedulerState() {
 }
 
 function getNextImportAt() {
-	return Bun.cron.parse(IGDB_IMPORT_CRON!)?.toISOString() ?? null;
+	// @ts-expect-error The published Bun canary types do not include the Bun 1.4 tz option yet.
+	return Bun.cron.parse(IGDB_IMPORT_CRON!, Date.now(), importCronOptions)?.toISOString() ?? null;
 }
 
 export function getIgdbImportStatus(): IgdbImportStatus {
@@ -744,7 +747,7 @@ export function getIgdbImportStatus(): IgdbImportStatus {
 
 	return {
 		schedule: IGDB_IMPORT_CRON!,
-		timeZone: 'UTC',
+		timeZone: importTimeZone,
 		nextImportAt: state.nextImportAt ?? (state.activeImport === null ? getNextImportAt() : null),
 		lastSuccessfulImportAt:
 			lastSyncTimestamp === 0 ? null : new Date(lastSyncTimestamp * 1000).toISOString(),
@@ -808,16 +811,18 @@ export function startIgdbImportScheduler() {
 	const state = getImportSchedulerState();
 	state.nextImportAt = getNextImportAt();
 
-	importScheduler = Bun.cron(IGDB_IMPORT_CRON!, async () => {
+	const runImport = async () => {
 		state.nextImportAt = null;
 		try {
 			await startIgdbSync();
 		} finally {
 			state.nextImportAt = getNextImportAt();
 		}
-	}).unref();
+	};
+	// @ts-expect-error The published Bun canary types do not include the Bun 1.4 tz option yet.
+	importScheduler = Bun.cron(IGDB_IMPORT_CRON!, runImport, importCronOptions).unref();
 
 	info(
-		`Scheduled IGDB imports with "${IGDB_IMPORT_CRON}" (UTC); next import at ${state.nextImportAt}`
+		`Scheduled IGDB imports with "${IGDB_IMPORT_CRON}" (${importTimeZone}); next import at ${state.nextImportAt}`
 	);
 }

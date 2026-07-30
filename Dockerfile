@@ -1,4 +1,4 @@
-FROM docker.io/oven/bun:1.3 AS build
+FROM docker.io/oven/bun:canary-slim AS build
 
 WORKDIR /app
 
@@ -8,14 +8,14 @@ RUN bun install --frozen-lockfile --ignore-scripts
 COPY . .
 RUN bun run build
 
-FROM docker.io/oven/bun:1.3-slim AS production-dependencies
+FROM docker.io/oven/bun:canary-slim AS production-dependencies
 
 WORKDIR /app
 
 COPY package.json bun.lock ./
 RUN bun install --production --frozen-lockfile --ignore-scripts
 
-FROM docker.io/oven/bun:1.3-slim AS runtime
+FROM docker.io/oven/bun:canary-slim AS runtime
 
 ENV NODE_ENV=production \
 	HOST=0.0.0.0 \
