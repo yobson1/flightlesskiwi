@@ -14,6 +14,7 @@
 	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
+	import AuthCard from '$lib/components/auth-card.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -213,7 +214,7 @@
 		onComplete={completeCodeFactor}
 	/>
 {:else}
-	<Card.Root>
+	<AuthCard>
 		<Card.Header class="items-center text-center">
 			<div class="mb-2 flex size-11 items-center justify-center rounded-full bg-muted">
 				{#if stage === 'request'}
@@ -449,5 +450,5 @@
 				</form>
 			{/if}
 		</Card.Content>
-	</Card.Root>
+	</AuthCard>
 {/if}

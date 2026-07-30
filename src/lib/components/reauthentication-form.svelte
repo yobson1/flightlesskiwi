@@ -5,6 +5,7 @@
 	import { MAX_PASSWORD_LENGTH, TOTP_CODE_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
+	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -76,7 +77,7 @@
 	}
 </script>
 
-<Card.Root>
+<AuthCard>
 	<Card.Header class="items-center text-center">
 		<div class="mb-2 flex size-11 items-center justify-center rounded-full bg-muted">
 			<ShieldCheckIcon class="size-5" />
@@ -163,4 +164,4 @@
 			</Button>
 		{/if}
 	</Card.Content>
-</Card.Root>
+</AuthCard>

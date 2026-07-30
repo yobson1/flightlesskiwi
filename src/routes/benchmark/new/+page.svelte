@@ -172,13 +172,6 @@
 
 					<BenchmarkFileInput bind:files={selectedFiles} disabled={submitting} />
 
-					<Turnstile
-						siteKey={data.turnstileSiteKey}
-						align="start"
-						onToken={(token) => (turnstileToken = token)}
-						onResetReady={(reset) => (resetTurnstile = reset)}
-					/>
-
 					{#if form?.message && !form?.benchmarkId}
 						<Field.Error>{form.message}</Field.Error>
 					{:else if form?.benchmarkId}
@@ -187,29 +180,37 @@
 						</p>
 					{/if}
 
-					<div class="flex justify-end gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							size="lg"
-							onclick={() => (descriptionPreviewOpen = true)}
-						>
-							<ScanEyeIcon />
-							Preview
-						</Button>
-						<Button
-							type="submit"
-							size="lg"
-							disabled={submitting || (data.turnstileSiteKey !== null && !turnstileToken)}
-						>
-							{#if submitting}
-								<LoaderIcon class="animate-spin" />
-								Uploading…
-							{:else}
-								<UploadIcon />
-								Upload benchmark
-							{/if}
-						</Button>
+					<div class="flex items-center justify-between gap-4">
+						<Turnstile
+							siteKey={data.turnstileSiteKey}
+							align="start"
+							onToken={(token) => (turnstileToken = token)}
+							onResetReady={(reset) => (resetTurnstile = reset)}
+						/>
+						<div class="flex shrink-0 gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="lg"
+								onclick={() => (descriptionPreviewOpen = true)}
+							>
+								<ScanEyeIcon />
+								Preview
+							</Button>
+							<Button
+								type="submit"
+								size="lg"
+								disabled={submitting || (data.turnstileSiteKey !== null && !turnstileToken)}
+							>
+								{#if submitting}
+									<LoaderIcon class="animate-spin" />
+									Uploading…
+								{:else}
+									<UploadIcon />
+									Upload benchmark
+								{/if}
+							</Button>
+						</div>
 					</div>
 				</Field.Group>
 			</form>

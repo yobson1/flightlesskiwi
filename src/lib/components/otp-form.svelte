@@ -12,6 +12,7 @@
 		TOTP_CODE_LENGTH_WORD
 	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
+	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -142,7 +143,7 @@
 	}
 </script>
 
-<Card.Root {...props}>
+<AuthCard {...props}>
 	<Card.Header>
 		<div class="grid grid-cols-[2.25rem_1fr_2.25rem] items-center gap-2">
 			<div class="flex size-9 items-center justify-center rounded-full bg-muted">
@@ -280,4 +281,4 @@
 			</button>
 		{/if}
 	</Card.Content>
-</Card.Root>
+</AuthCard>

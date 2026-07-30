@@ -4,6 +4,7 @@
 	import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnRegistration, type WebAuthnRegistration } from '$lib/client/webauthn';
+	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -74,7 +75,7 @@
 	}
 </script>
 
-<Card.Root>
+<AuthCard>
 	<Card.Header>
 		<div class="grid grid-cols-[2.25rem_1fr_2.25rem] items-center gap-2">
 			<div class="flex size-9 items-center justify-center rounded-full bg-muted">
@@ -141,4 +142,4 @@
 			</Button>
 		{/if}
 	</Card.Content>
-</Card.Root>
+</AuthCard>

@@ -3,6 +3,8 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
+	import { untrack } from 'svelte';
+	import { provideAuthTurnstile } from '$lib/auth-turnstile-context';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import {
 		failAuthTurnstile,
@@ -10,6 +12,7 @@
 		setAuthTurnstileToken
 	} from '$lib/client/auth-turnstile';
 	import { createWebAuthnAssertion } from '$lib/client/webauthn';
+	import AuthCard from '$lib/components/auth-card.svelte';
 	import LoginForm from '$lib/components/login-form.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
 	import PasskeySetupForm from '$lib/components/passkey-setup-form.svelte';
@@ -18,7 +21,6 @@
 	import RecoveryCode from '$lib/components/recovery-code.svelte';
 	import SignupForm from '$lib/components/signup-form.svelte';
 	import TOTPSetupForm from '$lib/components/totp-setup-form.svelte';
-	import Turnstile from '$lib/components/turnstile.svelte';
 	import TwoFactorSetup from '$lib/components/two-factor-setup.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -50,10 +52,12 @@
 	}: Props = $props();
 	let passkeyPending = $state(false);
 	let passkeyMessage = $state('');
-	let turnstileToken = $state('');
 
-	$effect(() => {
-		setAuthTurnstileToken(turnstileToken);
+	provideAuthTurnstile({
+		siteKey: untrack(() => turnstileSiteKey),
+		onToken: setAuthTurnstileToken,
+		onError: failAuthTurnstile,
+		onResetReady: setAuthTurnstileReset
 	});
 
 	const wide = $derived(view === 'login' || view === 'signup');
@@ -231,12 +235,12 @@
 					{#if totpKeyURI}
 						<TOTPSetupForm keyURI={totpKeyURI} {onComplete} />
 					{:else}
-						<Card.Root>
+						<AuthCard>
 							<Card.Content class="flex items-center justify-center gap-2 py-12">
 								<LoaderCircleIcon class="animate-spin" />
 								Loading authenticator setup…
 							</Card.Content>
-						</Card.Root>
+						</AuthCard>
 					{/if}
 				{:else if view === 'passkey-register'}
 					{#if passkeyOptions}
@@ -248,19 +252,19 @@
 							{onComplete}
 						/>
 					{:else}
-						<Card.Root>
+						<AuthCard>
 							<Card.Content class="flex items-center justify-center gap-2 py-12">
 								<LoaderCircleIcon class="animate-spin" />
 								Loading passkey setup…
 							</Card.Content>
-						</Card.Root>
+						</AuthCard>
 					{/if}
 				{:else if view === 'recovery-code'}
 					<RecoveryCode onDone={(next) => onComplete?.(next)} />
 				{:else if view === 'totp'}
 					<OTPForm kind="totp" {onComplete} />
 				{:else if view === 'passkey'}
-					<Card.Root>
+					<AuthCard>
 						<Card.Header class="items-center text-center">
 							<div class="mb-2 flex size-11 items-center justify-center rounded-full bg-muted">
 								<FingerprintIcon class="size-5" />
@@ -299,21 +303,11 @@
 								</Button>
 							{/if}
 						</Card.Content>
-					</Card.Root>
+					</AuthCard>
 				{:else if view === 'reauth' && auth !== null}
 					<ReauthenticationForm {auth} onComplete={(next) => onComplete?.(next)} />
 				{/if}
 			{/key}
-			{#if turnstileSiteKey}
-				<div class="mt-4 rounded-lg border bg-card p-3">
-					<Turnstile
-						siteKey={turnstileSiteKey}
-						onToken={(token) => (turnstileToken = token)}
-						onError={failAuthTurnstile}
-						onResetReady={setAuthTurnstileReset}
-					/>
-				</div>
-			{/if}
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
