@@ -31,6 +31,10 @@ export const variables = defineEnvVars({
 	},
 	IGDB_CLIENT_ID: { schema: requiredAtRuntime },
 	IGDB_CLIENT_SECRET: { schema: requiredAtRuntime },
+	IGDB_IMPORT_CRON: {
+		schema: v.optional(nonEmptyString, '0 0 * * *'),
+		description: 'UTC cron schedule for importing updated games from IGDB'
+	},
 	AUTH_ENCRYPTION_KEY: {
 		schema: building ? v.optional(encryptionKey) : encryptionKey
 	},

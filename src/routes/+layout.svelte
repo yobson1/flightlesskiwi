@@ -282,6 +282,7 @@
 		<div class="mx-auto flex w-full max-w-7xl items-center justify-between p-4">
 			<p>&copy; {currentYear} flightlesskiwi</p>
 			<nav class="flex items-center gap-4" aria-label="Footer">
+				<a href="/status" class="text-sm transition-colors hover:text-foreground"> Status </a>
 				<a href="/help" class="text-sm transition-colors hover:text-foreground"> About </a>
 				<a
 					href="https://github.com/yobson1/flightlesskiwi"

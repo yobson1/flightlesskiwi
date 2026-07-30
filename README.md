@@ -56,8 +56,10 @@ docker compose up -d
 Environment variables are declared and validated in `src/env.ts` using SvelteKit's
 explicit environment variable API. Required runtime values may be omitted while
 building the image, but the server validates all of them together and exits before
-starting if any are missing or invalid. The upload directory, Meilisearch host, SMTP
-port, and SMTP security mode have operational defaults.
+starting if any are missing or invalid. The upload directory, Meilisearch host, IGDB
+import schedule, SMTP port, and SMTP security mode have operational defaults. IGDB
+imports run on the five-field UTC cron schedule in `IGDB_IMPORT_CRON`, which defaults
+to `0 0 * * *`. An import also runs whenever the server starts.
 
 The example uses the latest GHCR image by default. Set `FLIGHTLESSKIWI_IMAGE` to use
 another image tag, or run `docker compose up -d --build` to build the image from the

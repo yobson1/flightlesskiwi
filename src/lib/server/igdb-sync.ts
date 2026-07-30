@@ -1,7 +1,9 @@
 import { error, info, warn } from '$lib/logger';
 import { igdb, invalidateIgdbAccessToken } from '$lib/server/igdb';
+import type { IgdbImportProgress, IgdbImportStatus } from '$lib/igdb';
 import type { Game as IGDBGame } from '$lib/types/igdb';
 import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
+import { IGDB_IMPORT_CRON } from '$app/env/private';
 import { db } from '$lib/server/db';
 import {
 	game,
@@ -32,6 +34,18 @@ const IGDB_REQUESTS_PER_BATCH = 4;
 const IGDB_REQUEST_INTERVAL_MS = 1000;
 const MAX_REQUEST_ATTEMPTS = 4;
 const DB_WRITE_BATCH_SIZE = 200;
+
+interface IgdbImportSchedulerState {
+	nextImportAt: string | null;
+	activeImport: IgdbImportProgress | null;
+	lastFailure: IgdbImportStatus['lastFailure'];
+}
+
+const syncGlobal = globalThis as typeof globalThis & {
+	flightlesskiwiIgdbImportState?: IgdbImportSchedulerState;
+	flightlesskiwiIgdbSync?: Promise<void>;
+};
+let importScheduler: Bun.CronJob | undefined;
 
 const SOURCE_TO_STORE: Record<number, number> = {
 	[GameSource.steam]: STORES.STEAM.id,
@@ -590,9 +604,17 @@ async function fetchGames(
 	return responses.flatMap((response) => response.data as IGDBGame[]);
 }
 
-async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
+async function igdbSync(
+	lastSyncTimestamp: number,
+	gameSearchReady: boolean,
+	progress: IgdbImportProgress
+) {
 	// Leave the current second open so records created while this sync starts are picked up next time.
 	const syncUpperBound = Math.floor(Date.now() / 1000) - 1;
+	progress.syncFrom =
+		lastSyncTimestamp === 0 ? null : new Date(lastSyncTimestamp * 1000).toISOString();
+	progress.syncThrough = new Date(syncUpperBound * 1000).toISOString();
+	progress.phase = 'checking';
 	if (syncUpperBound <= lastSyncTimestamp) return;
 
 	const filter = `updated_at > ${lastSyncTimestamp} & updated_at <= ${syncUpperBound}`;
@@ -614,6 +636,9 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 
 	info(`Found ${totalGames} games to sync`);
 
+	progress.phase = 'importing';
+	progress.totalGames = totalGames;
+	progress.pendingGames = totalGames;
 	let importedGames = 0;
 	let benchmarkSearchReady = true;
 	const relationships = new Map<number, GameRelationship>();
@@ -631,6 +656,8 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 			relationships.set(relationship.id, relationship);
 		}
 		importedGames += games.length;
+		progress.importedGames = importedGames;
+		progress.pendingGames = Math.max(totalGames - importedGames, 0);
 		info(`Imported ${importedGames}/${totalGames} games`);
 
 		if (gameSearchReady) {
@@ -664,6 +691,7 @@ async function igdbSync(lastSyncTimestamp: number, gameSearchReady: boolean) {
 		}
 	}
 
+	progress.phase = 'finalizing';
 	const updatedRelationships = syncGameRelationships([...relationships.values()]);
 	if (updatedRelationships > 0) {
 		info(`Applied parent/version relationships to ${updatedRelationships} games`);
@@ -697,9 +725,33 @@ function getLastSyncTime() {
 	return state ? Math.floor(state.lastSync.getTime() / 1000) : 0;
 }
 
-const syncGlobal = globalThis as typeof globalThis & {
-	flightlesskiwiIgdbSync?: Promise<void>;
-};
+function getImportSchedulerState() {
+	syncGlobal.flightlesskiwiIgdbImportState ??= {
+		nextImportAt: null,
+		activeImport: null,
+		lastFailure: null
+	};
+	return syncGlobal.flightlesskiwiIgdbImportState;
+}
+
+function getNextImportAt() {
+	return Bun.cron.parse(IGDB_IMPORT_CRON!)?.toISOString() ?? null;
+}
+
+export function getIgdbImportStatus(): IgdbImportStatus {
+	const state = getImportSchedulerState();
+	const lastSyncTimestamp = getLastSyncTime();
+
+	return {
+		schedule: IGDB_IMPORT_CRON!,
+		timeZone: 'UTC',
+		nextImportAt: state.nextImportAt ?? (state.activeImport === null ? getNextImportAt() : null),
+		lastSuccessfulImportAt:
+			lastSyncTimestamp === 0 ? null : new Date(lastSyncTimestamp * 1000).toISOString(),
+		activeImport: state.activeImport ? { ...state.activeImport } : null,
+		lastFailure: state.lastFailure ? { ...state.lastFailure } : null
+	};
+}
 
 async function syncGameSearch() {
 	try {
@@ -713,21 +765,59 @@ async function syncGameSearch() {
 }
 
 export function startIgdbSync() {
-	if (syncGlobal.flightlesskiwiIgdbSync) return;
+	if (syncGlobal.flightlesskiwiIgdbSync) return syncGlobal.flightlesskiwiIgdbSync;
+
+	const state = getImportSchedulerState();
+	const progress: IgdbImportProgress = {
+		startedAt: new Date().toISOString(),
+		syncFrom: null,
+		syncThrough: null,
+		phase: 'preparing',
+		importedGames: 0,
+		totalGames: null,
+		pendingGames: null
+	};
+	state.activeImport = progress;
 
 	const sync = Promise.resolve()
 		.then(async () => {
 			const gameSearchReady = await syncGameSearch();
-			await igdbSync(getLastSyncTime(), gameSearchReady);
+			await igdbSync(getLastSyncTime(), gameSearchReady, progress);
+			state.lastFailure = null;
 		})
 		.catch((cause) => {
 			error('IGDB sync failed; the current sync window will restart from the beginning', cause);
+			state.lastFailure = {
+				failedAt: new Date().toISOString()
+			};
 		})
 		.finally(() => {
+			if (state.activeImport === progress) state.activeImport = null;
 			if (syncGlobal.flightlesskiwiIgdbSync === sync) {
 				delete syncGlobal.flightlesskiwiIgdbSync;
 			}
 		});
 
 	syncGlobal.flightlesskiwiIgdbSync = sync;
+	return sync;
+}
+
+export function startIgdbImportScheduler() {
+	if (importScheduler) return;
+
+	const state = getImportSchedulerState();
+	state.nextImportAt = getNextImportAt();
+
+	importScheduler = Bun.cron(IGDB_IMPORT_CRON!, async () => {
+		state.nextImportAt = null;
+		try {
+			await startIgdbSync();
+		} finally {
+			state.nextImportAt = getNextImportAt();
+		}
+	}).unref();
+
+	info(
+		`Scheduled IGDB imports with "${IGDB_IMPORT_CRON}" (UTC); next import at ${state.nextImportAt}`
+	);
 }

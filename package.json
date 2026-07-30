@@ -69,6 +69,7 @@
 		"apicalypse": "^1.0.5",
 		"bits-ui": "^2.18.1",
 		"clsx": "^2.1.1",
+		"cronstrue": "^3.24.0",
 		"drizzle-orm": "^0.45.2",
 		"echarts": "^6.1.0",
 		"meilisearch": "^0.60.0",

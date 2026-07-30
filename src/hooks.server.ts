@@ -3,7 +3,7 @@ import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { error } from '$lib/logger';
 import * as auth from '$lib/server/auth';
 import { startBenchmarkSearchSync } from '$lib/server/benchmark-search';
-import { seedStores, startIgdbSync } from '$lib/server/igdb-sync';
+import { seedStores, startIgdbImportScheduler, startIgdbSync } from '$lib/server/igdb-sync';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionToken = event.cookies.get(auth.sessionCookieName);
@@ -37,5 +37,6 @@ export const handleError: HandleServerError = ({ error: cause, event, status, me
 if (!building) {
 	seedStores();
 	startBenchmarkSearchSync();
+	startIgdbImportScheduler();
 	startIgdbSync();
 }
