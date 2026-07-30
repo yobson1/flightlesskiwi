@@ -18,8 +18,22 @@ This project uses [Bun](https://bun.sh/):
 
 ```sh
 bun install
-bun run db:push
+bun db:push
 bun dev
+```
+
+### Environment variables
+
+Environment variables are declared and validated in `src/env.ts` using SvelteKit's
+explicit environment variable API. You can view which are required or optional, and their
+default values there.
+
+### Database
+
+When changing the schema, generate and commit a migration:
+
+```sh
+bun db:generate
 ```
 
 ## Building
@@ -40,6 +54,8 @@ bun --bun run build/index.js
 The tagged GitHub releases contain this build output, its runtime package files, and
 the versioned database migrations.
 
+For production deployment it is strongly recommended to use docker as described below
+
 ## Docker
 
 Copy the example environment and Compose files:
@@ -49,24 +65,13 @@ cp .env.example .env
 cp compose.example.yml compose.yml
 ```
 
-Configure `.env`, including a non-empty `MEILI_MASTER_KEY`, an
-`AUTH_ENCRYPTION_KEY`, the IGDB credentials, and the production WebAuthn values. The
-`WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` must match the public site URL. Then start the
+Configure `.env`, including the IGDB API credentials. The `WEBAUTHN_RP_ID` and
+`WEBAUTHN_ORIGIN` must match the public site URL. Then start the
 application and Meilisearch:
 
 ```sh
 docker compose up -d
 ```
-
-Environment variables are declared and validated in `src/env.ts` using SvelteKit's
-explicit environment variable API. Required runtime values may be omitted while
-building the image, but the server validates all of them together and exits before
-starting if any are missing or invalid. The upload directory, Meilisearch host, IGDB
-import schedule, SMTP port, and SMTP security mode have operational defaults. IGDB
-imports run on the five-field cron schedule in `IGDB_IMPORT_CRON`, which defaults to
-`0 0 * * *`. The schedule uses the system time zone by default; set
-`IGDB_IMPORT_TIME_ZONE` to an IANA time-zone name to override it. An import also runs
-whenever the server starts.
 
 The example uses the latest GHCR image by default. Set `FLIGHTLESSKIWI_IMAGE` to use
 another image tag, or run `docker compose up -d --build` to build the image from the
@@ -75,12 +80,6 @@ local checkout. `APP_PORT` and `MEILI_PORT` control the host ports.
 The one-off `migrate` service applies the versioned migrations bundled into the
 image before the app starts. SQLite, uploaded benchmark files, and Meilisearch data
 use separate named volumes.
-
-When changing the schema, generate and commit a migration:
-
-```sh
-bun run db:generate
-```
 
 For TLS in production, put the application behind a reverse proxy such as
 [nginx](https://nginx.org/en/), and set `ORIGIN`, `WEBAUTHN_ORIGIN`, and
