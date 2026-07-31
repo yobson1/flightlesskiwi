@@ -338,7 +338,7 @@
 			</p>
 		</div>
 
-		<Card.Root>
+		<Card.Root class="py-0">
 			<Card.Content class="p-0">
 				<div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
 					<div class="flex min-w-0 items-start gap-3">
