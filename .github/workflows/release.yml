@@ -15,6 +15,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
   build:
@@ -69,8 +70,19 @@ jobs:
             ${{ steps.package.outputs.archive }}
           if-no-files-found: error
 
-  docker:
-    runs-on: ubuntu-latest
+  docker-build:
+    name: docker (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-26.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-26.04-arm
 
     steps:
       - name: Checkout
@@ -83,8 +95,67 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Extract Docker metadata
+        id: metadata
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha,scope=docker-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=docker-${{ matrix.arch }}
+
+      - name: Export image digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST_DIRECTORY: ${{ runner.temp }}/digests
+        run: |
+          mkdir -p "$DIGEST_DIRECTORY"
+          touch "$DIGEST_DIRECTORY/${DIGEST#sha256:}"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  docker:
+    name: docker (manifest)
+    needs:
+      - docker-build
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Download image digests
+        uses: actions/download-artifact@v8
+        with:
+          pattern: docker-digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -93,23 +164,36 @@ jobs:
         id: metadata
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=latest
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create and push multi-platform manifest
+        env:
+          DIGEST_DIRECTORY: ${{ runner.temp }}/digests
+          TAGS: ${{ steps.metadata.outputs.tags }}
+        run: |
+          tag_arguments=()
+          while IFS= read -r tag; do
+            tag_arguments+=(--tag "$tag")
+          done <<< "$TAGS"
+
+          digest_arguments=()
+          for digest_file in "$DIGEST_DIRECTORY"/*; do
+            digest_arguments+=("${IMAGE_NAME}@sha256:${digest_file##*/}")
+          done
+
+          docker buildx imagetools create \
+            "${tag_arguments[@]}" \
+            "${digest_arguments[@]}"
+
+      - name: Inspect multi-platform image
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: docker buildx imagetools inspect "$IMAGE_NAME:$VERSION"
 
   publish:
     needs:
