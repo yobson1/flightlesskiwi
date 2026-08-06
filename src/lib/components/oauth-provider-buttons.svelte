@@ -35,6 +35,7 @@
 				variant="outline"
 				type="button"
 				href={providerURL(provider)}
+				data-sveltekit-reload
 				aria-label={`${verb} with ${providerName(provider)}`}
 			>
 				{#if provider === 'github'}
