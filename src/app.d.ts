@@ -14,7 +14,6 @@ declare global {
 					'expired-callback'(): void;
 					'error-callback'(): void;
 					'before-interactive-callback'(): void;
-					'after-interactive-callback'(): void;
 				}
 			): string;
 			remove(widgetId: string): void;

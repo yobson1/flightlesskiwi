@@ -70,7 +70,6 @@
 					appearance,
 					callback: (value) => {
 						onToken?.(value);
-						onInteractiveChange?.(false);
 					},
 					'expired-callback': () => {
 						reset();
@@ -81,9 +80,6 @@
 					},
 					'before-interactive-callback': () => {
 						onInteractiveChange?.(true);
-					},
-					'after-interactive-callback': () => {
-						onInteractiveChange?.(false);
 					}
 				});
 				onResetReady?.(reset);
