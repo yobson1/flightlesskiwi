@@ -40,6 +40,7 @@
 		type OAuthProvider
 	} from '$lib/types/oauth';
 	import { getActionMessage } from '$lib/utils';
+	import { tick } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
 
@@ -67,20 +68,26 @@
 		...data.oauthProviders.filter((provider) => !data.user.oauthProviders.includes(provider))
 	]);
 
+	interface ConfirmationController {
+		close: () => void;
+		reopen: () => void;
+	}
+
 	function settingsSubmit(
 		successMessage: string,
-		onSuccess?: (data: unknown) => void
+		onSuccess?: (data: unknown) => void,
+		confirmation?: ConfirmationController
 	): SubmitFunction {
 		return ({ formElement, cancel }) => {
 			if (!recentlyReauthenticated) {
 				cancel();
-				requestReauthentication(() => formElement.requestSubmit());
+				requestSettingsReauthentication(formElement, confirmation);
 				return;
 			}
 			return async ({ result, update }) => {
 				if (result.type === 'failure' && needsReauthentication(result.data)) {
 					recentlyReauthenticated = false;
-					requestReauthentication(() => formElement.requestSubmit());
+					requestSettingsReauthentication(formElement, confirmation);
 					return;
 				}
 				if (result.type === 'failure') {
@@ -97,6 +104,18 @@
 		};
 	}
 
+	function requestSettingsReauthentication(
+		formElement: HTMLFormElement,
+		confirmation?: ConfirmationController
+	) {
+		if (confirmation === undefined) {
+			requestReauthentication(() => formElement.requestSubmit());
+			return;
+		}
+		confirmation.close();
+		void tick().then(() => requestReauthentication(confirmation.reopen));
+	}
+
 	function requestReauthentication(continuation: () => void) {
 		void authModal.open('reauth', {
 			onComplete: async () => {
@@ -109,11 +128,11 @@
 	}
 
 	function requestAuthenticatorSetup() {
-		void authModal.open('totp-setup');
+		requestSensitiveAction(() => void authModal.open('totp-setup'));
 	}
 
 	function requestPasskeySetup() {
-		void authModal.open('passkey-register');
+		requestSensitiveAction(() => void authModal.open('passkey-register'));
 	}
 
 	function requestOAuthConnection(provider: OAuthProvider) {
@@ -122,22 +141,28 @@
 				`/auth/oauth/${provider}?flow=link&return_to=${encodeURIComponent('/settings')}`
 			);
 		};
-		if (recentlyReauthenticated) {
-			connect();
-			return;
-		}
-		requestReauthentication(connect);
+		requestSensitiveAction(connect);
 	}
 
 	function requestAccountDeletion() {
-		const openConfirmation = () => {
+		requestSensitiveAction(() => {
 			deleteAccountConfirmation = '';
 			deleteAccountOpen = true;
-		};
+		});
+	}
+
+	function requestSensitiveAction(action: () => void) {
 		if (recentlyReauthenticated) {
-			openConfirmation();
+			action();
 			return;
 		}
+		requestReauthentication(action);
+	}
+
+	function gateConfirmation(event: MouseEvent, openConfirmation: () => void) {
+		if (recentlyReauthenticated) return;
+		event.preventDefault();
+		event.stopImmediatePropagation();
 		requestReauthentication(openConfirmation);
 	}
 
@@ -410,9 +435,16 @@
 									class="hidden"
 									method="POST"
 									action="/settings?/disconnect_oauth"
-									use:enhance={settingsSubmit('Connection removed', () => {
-										removeOAuthProvider = null;
-									})}
+									use:enhance={settingsSubmit(
+										'Connection removed',
+										() => {
+											removeOAuthProvider = null;
+										},
+										{
+											close: () => (removeOAuthProvider = null),
+											reopen: () => (removeOAuthProvider = provider)
+										}
+									)}
 								>
 									<input type="hidden" name="provider" value={provider} />
 								</form>
@@ -429,6 +461,8 @@
 												{...props}
 												disabled={!oauthConnectionRemovable}
 												aria-label="Disconnect {getOAuthProviderName(provider)}"
+												onclickcapture={(event) =>
+													gateConfirmation(event, () => (removeOAuthProvider = provider))}
 											>
 												<Trash2Icon />
 												Disconnect
@@ -443,7 +477,8 @@
 											<AlertDialog.Description>
 												You will no longer be able to sign in with this {getOAuthProviderName(
 													provider
-												)} account. You can reconnect it later by signing in with the provider again.
+												)} account. We will also revoke flightlesskiwi&apos;s authorization with the provider.
+												You can reconnect it later by signing in with the provider again.
 											</AlertDialog.Description>
 										</AlertDialog.Header>
 										<AlertDialog.Footer>
@@ -510,14 +545,31 @@
 							class="hidden"
 							method="POST"
 							action="/settings?/disconnect_totp"
-							use:enhance={settingsSubmit('Authenticator removed', () => {
-								removeAuthenticatorOpen = false;
-							})}
+							use:enhance={settingsSubmit(
+								'Authenticator removed',
+								() => {
+									removeAuthenticatorOpen = false;
+								},
+								{
+									close: () => (removeAuthenticatorOpen = false),
+									reopen: () => (removeAuthenticatorOpen = true)
+								}
+							)}
 						></form>
-						<AlertDialog.Root bind:open={removeAuthenticatorOpen}>
+						<AlertDialog.Root
+							open={removeAuthenticatorOpen}
+							onOpenChange={(open) => {
+								removeAuthenticatorOpen = open;
+							}}
+						>
 							<AlertDialog.Trigger class="inline-flex">
 								{#snippet child({ props })}
-									<Button variant="destructive" {...props}>
+									<Button
+										variant="destructive"
+										{...props}
+										onclickcapture={(event) =>
+											gateConfirmation(event, () => (removeAuthenticatorOpen = true))}
+									>
 										<Trash2Icon />
 										Remove
 									</Button>
@@ -600,9 +652,16 @@
 										class="hidden"
 										method="POST"
 										action="/settings?/delete_passkey"
-										use:enhance={settingsSubmit('Passkey removed', () => {
-											removePasskeyId = null;
-										})}
+										use:enhance={settingsSubmit(
+											'Passkey removed',
+											() => {
+												removePasskeyId = null;
+											},
+											{
+												close: () => (removePasskeyId = null),
+												reopen: () => (removePasskeyId = credential.id)
+											}
+										)}
 									>
 										<input type="hidden" name="credential_id" value={credential.id} />
 									</form>
@@ -619,6 +678,8 @@
 													size="icon-sm"
 													aria-label="Remove {credential.name}"
 													{...props}
+													onclickcapture={(event) =>
+														gateConfirmation(event, () => (removePasskeyId = credential.id))}
 												>
 													<Trash2Icon />
 												</Button>
@@ -678,15 +739,32 @@
 							class="hidden"
 							method="POST"
 							action="/settings?/regenerate_recovery_code"
-							use:enhance={settingsSubmit('Recovery code generated', (value) => {
-								setGeneratedRecoveryCode(value);
-								replaceRecoveryCodeOpen = false;
-							})}
+							use:enhance={settingsSubmit(
+								'Recovery code generated',
+								(value) => {
+									setGeneratedRecoveryCode(value);
+									replaceRecoveryCodeOpen = false;
+								},
+								{
+									close: () => (replaceRecoveryCodeOpen = false),
+									reopen: () => (replaceRecoveryCodeOpen = true)
+								}
+							)}
 						></form>
-						<AlertDialog.Root bind:open={replaceRecoveryCodeOpen}>
+						<AlertDialog.Root
+							open={replaceRecoveryCodeOpen}
+							onOpenChange={(open) => {
+								replaceRecoveryCodeOpen = open;
+							}}
+						>
 							<AlertDialog.Trigger>
 								{#snippet child({ props })}
-									<Button variant="outline" {...props}>
+									<Button
+										variant="outline"
+										{...props}
+										onclickcapture={(event) =>
+											gateConfirmation(event, () => (replaceRecoveryCodeOpen = true))}
+									>
 										<RefreshCwIcon />
 										{data.recoveryCodeConfigured ? 'Replace code' : 'Generate code'}
 									</Button>
@@ -780,7 +858,10 @@
 		<form
 			method="POST"
 			action="/settings?/delete_account"
-			use:enhance={settingsSubmit('Account deleted')}
+			use:enhance={settingsSubmit('Account deleted', undefined, {
+				close: () => (deleteAccountOpen = false),
+				reopen: requestAccountDeletion
+			})}
 		>
 			<div class="grid gap-4">
 				<AlertDialog.Header>

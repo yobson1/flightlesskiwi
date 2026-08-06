@@ -81,7 +81,7 @@ export async function validateOAuthCallback(
 				state.returnTo
 			);
 		}
-		return { profile, flow: state.flow, returnTo: state.returnTo };
+		return { profile, tokens: tokens.tokenSet(), flow: state.flow, returnTo: state.returnTo };
 	} catch (cause) {
 		if (cause instanceof OAuthCallbackError) throw cause;
 		const authorizationError = oauth.getAuthorizationResponseError(cause);
@@ -110,6 +110,15 @@ export function normalizeOAuthReturnTo(value: string | null): string | null {
 	const url = new URL(value, origin);
 	if (url.origin !== origin.origin) return null;
 	return `${url.pathname}${url.search}${url.hash}`;
+}
+
+export async function revokeOAuthTokens(
+	provider: OAuthProvider,
+	tokens: oauth.OAuthTokenSet
+): Promise<void> {
+	const oauthClient = getOAuthClient(provider);
+	if (oauthClient === null) throw new OAuthConfigurationError(`${provider} OAuth is not enabled`);
+	await oauthClient.revokeTokens(tokens);
 }
 
 function getOAuthClient(
@@ -236,6 +245,7 @@ interface OAuthState {
 
 export interface OAuthCallback {
 	profile: oauth.OAuthUserProfile;
+	tokens: oauth.OAuthTokenSet;
 	flow: OAuthFlow;
 	returnTo: string | null;
 }

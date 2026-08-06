@@ -10,9 +10,10 @@ import {
 	totpCredential,
 	user as userTable
 } from '$lib/server/db/schema';
+import { decryptToString, encryptString } from '$lib/server/auth/encryption';
 import { hashPassword, hashRecoveryCode } from '$lib/server/auth/password';
 import { generateRandomRecoveryCode, generateSecureRandomString } from '$lib/server/auth/utils';
-import type { OAuthUserProfile } from '$lib/server/oauth';
+import type { OAuthTokenSet, OAuthUserProfile } from '$lib/server/oauth';
 import { canRemoveOAuthConnection, type OAuthProvider } from '$lib/types/oauth';
 
 export function normalizeEmail(email: string): string {
@@ -124,20 +125,30 @@ export function getUserFromOAuthAccount(
 
 export function createOrLinkOAuthUser(
 	provider: OAuthProvider,
-	profile: OAuthUserProfile
+	profile: OAuthUserProfile,
+	tokens: OAuthTokenSet
 ): AuthUser {
 	const email = normalizeEmail(profile.email);
 	if (!profile.id || !profile.emailVerified || !verifyEmailInput(email)) {
 		throw new Error('OAuth provider did not return a verified email');
 	}
 
+	const encryptedTokens = encryptOAuthTokens(tokens);
 	const userId = db.transaction((tx) => {
 		const linked = tx
 			.select({ userId: oauthAccount.userId })
 			.from(oauthAccount)
 			.where(and(eq(oauthAccount.provider, provider), eq(oauthAccount.providerUserId, profile.id)))
 			.get();
-		if (linked) return linked.userId;
+		if (linked) {
+			tx.update(oauthAccount)
+				.set(encryptedTokens)
+				.where(
+					and(eq(oauthAccount.provider, provider), eq(oauthAccount.providerUserId, profile.id))
+				)
+				.run();
+			return linked.userId;
+		}
 
 		const existingUser = tx
 			.select({ id: userTable.id })
@@ -166,6 +177,7 @@ export function createOrLinkOAuthUser(
 			.values({
 				provider,
 				providerUserId: profile.id,
+				...encryptedTokens,
 				userId: id,
 				createdAt: new Date()
 			})
@@ -181,8 +193,10 @@ export function createOrLinkOAuthUser(
 export function linkUserOAuthAccount(
 	userId: string,
 	provider: OAuthProvider,
-	providerUserId: string
+	providerUserId: string,
+	tokens: OAuthTokenSet
 ): 'linked' | 'already-linked' | 'provider-in-use' | 'provider-connected' | 'user-not-found' {
+	const encryptedTokens = encryptOAuthTokens(tokens);
 	return db.transaction((tx) => {
 		const user = tx
 			.select({ id: userTable.id })
@@ -199,7 +213,14 @@ export function linkUserOAuthAccount(
 			)
 			.get();
 		if (linkedIdentity !== undefined) {
-			return linkedIdentity.userId === userId ? 'already-linked' : 'provider-in-use';
+			if (linkedIdentity.userId !== userId) return 'provider-in-use';
+			tx.update(oauthAccount)
+				.set(encryptedTokens)
+				.where(
+					and(eq(oauthAccount.provider, provider), eq(oauthAccount.providerUserId, providerUserId))
+				)
+				.run();
+			return 'already-linked';
 		}
 
 		const existingProvider = tx
@@ -210,7 +231,7 @@ export function linkUserOAuthAccount(
 		if (existingProvider !== undefined) return 'provider-connected';
 
 		tx.insert(oauthAccount)
-			.values({ provider, providerUserId, userId, createdAt: new Date() })
+			.values({ provider, providerUserId, ...encryptedTokens, userId, createdAt: new Date() })
 			.run();
 		return 'linked';
 	});
@@ -219,21 +240,24 @@ export function linkUserOAuthAccount(
 export function deleteUserOAuthAccount(
 	userId: string,
 	provider: OAuthProvider
-): 'deleted' | 'not-found' | 'last-sign-in-method' {
+): DeleteUserOAuthAccountResult {
 	return db.transaction((tx) => {
 		const account = tx
-			.select({ provider: oauthAccount.provider })
+			.select({
+				encryptedAccessToken: oauthAccount.encryptedAccessToken,
+				encryptedRefreshToken: oauthAccount.encryptedRefreshToken
+			})
 			.from(oauthAccount)
 			.where(and(eq(oauthAccount.userId, userId), eq(oauthAccount.provider, provider)))
 			.get();
-		if (account === undefined) return 'not-found';
+		if (account === undefined) return { status: 'not-found' };
 
 		const user = tx
 			.select({ passwordHash: userTable.passwordHash })
 			.from(userTable)
 			.where(eq(userTable.id, userId))
 			.get();
-		if (user === undefined) return 'not-found';
+		if (user === undefined) return { status: 'not-found' };
 		const passkey = tx
 			.select({ id: passkeyCredential.id })
 			.from(passkeyCredential)
@@ -251,15 +275,68 @@ export function deleteUserOAuthAccount(
 				oauthAccounts.length
 			)
 		) {
-			return 'last-sign-in-method';
+			return { status: 'last-sign-in-method' };
+		}
+
+		let tokens: OAuthTokenSet | null = null;
+		if (account.encryptedAccessToken !== null) {
+			try {
+				tokens = {
+					accessToken: decryptToString(account.encryptedAccessToken),
+					refreshToken:
+						account.encryptedRefreshToken === null
+							? null
+							: decryptToString(account.encryptedRefreshToken)
+				};
+			} catch {
+				// The local connection can still be removed if its stored token cannot be decrypted.
+			}
 		}
 
 		tx.delete(oauthAccount)
 			.where(and(eq(oauthAccount.userId, userId), eq(oauthAccount.provider, provider)))
 			.run();
-		return 'deleted';
+		return { status: 'deleted', tokens };
 	});
 }
+
+export function updateUserOAuthAccountTokens(
+	userId: string,
+	provider: OAuthProvider,
+	providerUserId: string,
+	tokens: OAuthTokenSet
+): boolean {
+	const row = db
+		.update(oauthAccount)
+		.set(encryptOAuthTokens(tokens))
+		.where(
+			and(
+				eq(oauthAccount.userId, userId),
+				eq(oauthAccount.provider, provider),
+				eq(oauthAccount.providerUserId, providerUserId)
+			)
+		)
+		.returning({ providerUserId: oauthAccount.providerUserId })
+		.get();
+	return row !== undefined;
+}
+
+function encryptOAuthTokens(tokens: OAuthTokenSet): EncryptedOAuthTokens {
+	return {
+		encryptedAccessToken: encryptString(tokens.accessToken),
+		encryptedRefreshToken: tokens.refreshToken === null ? null : encryptString(tokens.refreshToken)
+	};
+}
+
+interface EncryptedOAuthTokens {
+	encryptedAccessToken: Buffer;
+	encryptedRefreshToken: Buffer | null;
+}
+
+export type DeleteUserOAuthAccountResult =
+	| { status: 'deleted'; tokens: OAuthTokenSet | null }
+	| { status: 'not-found' }
+	| { status: 'last-sign-in-method' };
 
 export function getUserById(userId: string): AuthUser | null {
 	return getUser(eq(userTable.id, userId));

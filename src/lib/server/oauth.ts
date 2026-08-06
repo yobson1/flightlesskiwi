@@ -1,14 +1,21 @@
 import * as client from 'openid-client';
+import { encodeBase64 } from '$lib/encoding';
 import { isRecord } from '$lib/utils';
 
 type TokenResponse = Awaited<ReturnType<typeof client.authorizationCodeGrant>>;
 const TWITCH_TOKEN_ENDPOINT = 'https://id.twitch.tv/oauth2/token';
+const TWITCH_REVOCATION_ENDPOINT = 'https://id.twitch.tv/oauth2/revoke';
 
 export interface OAuthUserProfile {
 	id: string;
 	email: string;
 	emailVerified: boolean;
 	username: string;
+}
+
+export interface OAuthTokenSet {
+	accessToken: string;
+	refreshToken: string | null;
 }
 
 export class OAuth2Tokens {
@@ -18,6 +25,13 @@ export class OAuth2Tokens {
 		return this.response.access_token;
 	}
 
+	tokenSet(): OAuthTokenSet {
+		return {
+			accessToken: this.response.access_token,
+			refreshToken: this.response.refresh_token ?? null
+		};
+	}
+
 	idTokenClaims(): client.IDToken | undefined {
 		return this.response.claims();
 	}
@@ -25,7 +39,7 @@ export class OAuth2Tokens {
 
 abstract class OAuth2Provider {
 	constructor(
-		private readonly configuration: client.Configuration,
+		protected readonly configuration: client.Configuration,
 		private readonly redirectURI: string
 	) {}
 
@@ -65,6 +79,13 @@ abstract class OAuth2Provider {
 
 	abstract getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile>;
 
+	async revokeTokens(tokens: OAuthTokenSet): Promise<void> {
+		const token = tokens.refreshToken ?? tokens.accessToken;
+		await client.tokenRevocation(this.configuration, token, {
+			token_type_hint: tokens.refreshToken === null ? 'access_token' : 'refresh_token'
+		});
+	}
+
 	protected addAuthorizationParameters(parameters: Record<string, string>): void {
 		void parameters;
 	}
@@ -97,7 +118,11 @@ abstract class OAuth2Provider {
 }
 
 export class GitHub extends OAuth2Provider {
-	constructor(clientId: string, clientSecret: string, redirectURI: string) {
+	constructor(
+		private readonly clientId: string,
+		private readonly clientSecret: string,
+		redirectURI: string
+	) {
 		super(
 			new client.Configuration(
 				{
@@ -111,6 +136,28 @@ export class GitHub extends OAuth2Provider {
 			),
 			redirectURI
 		);
+	}
+
+	override async revokeTokens(tokens: OAuthTokenSet): Promise<void> {
+		const response = await fetch(`https://api.github.com/applications/${this.clientId}/grant`, {
+			method: 'DELETE',
+			headers: {
+				accept: 'application/vnd.github+json',
+				authorization: `Basic ${encodeBase64(
+					new TextEncoder().encode(`${this.clientId}:${this.clientSecret}`)
+				)}`,
+				'content-type': 'application/json',
+				'X-GitHub-Api-Version': '2026-03-10'
+			},
+			body: JSON.stringify({ access_token: tokens.accessToken })
+		});
+		if (!response.ok) {
+			await response.body?.cancel();
+			throw new OAuthTokenRevocationError(
+				`GitHub authorization revocation failed with status ${response.status}`
+			);
+		}
+		await response.body?.cancel();
 	}
 
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
@@ -154,7 +201,8 @@ export class Discord extends OAuth2Provider {
 				{
 					issuer: 'https://discord.com',
 					authorization_endpoint: 'https://discord.com/oauth2/authorize',
-					token_endpoint: 'https://discord.com/api/oauth2/token'
+					token_endpoint: 'https://discord.com/api/oauth2/token',
+					revocation_endpoint: 'https://discord.com/api/oauth2/token/revoke'
 				},
 				clientId,
 				{ client_secret: clientSecret },
@@ -185,22 +233,27 @@ export class Discord extends OAuth2Provider {
 }
 
 export class Twitch extends OAuth2Provider {
+	private readonly revocationConfiguration: client.Configuration;
+
 	constructor(clientId: string, clientSecret: string, redirectURI: string) {
+		const server: client.ServerMetadata = {
+			issuer: 'https://id.twitch.tv/oauth2',
+			authorization_endpoint: 'https://id.twitch.tv/oauth2/authorize',
+			token_endpoint: TWITCH_TOKEN_ENDPOINT,
+			revocation_endpoint: TWITCH_REVOCATION_ENDPOINT,
+			jwks_uri: 'https://id.twitch.tv/oauth2/keys',
+			userinfo_endpoint: 'https://id.twitch.tv/oauth2/userinfo',
+			id_token_signing_alg_values_supported: ['RS256']
+		};
 		const configuration = new client.Configuration(
-			{
-				issuer: 'https://id.twitch.tv/oauth2',
-				authorization_endpoint: 'https://id.twitch.tv/oauth2/authorize',
-				token_endpoint: TWITCH_TOKEN_ENDPOINT,
-				jwks_uri: 'https://id.twitch.tv/oauth2/keys',
-				userinfo_endpoint: 'https://id.twitch.tv/oauth2/userinfo',
-				id_token_signing_alg_values_supported: ['RS256']
-			},
+			server,
 			clientId,
 			{ client_secret: clientSecret },
 			client.ClientSecretPost(clientSecret)
 		);
 		configuration[client.customFetch] = fetchTwitch;
 		super(configuration, redirectURI);
+		this.revocationConfiguration = new client.Configuration(server, clientId, {}, client.None());
 	}
 
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
@@ -230,6 +283,18 @@ export class Twitch extends OAuth2Provider {
 				preferred_username: null
 			}
 		});
+	}
+
+	override async revokeTokens(tokens: OAuthTokenSet): Promise<void> {
+		try {
+			await client.tokenRevocation(this.revocationConfiguration, tokens.accessToken);
+			return;
+		} catch (cause) {
+			if (tokens.refreshToken === null) throw cause;
+		}
+
+		const refreshed = await client.refreshTokenGrant(this.configuration, tokens.refreshToken);
+		await client.tokenRevocation(this.revocationConfiguration, refreshed.access_token);
 	}
 }
 
@@ -263,6 +328,7 @@ async function fetchTwitch(url: string, options: client.CustomFetchOptions): Pro
 }
 
 export class OAuthUserProfileError extends Error {}
+export class OAuthTokenRevocationError extends Error {}
 
 export function formatOAuthError(cause: unknown): string {
 	const errors: string[] = [];

@@ -7,7 +7,7 @@ import {
 	MIN_PASSWORD_LENGTH,
 	MIN_USERNAME_LENGTH
 } from '$lib/auth-constants';
-import { error as logError } from '$lib/logger';
+import { error as logError, warn } from '$lib/logger';
 import { fetchPasskeyAuthenticatorMetadata } from '$lib/passkey-authenticator-metadata';
 import {
 	createSessionAndSetCookie,
@@ -52,6 +52,7 @@ import {
 	verifyUsernameInput
 } from '$lib/server/auth/user';
 import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
+import { revokeOAuthTokens } from '$lib/server/auth/oauth';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, user as userTable } from '$lib/server/db/schema';
 import { getOAuthProviderName, isOAuthProvider } from '$lib/types/oauth';
@@ -288,17 +289,36 @@ async function disconnectOAuth(event: RequestEvent) {
 	}
 
 	const result = deleteUserOAuthAccount(event.locals.user.id, provider);
-	if (result === 'not-found') {
+	if (result.status === 'not-found') {
 		return fail(404, { connection: { message: 'Connection not found' } });
 	}
-	if (result === 'last-sign-in-method') {
+	if (result.status === 'last-sign-in-method') {
 		return fail(400, {
 			connection: {
 				message: 'Set a password or add a passkey before removing your only sign-in method'
 			}
 		});
 	}
-	return { connection: { message: `Disconnected ${getOAuthProviderName(provider)}` } };
+
+	const providerName = getOAuthProviderName(provider);
+	if (result.tokens === null) {
+		return {
+			connection: {
+				message: `Disconnected ${providerName} locally. Remove flightlesskiwi from your ${providerName} authorized apps to finish revoking access.`
+			}
+		};
+	}
+	try {
+		await revokeOAuthTokens(provider, result.tokens);
+	} catch (cause) {
+		warn(`Failed to revoke ${provider} OAuth authorization after disconnecting locally`, cause);
+		return {
+			connection: {
+				message: `Disconnected ${providerName} locally, but ${providerName} did not confirm revocation. Remove flightlesskiwi from your ${providerName} authorized apps.`
+			}
+		};
+	}
+	return { connection: { message: `Disconnected ${providerName} and revoked its authorization` } };
 }
 
 async function deletePasskey(event: RequestEvent) {

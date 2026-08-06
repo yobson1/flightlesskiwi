@@ -10,7 +10,8 @@ import { OAuthCallbackError, validateOAuthCallback } from '$lib/server/auth/oaut
 import {
 	createOrLinkOAuthUser,
 	getUserFromOAuthAccount,
-	linkUserOAuthAccount
+	linkUserOAuthAccount,
+	updateUserOAuthAccountTokens
 } from '$lib/server/auth/user';
 import { formatOAuthError } from '$lib/server/oauth';
 import {
@@ -60,6 +61,24 @@ export async function GET(event: RequestEvent) {
 					)
 				);
 			}
+			if (
+				!updateUserOAuthAccountTokens(
+					event.locals.user.id,
+					event.params.provider,
+					callback.profile.id,
+					callback.tokens
+				)
+			) {
+				redirect(
+					303,
+					createOAuthErrorRedirect(
+						callback.returnTo ?? '/settings',
+						'identity',
+						event.params.provider,
+						event.url
+					)
+				);
+			}
 			rotateSessionAfterReauthentication(event, event.locals.session);
 			redirect(303, callback.returnTo ?? '/settings');
 		}
@@ -95,7 +114,8 @@ export async function GET(event: RequestEvent) {
 			const result = linkUserOAuthAccount(
 				event.locals.user.id,
 				event.params.provider,
-				callback.profile.id
+				callback.profile.id,
+				callback.tokens
 			);
 			if (result === 'provider-in-use') {
 				redirect(
@@ -130,9 +150,7 @@ export async function GET(event: RequestEvent) {
 		if (event.locals.session !== null) redirect(303, '/');
 
 		invalidateLoginAttemptRequest(event);
-		const user =
-			getUserFromOAuthAccount(event.params.provider, callback.profile.id) ??
-			createOrLinkOAuthUser(event.params.provider, callback.profile);
+		const user = createOrLinkOAuthUser(event.params.provider, callback.profile, callback.tokens);
 		const next = completeLoginFirstFactor(event, user);
 		redirect(303, next === null ? '/' : `/#${next}`);
 	} catch (cause) {

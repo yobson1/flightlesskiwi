@@ -122,6 +122,33 @@ describe('OAuth provider clients', () => {
 		expect(url.searchParams.get('scope')).toBe('identify email');
 	});
 
+	test('revokes Discord authorization through the standard token revocation operation', async () => {
+		let revocationRequest: Request | null = null;
+		spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
+			revocationRequest = new Request(input, init);
+			return new Response(null, { status: 200 });
+		}) as typeof fetch);
+		const discord = new Discord(
+			'discord-client',
+			'discord-secret',
+			'https://example.com/auth/oauth/discord/callback'
+		);
+
+		await discord.revokeTokens({
+			accessToken: 'discord-access-token',
+			refreshToken: 'discord-refresh-token'
+		});
+
+		expect(revocationRequest).not.toBeNull();
+		const request = revocationRequest!;
+		expect(request.url).toBe('https://discord.com/api/oauth2/token/revoke');
+		expect(request.method).toBe('POST');
+		expect(request.headers.get('authorization')).toStartWith('Basic ');
+		const body = new URLSearchParams(await request.text());
+		expect(body.get('token')).toBe('discord-refresh-token');
+		expect(body.get('token_type_hint')).toBe('refresh_token');
+	});
+
 	test('requests Twitch OIDC identity and verified email claims', async () => {
 		const twitch = new Twitch(
 			'twitch-client',
@@ -146,6 +173,95 @@ describe('OAuth provider clients', () => {
 				preferred_username: null
 			}
 		});
+	});
+
+	test('revokes Twitch authorization through the standard token revocation operation', async () => {
+		let revocationRequest: Request | null = null;
+		spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
+			revocationRequest = new Request(input, init);
+			return new Response(null, { status: 200 });
+		}) as typeof fetch);
+		const twitch = new Twitch(
+			'twitch-client',
+			'twitch-secret',
+			'https://example.com/auth/oauth/twitch/callback'
+		);
+
+		await twitch.revokeTokens({
+			accessToken: 'twitch-access-token',
+			refreshToken: 'twitch-refresh-token'
+		});
+
+		expect(revocationRequest).not.toBeNull();
+		const request = revocationRequest!;
+		expect(request.url).toBe('https://id.twitch.tv/oauth2/revoke');
+		expect(request.method).toBe('POST');
+		const body = new URLSearchParams(await request.text());
+		expect(body.get('client_id')).toBe('twitch-client');
+		expect(body.get('client_secret')).toBeNull();
+		expect(body.get('token')).toBe('twitch-access-token');
+	});
+
+	test('refreshes an expired Twitch access token before retrying revocation', async () => {
+		const requests: Request[] = [];
+		spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
+			const request = new Request(input, init);
+			requests.push(request);
+			if (request.url === 'https://id.twitch.tv/oauth2/token') {
+				return Response.json({
+					access_token: 'fresh-access-token',
+					expires_in: 3600,
+					refresh_token: 'fresh-refresh-token',
+					scope: 'openid user:read:email',
+					token_type: 'bearer'
+				});
+			}
+			return requests.length === 1
+				? Response.json({ status: 400, message: 'Invalid token' }, { status: 400 })
+				: new Response(null, { status: 200 });
+		}) as typeof fetch);
+		const twitch = new Twitch(
+			'twitch-client',
+			'twitch-secret',
+			'https://example.com/auth/oauth/twitch/callback'
+		);
+
+		await twitch.revokeTokens({
+			accessToken: 'expired-access-token',
+			refreshToken: 'stored-refresh-token'
+		});
+
+		expect(requests.map((request) => request.url)).toEqual([
+			'https://id.twitch.tv/oauth2/revoke',
+			'https://id.twitch.tv/oauth2/token',
+			'https://id.twitch.tv/oauth2/revoke'
+		]);
+		expect(new URLSearchParams(await requests[1]!.text()).get('refresh_token')).toBe(
+			'stored-refresh-token'
+		);
+		expect(new URLSearchParams(await requests[2]!.text()).get('token')).toBe('fresh-access-token');
+	});
+
+	test('deletes a GitHub app grant using the provider authorization endpoint', async () => {
+		let revocationRequest: Request | null = null;
+		spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
+			revocationRequest = new Request(input, init);
+			return new Response(null, { status: 204 });
+		}) as typeof fetch);
+		const github = new GitHub(
+			'github-client',
+			'github-secret',
+			'https://example.com/auth/oauth/github/callback'
+		);
+
+		await github.revokeTokens({ accessToken: 'github-access-token', refreshToken: null });
+
+		expect(revocationRequest).not.toBeNull();
+		const request = revocationRequest!;
+		expect(request.url).toBe('https://api.github.com/applications/github-client/grant');
+		expect(request.method).toBe('DELETE');
+		expect(request.headers.get('authorization')).toStartWith('Basic ');
+		expect(await request.json()).toEqual({ access_token: 'github-access-token' });
 	});
 
 	test('normalizes Twitch array-valued token scopes before OIDC validation', async () => {
