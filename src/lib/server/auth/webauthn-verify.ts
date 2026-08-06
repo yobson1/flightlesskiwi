@@ -1,40 +1,24 @@
 import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from '$app/env/private';
-import { decodeBase64 } from '@oslojs/encoding';
 import {
-	ECDSAPublicKey,
-	decodePKIXECDSASignature,
-	decodeSEC1PublicKey,
-	p256,
-	verifyECDSASignature
-} from '@oslojs/crypto/ecdsa';
-import {
-	RSAPublicKey,
-	decodePKCS1RSAPublicKey,
-	sha256ObjectIdentifier,
-	verifyRSASSAPKCS1v15Signature
-} from '@oslojs/crypto/rsa';
-import {
-	AttestationStatementFormat,
-	ClientDataType,
-	coseAlgorithmES256,
-	coseAlgorithmRS256,
-	coseEllipticCurveP256,
-	createAssertionSignatureMessage,
-	parseAttestationObject,
-	parseAuthenticatorData,
-	parseClientDataJSON
-} from '@oslojs/webauthn';
+	verifyAuthenticationResponse,
+	verifyRegistrationResponse,
+	type AuthenticationResponseJSON,
+	type RegistrationResponseJSON
+} from '@simplewebauthn/server';
+import { decodeClientDataJSON } from '@simplewebauthn/server/helpers';
+import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import {
 	getPasskeyCredential,
 	getUserPasskeyCredential,
+	isWebAuthnChallengeValid,
+	consumeWebAuthnChallenge,
 	updatePasskeyCounter,
-	verifyWebAuthnChallenge,
 	type WebAuthnUserCredential
 } from '$lib/server/auth/webauthn';
 import { isRecord } from '$lib/utils';
-import { hashSecret } from '$lib/server/auth/utils';
-import { formatAAGUID } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+
+const supportedAlgorithmIDs = [-7, -257] as const;
 
 export async function verifyWebAuthnAssertionRequest(
 	request: Request,
@@ -45,22 +29,23 @@ export async function verifyWebAuthnAssertionRequest(
 	if (assertion === null) {
 		throw new WebAuthnAssertionRequestError('Invalid or missing fields');
 	}
+
+	let credentialId: Uint8Array;
+	try {
+		credentialId = decodeBase64url(assertion.id);
+	} catch {
+		throw new WebAuthnAssertionRequestError('Invalid credential');
+	}
 	const credential =
 		userId === null
-			? getPasskeyCredential(assertion.credentialId)
-			: getUserPasskeyCredential(userId, assertion.credentialId);
+			? getPasskeyCredential(credentialId)
+			: getUserPasskeyCredential(userId, credentialId);
 	if (credential === null) {
 		throw new WebAuthnAssertionRequestError('Invalid credential');
 	}
+
 	try {
-		verifyWebAuthnAssertion(
-			assertion.authenticatorData,
-			assertion.clientDataJSON,
-			assertion.signature,
-			credential,
-			userId,
-			purpose
-		);
+		await verifyWebAuthnAssertion(assertion, credential, userId, purpose);
 	} catch (cause) {
 		if (cause instanceof WebAuthnVerificationError) {
 			throw new WebAuthnAssertionRequestError('Invalid passkey assertion');
@@ -70,128 +55,102 @@ export async function verifyWebAuthnAssertionRequest(
 	return credential;
 }
 
-export function verifyWebAuthnRegistration(
-	attestationObjectBytes: Uint8Array,
-	clientDataJSON: Uint8Array,
+export async function verifyWebAuthnRegistration(
+	value: unknown,
 	userId: string,
 	purpose: Extract<WebAuthnChallengePurpose, 'passkey-register'>
-): Omit<WebAuthnUserCredential, 'userId' | 'name'> {
-	const attestationObject = parseAttestationObject(attestationObjectBytes);
-	if (attestationObject.attestationStatement.format !== AttestationStatementFormat.None) {
+): Promise<Omit<WebAuthnUserCredential, 'userId' | 'name'>> {
+	const response = parseRegistrationResponse(value);
+	if (response === null) {
+		throw new WebAuthnVerificationError('Invalid registration response');
+	}
+
+	let challenge: Uint8Array | null = null;
+	let verification;
+	try {
+		if (decodeClientDataJSON(response.response.clientDataJSON).crossOrigin === true) {
+			throw new Error('Cross-origin registration is not allowed');
+		}
+		verification = await verifyRegistrationResponse({
+			response,
+			expectedChallenge: (encodedChallenge) => {
+				challenge = decodeBase64url(encodedChallenge);
+				return isWebAuthnChallengeValid(challenge, userId, purpose);
+			},
+			expectedOrigin: WEBAUTHN_ORIGIN!,
+			expectedRPID: WEBAUTHN_RP_ID!,
+			requireUserPresence: true,
+			requireUserVerification: true,
+			supportedAlgorithmIDs: [...supportedAlgorithmIDs]
+		});
+	} catch {
+		throw new WebAuthnVerificationError('Invalid passkey registration');
+	}
+	if (!verification.verified || challenge === null) {
+		throw new WebAuthnVerificationError('Invalid or expired challenge');
+	}
+
+	const { credential, aaguid, fmt } = verification.registrationInfo;
+	if (fmt !== 'none') {
 		throw new WebAuthnVerificationError('Unsupported attestation format');
 	}
-	const authenticatorData = attestationObject.authenticatorData;
-	verifyAuthenticatorData(authenticatorData);
-	if (!authenticatorData.userVerified || authenticatorData.credential === null) {
-		throw new WebAuthnVerificationError('User verification is required');
-	}
-
-	const clientData = parseClientDataJSON(clientDataJSON);
-	if (
-		clientData.type !== ClientDataType.Create ||
-		clientData.origin !== WEBAUTHN_ORIGIN ||
-		clientData.crossOrigin === true
-	) {
-		throw new WebAuthnVerificationError('Invalid client data');
-	}
-
-	const publicKey = authenticatorData.credential.publicKey;
-	let encodedPublicKey: Uint8Array;
-	if (publicKey.algorithm() === coseAlgorithmES256) {
-		const cosePublicKey = publicKey.ec2();
-		if (cosePublicKey.curve !== coseEllipticCurveP256) {
-			throw new WebAuthnVerificationError('Unsupported elliptic curve');
-		}
-		encodedPublicKey = new ECDSAPublicKey(
-			p256,
-			cosePublicKey.x,
-			cosePublicKey.y
-		).encodeSEC1Uncompressed();
-	} else if (publicKey.algorithm() === coseAlgorithmRS256) {
-		const cosePublicKey = publicKey.rsa();
-		encodedPublicKey = new RSAPublicKey(cosePublicKey.n, cosePublicKey.e).encodePKCS1();
-	} else {
-		throw new WebAuthnVerificationError('Unsupported algorithm');
-	}
-
-	if (!verifyWebAuthnChallenge(clientData.challenge, userId, purpose)) {
+	if (!consumeWebAuthnChallenge(challenge, userId, purpose)) {
 		throw new WebAuthnVerificationError('Invalid or expired challenge');
 	}
 
 	return {
-		id: authenticatorData.credential.id,
-		aaguid: formatAAGUID(authenticatorData.credential.authenticatorAAGUID),
-		algorithmId: publicKey.algorithm(),
-		publicKey: encodedPublicKey,
-		signCount: authenticatorData.signatureCounter
+		id: decodeBase64url(credential.id),
+		aaguid,
+		publicKey: credential.publicKey,
+		signCount: credential.counter
 	};
 }
 
-function verifyWebAuthnAssertion(
-	authenticatorDataBytes: Uint8Array,
-	clientDataJSON: Uint8Array,
-	signatureBytes: Uint8Array,
+async function verifyWebAuthnAssertion(
+	response: AuthenticationResponseJSON,
 	credential: WebAuthnUserCredential,
 	challengeUserId: string | null,
 	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
-): void {
-	const authenticatorData = parseAuthenticatorData(authenticatorDataBytes);
-	verifyAuthenticatorData(authenticatorData);
-	if (!authenticatorData.userVerified) {
-		throw new WebAuthnVerificationError('User verification is required');
-	}
-
-	const clientData = parseClientDataJSON(clientDataJSON);
-	if (
-		clientData.type !== ClientDataType.Get ||
-		clientData.origin !== WEBAUTHN_ORIGIN ||
-		clientData.crossOrigin === true
-	) {
-		throw new WebAuthnVerificationError('Invalid client data');
-	}
-
-	const signatureMessage = createAssertionSignatureMessage(authenticatorDataBytes, clientDataJSON);
-	const signatureHash = hashSecret(signatureMessage);
-	let validSignature = false;
+): Promise<void> {
+	let challenge: Uint8Array | null = null;
+	let verification;
 	try {
-		if (credential.algorithmId === coseAlgorithmES256) {
-			validSignature = verifyECDSASignature(
-				decodeSEC1PublicKey(p256, credential.publicKey),
-				signatureHash,
-				decodePKIXECDSASignature(signatureBytes)
-			);
-		} else if (credential.algorithmId === coseAlgorithmRS256) {
-			validSignature = verifyRSASSAPKCS1v15Signature(
-				decodePKCS1RSAPublicKey(credential.publicKey),
-				sha256ObjectIdentifier,
-				signatureHash,
-				signatureBytes
-			);
+		if (decodeClientDataJSON(response.response.clientDataJSON).crossOrigin === true) {
+			throw new Error('Cross-origin authentication is not allowed');
 		}
+		verification = await verifyAuthenticationResponse({
+			response,
+			expectedChallenge: (encodedChallenge) => {
+				challenge = decodeBase64url(encodedChallenge);
+				return isWebAuthnChallengeValid(challenge, challengeUserId, purpose);
+			},
+			expectedOrigin: WEBAUTHN_ORIGIN!,
+			expectedRPID: WEBAUTHN_RP_ID!,
+			credential: {
+				id: encodeBase64url(credential.id),
+				publicKey: Uint8Array.from(credential.publicKey),
+				counter: credential.signCount
+			},
+			requireUserVerification: true
+		});
 	} catch {
-		throw new WebAuthnVerificationError('Invalid signature encoding');
-	}
-	if (!validSignature) {
-		throw new WebAuthnVerificationError('Invalid signature');
-	}
-	if (!verifyWebAuthnChallenge(clientData.challenge, challengeUserId, purpose)) {
-		throw new WebAuthnVerificationError('Invalid or expired challenge');
+		throw new WebAuthnVerificationError('Invalid passkey assertion');
 	}
 	if (
-		!updatePasskeyCounter(credential.id, credential.signCount, authenticatorData.signatureCounter)
+		!verification.verified ||
+		challenge === null ||
+		!consumeWebAuthnChallenge(challenge, challengeUserId, purpose)
+	) {
+		throw new WebAuthnVerificationError('Invalid passkey assertion');
+	}
+	if (
+		!updatePasskeyCounter(
+			credential.id,
+			credential.signCount,
+			verification.authenticationInfo.newCounter
+		)
 	) {
 		throw new WebAuthnVerificationError('Authenticator counter did not increase');
-	}
-}
-
-function verifyAuthenticatorData(
-	authenticatorData: ReturnType<typeof parseAuthenticatorData>
-): void {
-	if (
-		!authenticatorData.verifyRelyingPartyIdHash(WEBAUTHN_RP_ID!) ||
-		!authenticatorData.userPresent
-	) {
-		throw new WebAuthnVerificationError('Invalid authenticator data');
 	}
 }
 
@@ -199,41 +158,41 @@ export class WebAuthnVerificationError extends Error {}
 
 export class WebAuthnAssertionRequestError extends Error {}
 
-async function parseAssertionRequest(request: Request): Promise<ParsedAssertion | null> {
+async function parseAssertionRequest(request: Request): Promise<AuthenticationResponseJSON | null> {
 	let data: unknown;
 	try {
 		data = await request.json();
 	} catch {
 		return null;
 	}
-	if (!isRecord(data)) return null;
-	const authenticatorData = data.authenticator_data;
-	const clientDataJSON = data.client_data_json;
-	const credentialId = data.credential_id;
-	const signature = data.signature;
+	return isAuthenticationResponse(data) ? data : null;
+}
+
+function isAuthenticationResponse(value: unknown): value is AuthenticationResponseJSON {
+	if (!isRecord(value) || !isRecord(value.response)) return false;
+	return (
+		typeof value.id === 'string' &&
+		typeof value.rawId === 'string' &&
+		value.type === 'public-key' &&
+		isRecord(value.clientExtensionResults) &&
+		typeof value.response.authenticatorData === 'string' &&
+		typeof value.response.clientDataJSON === 'string' &&
+		typeof value.response.signature === 'string' &&
+		(value.response.userHandle === undefined || typeof value.response.userHandle === 'string')
+	);
+}
+
+function parseRegistrationResponse(value: unknown): RegistrationResponseJSON | null {
+	if (!isRecord(value) || !isRecord(value.response)) return null;
 	if (
-		typeof authenticatorData !== 'string' ||
-		typeof clientDataJSON !== 'string' ||
-		typeof credentialId !== 'string' ||
-		typeof signature !== 'string'
+		typeof value.id !== 'string' ||
+		typeof value.rawId !== 'string' ||
+		value.type !== 'public-key' ||
+		!isRecord(value.clientExtensionResults) ||
+		typeof value.response.attestationObject !== 'string' ||
+		typeof value.response.clientDataJSON !== 'string'
 	) {
 		return null;
 	}
-	try {
-		return {
-			authenticatorData: decodeBase64(authenticatorData),
-			clientDataJSON: decodeBase64(clientDataJSON),
-			credentialId: decodeBase64(credentialId),
-			signature: decodeBase64(signature)
-		};
-	} catch {
-		return null;
-	}
-}
-
-interface ParsedAssertion {
-	authenticatorData: Uint8Array;
-	clientDataJSON: Uint8Array;
-	credentialId: Uint8Array;
-	signature: Uint8Array;
+	return value as unknown as RegistrationResponseJSON;
 }

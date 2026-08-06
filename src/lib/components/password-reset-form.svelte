@@ -110,7 +110,7 @@
 			});
 			applyState(result);
 		} catch (cause) {
-			if (cause instanceof DOMException && cause.name === 'NotAllowedError') {
+			if (cause instanceof Error && cause.name === 'NotAllowedError') {
 				message = 'Passkey verification was cancelled.';
 			} else {
 				message = cause instanceof Error ? cause.message : 'Unable to verify your passkey';

@@ -114,7 +114,7 @@
 			await onComplete?.(result.next);
 		} catch (cause) {
 			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
-			if (cause instanceof DOMException && cause.name === 'NotAllowedError') {
+			if (cause instanceof Error && cause.name === 'NotAllowedError') {
 				passkeyMessage = 'Passkey verification was cancelled.';
 			} else {
 				passkeyMessage = cause instanceof Error ? cause.message : 'Unable to verify your passkey';

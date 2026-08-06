@@ -1,5 +1,5 @@
-import { encodeBase64 } from '@oslojs/encoding';
 import { json } from '@sveltejs/kit';
+import { encodeBase64url } from '$lib/encoding';
 import { isSessionRecentlyReauthenticated } from '$lib/server/auth';
 import { getClientIP } from '$lib/server/auth/api';
 import { validatePasswordResetSessionRequest } from '$lib/server/auth/password-reset';
@@ -82,5 +82,8 @@ export async function POST(event: RequestEvent) {
 	}
 
 	const challenge = createWebAuthnChallenge(userId, purpose);
-	return json({ challenge: encodeBase64(challenge) }, { headers: { 'cache-control': 'no-store' } });
+	return json(
+		{ challenge: encodeBase64url(challenge) },
+		{ headers: { 'cache-control': 'no-store' } }
+	);
 }

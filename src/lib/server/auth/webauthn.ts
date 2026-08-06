@@ -1,5 +1,5 @@
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
-import { decodeBase64url, encodeBase64url } from '@oslojs/encoding';
+import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import { db } from '$lib/server/db';
 import { passkeyCredential, webAuthnChallenge } from '$lib/server/db/schema';
 import { encodeHashedSecret } from '$lib/server/auth/utils';
@@ -38,7 +38,7 @@ export function createWebAuthnChallenge(
 	return challenge;
 }
 
-export function verifyWebAuthnChallenge(
+export function consumeWebAuthnChallenge(
 	challenge: Uint8Array,
 	userId: string | null,
 	purpose: WebAuthnChallengePurpose
@@ -55,6 +55,21 @@ export function verifyWebAuthnChallenge(
 		tx.delete(webAuthnChallenge).where(eq(webAuthnChallenge.id, id)).run();
 		return true;
 	});
+}
+
+export function isWebAuthnChallengeValid(
+	challenge: Uint8Array,
+	userId: string | null,
+	purpose: WebAuthnChallengePurpose
+): boolean {
+	const id = encodeHashedSecret(challenge);
+	const row = db.select().from(webAuthnChallenge).where(eq(webAuthnChallenge.id, id)).get();
+	return (
+		row !== undefined &&
+		row.expiresAt > new Date() &&
+		row.userId === userId &&
+		row.purpose === purpose
+	);
 }
 
 export function getUserPasskeyCredentials(userId: string): WebAuthnUserCredential[] {
@@ -99,7 +114,6 @@ export function createPasskeyCredential(credential: WebAuthnUserCredential): voi
 			userId: credential.userId,
 			name: credential.name,
 			aaguid: credential.aaguid,
-			algorithm: credential.algorithmId,
 			publicKey: Buffer.from(credential.publicKey),
 			signCount: credential.signCount,
 			createdAt: new Date()
@@ -152,7 +166,6 @@ function toCredential(row: typeof passkeyCredential.$inferSelect): WebAuthnUserC
 		userId: row.userId,
 		name: row.name,
 		aaguid: row.aaguid,
-		algorithmId: row.algorithm,
 		publicKey: row.publicKey,
 		signCount: row.signCount
 	};
@@ -163,7 +176,6 @@ export interface WebAuthnUserCredential {
 	userId: string;
 	name: string;
 	aaguid: string | null;
-	algorithmId: number;
 	publicKey: Uint8Array;
 	signCount: number;
 }

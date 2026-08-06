@@ -64,7 +64,7 @@
 			});
 			await onComplete(null);
 		} catch (cause) {
-			if (cause instanceof DOMException && cause.name === 'NotAllowedError') {
+			if (cause instanceof Error && cause.name === 'NotAllowedError') {
 				message = 'Passkey verification was cancelled.';
 			} else if (cause instanceof AuthAPIError && cause.modal) {
 				await onComplete(cause.modal);

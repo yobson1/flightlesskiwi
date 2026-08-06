@@ -1,6 +1,6 @@
-import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { error as logError } from '$lib/logger';
 import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
+import { encodeBase64 } from '$lib/encoding';
 import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
 import { hashSecret } from '$lib/server/auth/utils';
@@ -33,14 +33,12 @@ export async function PUT(event: RequestEvent) {
 	const { session, user } = guarded.authenticated;
 	const formData = await event.request.formData();
 	const name = formData.get('name');
-	const encodedAttestationObject = formData.get('attestation_object');
-	const encodedClientDataJSON = formData.get('client_data_json');
+	const encodedCredential = formData.get('credential');
 	if (
 		typeof name !== 'string' ||
 		name.trim().length === 0 ||
 		name.length > MAX_PASSKEY_NAME_LENGTH ||
-		typeof encodedAttestationObject !== 'string' ||
-		typeof encodedClientDataJSON !== 'string'
+		typeof encodedCredential !== 'string'
 	) {
 		return authError(400, 'Invalid or missing fields');
 	}
@@ -48,21 +46,14 @@ export async function PUT(event: RequestEvent) {
 		return authError(400, 'Too many passkeys');
 	}
 
-	let attestationObject: Uint8Array;
-	let clientDataJSON: Uint8Array;
+	let credential: unknown;
 	try {
-		attestationObject = decodeBase64(encodedAttestationObject);
-		clientDataJSON = decodeBase64(encodedClientDataJSON);
+		credential = JSON.parse(encodedCredential) as unknown;
 	} catch {
-		return authError(400, 'Invalid encoded data');
+		return authError(400, 'Invalid passkey registration');
 	}
 	try {
-		const verified = verifyWebAuthnRegistration(
-			attestationObject,
-			clientDataJSON,
-			user.id,
-			'passkey-register'
-		);
+		const verified = await verifyWebAuthnRegistration(credential, user.id, 'passkey-register');
 		createPasskeyCredential({ ...verified, userId: user.id, name: name.trim() });
 	} catch (cause) {
 		if (cause instanceof WebAuthnVerificationError || String(cause).includes('UNIQUE')) {

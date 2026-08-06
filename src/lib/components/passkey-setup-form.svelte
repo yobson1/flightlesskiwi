@@ -39,7 +39,7 @@
 			});
 			name = registration.suggested_name;
 		} catch (cause) {
-			if (cause instanceof DOMException && cause.name === 'NotAllowedError') {
+			if (cause instanceof Error && cause.name === 'NotAllowedError') {
 				message = 'Passkey creation was cancelled.';
 			} else {
 				message = cause instanceof Error ? cause.message : 'Unable to create passkey';
@@ -57,8 +57,7 @@
 		try {
 			const body = new URLSearchParams({
 				name,
-				attestation_object: registration.attestation_object,
-				client_data_json: registration.client_data_json
+				credential: JSON.stringify(registration.credential)
 			});
 			const result = await authRequest('/api/auth/passkey-registration', {
 				method: 'PUT',

@@ -1,6 +1,6 @@
-import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+import { decodeBase64, encodeBase64 } from '$lib/encoding';
 import {
 	MAX_PASSWORD_LENGTH,
 	MAX_USERNAME_LENGTH,

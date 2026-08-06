@@ -1,10 +1,9 @@
 import { WEBAUTHN_RP_NAME } from '$app/env/private';
-import { createTOTPKeyURI } from '@oslojs/otp';
-import { TOTP_CODE_LENGTH } from '$lib/auth-constants';
 import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
 import {
 	deleteTOTPSetupCookie,
+	createTOTPKeyURI,
 	generateTOTPKey,
 	getTOTPSetupKey,
 	setTOTPSetupCookie,
@@ -24,7 +23,7 @@ export function POST(event: RequestEvent) {
 	const key = generateTOTPKey();
 	setTOTPSetupCookie(event, user.id, key);
 	return authSuccess('totp-setup', {
-		keyURI: createTOTPKeyURI(WEBAUTHN_RP_NAME!, user.email, key, 30, TOTP_CODE_LENGTH)
+		keyURI: createTOTPKeyURI(WEBAUTHN_RP_NAME!, user.email, key)
 	});
 }
 

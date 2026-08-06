@@ -4,12 +4,12 @@
 	import { invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { decodeBase64 } from '@oslojs/encoding';
 	import { onMount, untrack } from 'svelte';
 	import { SvelteURL } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import SimpleIconsGithub from '~icons/simple-icons/github';
 	import favicon from '$lib/assets/favicon.svg';
+	import { decodeBase64 } from '$lib/encoding';
 	import {
 		authModalDataEndpoint,
 		authModalDataMethod,

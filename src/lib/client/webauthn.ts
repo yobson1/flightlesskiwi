@@ -1,13 +1,17 @@
-import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
+import {
+	startAuthentication,
+	startRegistration,
+	type AuthenticationResponseJSON,
+	type RegistrationResponseJSON
+} from '@simplewebauthn/browser';
+import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import {
 	fetchPasskeyAuthenticatorMetadata,
 	formatAAGUID
 } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
-export async function createWebAuthnChallenge(
-	purpose: WebAuthnChallengePurpose
-): Promise<Uint8Array> {
+export async function createWebAuthnChallenge(purpose: WebAuthnChallengePurpose): Promise<string> {
 	const response = await fetch('/api/webauthn/challenge', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
@@ -25,7 +29,7 @@ export async function createWebAuthnChallenge(
 	) {
 		throw new Error('Invalid WebAuthn challenge response');
 	}
-	return decodeBase64(data.challenge);
+	return data.challenge;
 }
 
 export async function createWebAuthnAssertion(
@@ -33,30 +37,13 @@ export async function createWebAuthnAssertion(
 ): Promise<WebAuthnAssertion> {
 	verifyWebAuthnSupport();
 
-	const challenge = await createWebAuthnChallenge(purpose);
-	const challengeBuffer = new ArrayBuffer(challenge.byteLength);
-	new Uint8Array(challengeBuffer).set(challenge);
-	const credential = await navigator.credentials.get({
-		publicKey: {
-			challenge: challengeBuffer,
+	return startAuthentication({
+		optionsJSON: {
+			challenge: await createWebAuthnChallenge(purpose),
 			userVerification: 'required',
 			timeout: 60_000
 		}
 	});
-	if (!(credential instanceof PublicKeyCredential)) {
-		throw new Error('No passkey was selected');
-	}
-	const response = credential.response;
-	if (!(response instanceof AuthenticatorAssertionResponse)) {
-		throw new Error('The authenticator returned an invalid response');
-	}
-
-	return {
-		authenticator_data: encodeBase64(new Uint8Array(response.authenticatorData)),
-		client_data_json: encodeBase64(new Uint8Array(response.clientDataJSON)),
-		credential_id: encodeBase64(new Uint8Array(credential.rawId)),
-		signature: encodeBase64(new Uint8Array(response.signature))
-	};
 }
 
 export async function createWebAuthnRegistration(options: {
@@ -67,15 +54,12 @@ export async function createWebAuthnRegistration(options: {
 }): Promise<WebAuthnRegistration> {
 	verifyWebAuthnSupport();
 
-	const challenge = await createWebAuthnChallenge('passkey-register');
-	const challengeBuffer = copyToArrayBuffer(challenge);
-	const userId = copyToArrayBuffer(options.userId);
-	const credential = await navigator.credentials.create({
-		publicKey: {
-			challenge: challengeBuffer,
+	const credential = await startRegistration({
+		optionsJSON: {
+			challenge: await createWebAuthnChallenge('passkey-register'),
 			rp: { name: options.rpName },
 			user: {
-				id: userId,
+				id: encodeBase64url(options.userId),
 				name: options.username,
 				displayName: options.username
 			},
@@ -89,23 +73,16 @@ export async function createWebAuthnRegistration(options: {
 			},
 			excludeCredentials: options.excludedCredentialIds.map((id) => ({
 				type: 'public-key',
-				id: copyToArrayBuffer(id)
+				id: encodeBase64url(id)
 			})),
 			attestation: 'none',
 			timeout: 60_000
 		}
 	});
-	if (!(credential instanceof PublicKeyCredential)) {
-		throw new Error('No passkey was created');
-	}
-	const response = credential.response;
-	if (!(response instanceof AuthenticatorAttestationResponse)) {
-		throw new Error('The authenticator returned an invalid response');
-	}
 
 	let suggestedName = '';
 	try {
-		const authenticatorData = new Uint8Array(response.getAuthenticatorData());
+		const authenticatorData = decodeBase64url(credential.response.authenticatorData ?? '');
 		if (authenticatorData.byteLength >= 53 && (authenticatorData[32]! & 0x40) !== 0) {
 			const aaguid = formatAAGUID(authenticatorData.slice(37, 53));
 			suggestedName = (await fetchPasskeyAuthenticatorMetadata())[aaguid]?.name ?? '';
@@ -115,8 +92,7 @@ export async function createWebAuthnRegistration(options: {
 	}
 
 	return {
-		attestation_object: encodeBase64(new Uint8Array(response.attestationObject)),
-		client_data_json: encodeBase64(new Uint8Array(response.clientDataJSON)),
+		credential,
 		suggested_name: suggestedName
 	};
 }
@@ -132,21 +108,9 @@ function verifyWebAuthnSupport(): void {
 	}
 }
 
-function copyToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-	const buffer = new ArrayBuffer(bytes.byteLength);
-	new Uint8Array(buffer).set(bytes);
-	return buffer;
-}
-
-export interface WebAuthnAssertion {
-	authenticator_data: string;
-	client_data_json: string;
-	credential_id: string;
-	signature: string;
-}
+export type WebAuthnAssertion = AuthenticationResponseJSON;
 
 export interface WebAuthnRegistration {
-	attestation_object: string;
-	client_data_json: string;
+	credential: RegistrationResponseJSON;
 	suggested_name: string;
 }
