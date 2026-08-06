@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { scheduleBenchmarkChartTask } from '$lib/benchmark-chart-scheduler';
 	import {
 		createBenchmarkEChart,
 		readBenchmarkEChartTheme,
@@ -27,7 +28,17 @@
 	let container: HTMLDivElement;
 	let chart = $state.raw<BenchmarkEChartInstance>();
 	let theme = $state.raw<BenchmarkEChartTheme>();
-	const option = $derived(theme ? createOption(theme) : undefined);
+	let prepared = $state(false);
+	let latestOption = $state.raw<BenchmarkEChartOption>();
+	let appliedOption = $state.raw<BenchmarkEChartOption>();
+	const option = $derived(prepared && theme ? createOption(theme) : undefined);
+	let mounted = false;
+	let renderQueued = false;
+	let themeRefreshQueued = false;
+	let cancelPreparation: (() => void) | undefined;
+	let cancelRender: (() => void) | undefined;
+	let cancelThemeRefresh: (() => void) | undefined;
+	let resetZoom: ((event: unknown) => void) | undefined;
 
 	function activateDragZoom(instance: BenchmarkEChartInstance) {
 		instance.dispatchAction({
@@ -58,62 +69,101 @@
 		link.click();
 	}
 
-	$effect(() => {
-		if (chart && option) {
-			chart.setOption(option, { notMerge: true });
+	function render() {
+		if (!latestOption || container.clientWidth <= 0 || container.clientHeight <= 0) {
+			return;
+		}
+
+		const optionChanged = latestOption !== appliedOption;
+		if (!chart) {
+			chart = createBenchmarkEChart(container);
+			onImageExporterChange?.(saveChartImage);
 			if (dragZoom) {
-				activateDragZoom(chart);
+				resetZoom = (event: unknown) => {
+					const pointer = event as { offsetX?: number; offsetY?: number };
+					if (
+						typeof pointer.offsetX !== 'number' ||
+						typeof pointer.offsetY !== 'number' ||
+						!chart?.containPixel({ gridIndex: 0 }, [pointer.offsetX, pointer.offsetY])
+					) {
+						return;
+					}
+
+					chart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+					activateDragZoom(chart);
+				};
+				chart.getZr().on('click', resetZoom);
 			}
+		} else {
+			chart.resize();
+		}
+
+		if (optionChanged) {
+			chart.setOption(latestOption, { notMerge: true });
+			appliedOption = latestOption;
+			if (dragZoom) activateDragZoom(chart);
+		}
+	}
+
+	function queueRender(priority = false) {
+		if (!mounted || !latestOption || renderQueued) return;
+		renderQueued = true;
+		cancelRender = scheduleBenchmarkChartTask(() => {
+			renderQueued = false;
+			cancelRender = undefined;
+			render();
+		}, priority);
+	}
+
+	function queueThemeRefresh() {
+		if (!mounted || themeRefreshQueued) return;
+		themeRefreshQueued = true;
+		cancelThemeRefresh = scheduleBenchmarkChartTask(() => {
+			themeRefreshQueued = false;
+			cancelThemeRefresh = undefined;
+			theme = readBenchmarkEChartTheme();
+			latestOption = option;
+			queueRender(true);
+		}, true);
+	}
+
+	$effect(() => {
+		const nextOption = option;
+		if (nextOption && nextOption !== latestOption) {
+			latestOption = nextOption;
+			queueRender(true);
 		}
 	});
 
 	onMount(() => {
-		let resetZoom: ((event: unknown) => void) | undefined;
-		const render = () => {
-			if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
-
-			if (!chart) {
-				theme = readBenchmarkEChartTheme();
-				chart = createBenchmarkEChart(container);
-				onImageExporterChange?.(saveChartImage);
-				if (dragZoom) {
-					resetZoom = (event: unknown) => {
-						const pointer = event as { offsetX?: number; offsetY?: number };
-						if (
-							typeof pointer.offsetX !== 'number' ||
-							typeof pointer.offsetY !== 'number' ||
-							!chart?.containPixel({ gridIndex: 0 }, [pointer.offsetX, pointer.offsetY])
-						) {
-							return;
-						}
-
-						chart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
-						activateDragZoom(chart);
-					};
-					chart.getZr().on('click', resetZoom);
-				}
-			} else {
-				chart.resize();
-			}
-		};
-		const resizeObserver = new ResizeObserver(render);
-		const themeObserver = new MutationObserver(() => {
-			theme = readBenchmarkEChartTheme();
-		});
+		mounted = true;
+		const resizeObserver = new ResizeObserver(() => queueRender(true));
+		const themeObserver = new MutationObserver(queueThemeRefresh);
 
 		resizeObserver.observe(container);
 		themeObserver.observe(document.documentElement, {
 			attributeFilter: ['class', 'style'],
 			attributes: true
 		});
-		render();
+		cancelPreparation = scheduleBenchmarkChartTask(() => {
+			cancelPreparation = undefined;
+			theme = readBenchmarkEChartTheme();
+			prepared = true;
+			latestOption = option;
+			render();
+		});
 
 		return () => {
+			mounted = false;
 			resizeObserver.disconnect();
 			themeObserver.disconnect();
+			cancelPreparation?.();
+			cancelRender?.();
+			cancelThemeRefresh?.();
 			if (resetZoom) chart?.getZr().off('click', resetZoom);
 			chart?.dispose();
 			chart = undefined;
+			appliedOption = undefined;
 			onImageExporterChange?.(undefined);
 		};
 	});

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	averageMetricValues,
-	buildSharedMetricChartData,
+	buildMetricChartPoints,
 	calculateFrametimeClassification,
 	calculateFrametimeDistribution,
 	calculateFrametimeMovingAverage,
@@ -167,29 +167,18 @@ describe('benchmark chart metric helpers', () => {
 		expect(runs.map(({ id }) => id)).toEqual(['slow', 'missing', 'fast']);
 	});
 
-	test('aligns independently sampled runs onto one shared time grid', () => {
-		expect(
-			buildSharedMetricChartData([
-				{
-					key: 'first',
-					points: [
-						{ timeSeconds: 0, value: 10 },
-						{ timeSeconds: 2, value: 30 },
-						{ timeSeconds: 4, value: 50 }
-					]
-				},
-				{
-					key: 'second',
-					points: [
-						{ timeSeconds: 0, value: 20 },
-						{ timeSeconds: 4, value: 100 }
-					]
-				}
-			])
-		).toEqual([
-			{ timeSeconds: 0, first: 10, second: 20 },
-			{ timeSeconds: 2, first: 30, second: 60 },
-			{ timeSeconds: 4, first: 50, second: 100 }
+	test('bounds line chart points while retaining time order and bucket extrema', () => {
+		expect(buildMetricChartPoints([0, 1, 2], [10, null, 30], 3)).toEqual([
+			{ timeSeconds: 0, value: 10 },
+			{ timeSeconds: 2, value: 30 }
 		]);
+		expect(buildMetricChartPoints([0, 1, 2, 3, 4, 5], [0, 4, 2, 3, 1, 5], 4)).toEqual([
+			{ timeSeconds: 0, value: 0 },
+			{ timeSeconds: 1, value: 4 },
+			{ timeSeconds: 4, value: 1 },
+			{ timeSeconds: 5, value: 5 }
+		]);
+		expect(buildMetricChartPoints([0, 1, 2, 3], [0, 1, 2, 3], 3)).toHaveLength(2);
+		expect(() => buildMetricChartPoints([], [], 1)).toThrow(RangeError);
 	});
 });

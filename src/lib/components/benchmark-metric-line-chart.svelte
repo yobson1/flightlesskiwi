@@ -40,7 +40,7 @@
 
 <script lang="ts">
 	import {
-		buildSharedMetricChartData,
+		buildMetricChartPoints,
 		calculateFrametimeMovingAverage,
 		formatMetricValue,
 		hasNonZeroMetricValues,
@@ -75,19 +75,14 @@
 			const runMetric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metric.key);
 			if (!runMetric || !hasNonZeroMetricValues(runMetric.values)) return [];
 
-			const points = runMetric.values.flatMap((value, pointIndex) =>
-				value === null
-					? []
-					: [{ timeSeconds: runMetric.timeSeconds[pointIndex] ?? pointIndex, value }]
-			);
+			const points = buildMetricChartPoints(runMetric.timeSeconds, runMetric.values);
 			if (points.length === 0) return [];
 
 			const movingAveragePoints =
 				metric.key === 'frametime' && showMovingAverage
-					? calculateFrametimeMovingAverage(runMetric.values).flatMap((value, pointIndex) =>
-							value === null
-								? []
-								: [{ timeSeconds: runMetric.timeSeconds[pointIndex] ?? pointIndex, value }]
+					? buildMetricChartPoints(
+							runMetric.timeSeconds,
+							calculateFrametimeMovingAverage(runMetric.values)
 						)
 					: [];
 
@@ -118,7 +113,6 @@
 		])
 	);
 	const hasLegend = $derived(plotSeries.length > 1);
-	const chartData = $derived(buildSharedMetricChartData(plotSeries));
 	const createOption = $derived((theme: BenchmarkEChartTheme): BenchmarkEChartOption => {
 		const baseOption = getBenchmarkEChartBaseOption(theme);
 		return {
@@ -184,8 +178,8 @@
 				show: true,
 				showTitle: false
 			},
-			series: plotSeries.map(({ key, label, movingAverage }) => ({
-				data: chartData.map((row) => [row.timeSeconds, row[key]]),
+			series: plotSeries.map(({ label, movingAverage, points }) => ({
+				data: points.map(({ timeSeconds, value }) => [timeSeconds, value]),
 				emphasis: { focus: 'series' },
 				lineStyle: {
 					opacity: movingAverage ? 1 : showMovingAverage ? 0.55 : 1,

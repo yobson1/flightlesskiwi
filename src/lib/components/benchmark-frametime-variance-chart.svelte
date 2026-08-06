@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		calculateFrametimeVariance,
+		hasNonZeroMetricValues,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -24,7 +25,7 @@
 	);
 </script>
 
-{#if data.length > 0}
+{#if frametime && hasNonZeroMetricValues(frametime.values)}
 	<BenchmarkPieChart
 		title={`Frame-to-frame variance · ${stripFileExtension(run.originalName)}`}
 		description="Absolute time difference between consecutive frames. Smaller differences indicate steadier pacing."

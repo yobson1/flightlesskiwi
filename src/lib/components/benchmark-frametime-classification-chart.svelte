@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		calculateFrametimeClassification,
+		hasNonZeroMetricValues,
 		LOW_FPS_THRESHOLD,
 		STUTTER_FACTOR,
 		stripFileExtension,
@@ -27,7 +28,7 @@
 	);
 </script>
 
-{#if data.length > 0}
+{#if frametime && hasNonZeroMetricValues(frametime.values)}
 	<BenchmarkPieChart
 		title={`Frame classification · ${stripFileExtension(run.originalName)}`}
 		description={`Share of captured time that was smooth, below ${LOW_FPS_THRESHOLD} FPS, or a stutter above ${STUTTER_FACTOR}× the moving average.`}

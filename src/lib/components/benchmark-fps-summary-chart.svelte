@@ -42,6 +42,12 @@
 			percentage
 		}));
 	});
+	const hasMultipleFpsRuns = $derived(
+		runs.filter((run) => {
+			const fps = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'fps');
+			return fps && hasNonZeroMetricValues(fps.values);
+		}).length > 1
+	);
 	const relativeAverageSeries = $derived([
 		{
 			key: 'percentage',
@@ -63,7 +69,7 @@
 	showLegend
 />
 
-{#if chartData.length > 1}
+{#if hasMultipleFpsRuns}
 	<BenchmarkHorizontalBarChart
 		title="Average FPS comparison (%)"
 		description="Average FPS relative to the slowest run, which is the 100% baseline."

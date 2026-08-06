@@ -6,11 +6,6 @@ export interface BenchmarkChartRun {
 	benchmarkRun: BenchmarkRun | null;
 }
 
-export interface BenchmarkMetricSeries {
-	key: string;
-	points: Array<{ timeSeconds: number; value: number }>;
-}
-
 export interface BenchmarkPieSlice {
 	label: string;
 	percentage: number;
@@ -252,24 +247,61 @@ export function sortBenchmarkChartRunsByAverageFps(
 		.map(({ run }) => run);
 }
 
-export function buildSharedMetricChartData(
-	series: BenchmarkMetricSeries[]
-): Array<{ timeSeconds: number } & Record<string, number | undefined>> {
-	const sampleCount = Math.max(0, ...series.map(({ points }) => points.length));
-	if (sampleCount === 0) return [];
+export function buildMetricChartPoints(
+	timeSeconds: readonly number[],
+	values: ReadonlyArray<number | null>,
+	maximumPoints = 3_000
+): Array<{ timeSeconds: number; value: number }> {
+	if (!Number.isSafeInteger(maximumPoints) || maximumPoints < 2) {
+		throw new RangeError('maximumPoints must be an integer of at least 2');
+	}
 
-	const maximumTime = Math.max(0, ...series.map(({ points }) => points.at(-1)?.timeSeconds ?? 0));
+	let firstIndex = -1;
+	let lastIndex = -1;
+	let valueCount = 0;
+	for (let index = 0; index < values.length; index++) {
+		if (values[index] === null || values[index] === undefined) continue;
+		if (firstIndex === -1) firstIndex = index;
+		lastIndex = index;
+		valueCount++;
+	}
+	if (firstIndex === -1 || lastIndex === -1) return [];
 
-	return Array.from({ length: sampleCount }, (_, index) => {
-		const timeSeconds = sampleCount === 1 ? 0 : (maximumTime * index) / (sampleCount - 1);
-		const row: { timeSeconds: number } & Record<string, number | undefined> = { timeSeconds };
+	const point = (index: number) => ({
+		timeSeconds: timeSeconds[index] ?? index,
+		value: values[index]!
+	});
+	if (valueCount <= maximumPoints) {
+		return values.flatMap((value, index) => (value === null ? [] : [point(index)]));
+	}
+	if (maximumPoints < 4) return [point(firstIndex), point(lastIndex)];
 
-		for (const metricSeries of series) {
-			row[metricSeries.key] = interpolateMetricValue(metricSeries.points, timeSeconds);
+	const points = [point(firstIndex)];
+	const bucketCount = Math.floor((maximumPoints - 2) / 2);
+	const innerStart = firstIndex + 1;
+	const innerLength = Math.max(0, lastIndex - innerStart);
+
+	for (let bucketIndex = 0; bucketIndex < bucketCount; bucketIndex++) {
+		const start = innerStart + Math.floor((innerLength * bucketIndex) / bucketCount);
+		const end = innerStart + Math.floor((innerLength * (bucketIndex + 1)) / bucketCount);
+		let minimumIndex = -1;
+		let maximumIndex = -1;
+
+		for (let index = start; index < end; index++) {
+			const value = values[index];
+			if (value === null || value === undefined) continue;
+			if (minimumIndex === -1 || value < values[minimumIndex]!) minimumIndex = index;
+			if (maximumIndex === -1 || value > values[maximumIndex]!) maximumIndex = index;
 		}
 
-		return row;
-	});
+		if (minimumIndex === -1 || maximumIndex === -1) continue;
+		if (minimumIndex === maximumIndex) points.push(point(minimumIndex));
+		else if (minimumIndex < maximumIndex) points.push(point(minimumIndex), point(maximumIndex));
+		else points.push(point(maximumIndex), point(minimumIndex));
+	}
+
+	points.push(point(lastIndex));
+	return points;
 }
 
 export function percentileMetricValue(
@@ -296,35 +328,6 @@ export function formatMetricValue(value: number, unit = ''): string {
 	const formatted = new Intl.NumberFormat('en', { maximumFractionDigits }).format(value);
 	if (!unit) return formatted;
 	return unit === '%' ? `${formatted}%` : `${formatted} ${unit}`;
-}
-
-function interpolateMetricValue(
-	points: Array<{ timeSeconds: number; value: number }>,
-	timeSeconds: number
-): number | undefined {
-	const first = points[0];
-	const last = points.at(-1);
-	if (!first || !last || timeSeconds < first.timeSeconds || timeSeconds > last.timeSeconds) {
-		return undefined;
-	}
-
-	let lowerIndex = 0;
-	let upperIndex = points.length - 1;
-
-	while (lowerIndex <= upperIndex) {
-		const middleIndex = Math.floor((lowerIndex + upperIndex) / 2);
-		const middle = points[middleIndex]!;
-		if (middle.timeSeconds === timeSeconds) return middle.value;
-		if (middle.timeSeconds < timeSeconds) lowerIndex = middleIndex + 1;
-		else upperIndex = middleIndex - 1;
-	}
-
-	const lower = points[Math.max(0, upperIndex)]!;
-	const upper = points[Math.min(points.length - 1, lowerIndex)]!;
-	if (lower.timeSeconds === upper.timeSeconds) return upper.value;
-
-	const progress = (timeSeconds - lower.timeSeconds) / (upper.timeSeconds - lower.timeSeconds);
-	return lower.value + (upper.value - lower.value) * progress;
 }
 
 function isValidFrametime(value: number | null | undefined): value is number {

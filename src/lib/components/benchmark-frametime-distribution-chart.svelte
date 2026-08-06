@@ -34,6 +34,12 @@
 		})
 	);
 	const hasLegend = $derived(series.length > 1);
+	const hasData = $derived(
+		runs.some((run) => {
+			const frametime = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'frametime');
+			return frametime && hasNonZeroMetricValues(frametime.values);
+		})
+	);
 	const createOption = $derived((theme: BenchmarkEChartTheme): BenchmarkEChartOption => {
 		const baseOption = getBenchmarkEChartBaseOption(theme);
 		return {
@@ -116,7 +122,7 @@
 	});
 </script>
 
-{#if series.length > 0}
+{#if hasData}
 	<BenchmarkChartCard
 		title="Frame time distribution"
 		description={`Captured time in each ${FRAMETIME_DISTRIBUTION_BIN_SIZE} ms frametime band. Narrower peaks indicate more consistent frame pacing.`}
