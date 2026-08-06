@@ -1,7 +1,5 @@
 <script lang="ts">
-	import SimpleIconsDiscord from '~icons/simple-icons/discord';
-	import SimpleIconsGithub from '~icons/simple-icons/github';
-	import SimpleIconsTwitch from '~icons/simple-icons/twitch';
+	import OAuthProviderIcon from '$lib/components/oauth-provider-icon.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { getOAuthProviderName, type OAuthProvider } from '$lib/types/oauth';
@@ -35,13 +33,7 @@
 				data-sveltekit-reload
 				aria-label={`${verb} with ${getOAuthProviderName(provider)}`}
 			>
-				{#if provider === 'github'}
-					<SimpleIconsGithub />
-				{:else if provider === 'discord'}
-					<SimpleIconsDiscord />
-				{:else}
-					<SimpleIconsTwitch />
-				{/if}
+				<OAuthProviderIcon {provider} />
 				{getOAuthProviderName(provider)}
 			</Button>
 		{/each}

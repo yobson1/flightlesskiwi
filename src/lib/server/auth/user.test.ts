@@ -7,8 +7,12 @@ const testDb = testDatabase.db;
 
 mock.module('$lib/server/db', () => ({ db: testDb }));
 
-const { createOrLinkOAuthUser, getUserFromOAuthAccount, getUserPasswordHash } =
-	await import('./user');
+const {
+	createOrLinkOAuthUser,
+	deleteUserOAuthAccount,
+	getUserFromOAuthAccount,
+	getUserPasswordHash
+} = await import('./user');
 
 beforeEach(() => {
 	testDb.delete(schema.oauthAccount).run();
@@ -102,17 +106,71 @@ describe('OAuth users', () => {
 		).toThrow();
 		expect(testDb.select().from(schema.user).all()).toHaveLength(0);
 	});
+
+	test('does not remove the last usable sign-in method', () => {
+		insertUser('oauth-only', 'oauth-only@example.com', null, true, 'OAuth Only');
+		insertOAuthAccount('oauth-only', 'twitch', 'twitch-user');
+
+		expect(deleteUserOAuthAccount('oauth-only', 'twitch')).toBe('last-sign-in-method');
+		expect(testDb.select().from(schema.oauthAccount).all()).toHaveLength(1);
+	});
+
+	test('removes an OAuth connection when a password remains', () => {
+		insertUser('password-user', 'password@example.com', 'password-hash', true, 'Password User');
+		insertOAuthAccount('password-user', 'github', 'github-user');
+
+		expect(deleteUserOAuthAccount('password-user', 'github')).toBe('deleted');
+		expect(testDb.select().from(schema.oauthAccount).all()).toHaveLength(0);
+	});
+
+	test('removes an OAuth connection when another provider remains', () => {
+		insertUser('multi-oauth', 'multi@example.com', null, true, 'Multi OAuth');
+		insertOAuthAccount('multi-oauth', 'github', 'github-user');
+		insertOAuthAccount('multi-oauth', 'discord', 'discord-user');
+
+		expect(deleteUserOAuthAccount('multi-oauth', 'github')).toBe('deleted');
+		expect(testDb.select().from(schema.oauthAccount).get()?.provider).toBe('discord');
+	});
+
+	test('removes an OAuth connection when a passkey remains', () => {
+		insertUser('passkey-user', 'passkey@example.com', null, true, 'Passkey User');
+		insertOAuthAccount('passkey-user', 'twitch', 'twitch-user');
+		testDb
+			.insert(schema.passkeyCredential)
+			.values({
+				id: 'passkey-id',
+				userId: 'passkey-user',
+				name: 'Test passkey',
+				publicKey: Buffer.from([1, 2, 3]),
+				createdAt: new Date()
+			})
+			.run();
+
+		expect(deleteUserOAuthAccount('passkey-user', 'twitch')).toBe('deleted');
+		expect(testDb.select().from(schema.oauthAccount).all()).toHaveLength(0);
+	});
 });
 
 function insertUser(
 	id: string,
 	email: string,
-	passwordHash: string,
+	passwordHash: string | null,
 	emailVerified: boolean,
 	username: string
 ): void {
 	testDb
 		.insert(schema.user)
 		.values({ id, email, username, passwordHash, emailVerified, createdAt: new Date() })
+		.run();
+}
+
+function insertOAuthAccount(
+	userId: string,
+	provider: 'github' | 'discord' | 'twitch',
+	providerUserId: string
+): void {
+	testDb
+		.insert(schema.oauthAccount)
+		.values({ userId, provider, providerUserId, createdAt: new Date() })
 		.run();
 }

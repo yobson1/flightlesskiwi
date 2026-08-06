@@ -42,6 +42,7 @@ import { deleteUserTOTPKey, deleteTOTPSetupCookie, totpUpdateBucket } from '$lib
 import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
+	deleteUserOAuthAccount,
 	isUserUniqueConstraintError,
 	normalizeEmail,
 	resetUserRecoveryCode,
@@ -53,6 +54,7 @@ import {
 import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, user as userTable } from '$lib/server/db/schema';
+import { getOAuthProviderName, isOAuthProvider } from '$lib/types/oauth';
 import type { Actions, RequestEvent } from './$types';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>('password-update', 5, 30 * 60);
@@ -81,6 +83,7 @@ export const actions: Actions = {
 	update_password: updatePassword,
 	update_email: updateEmail,
 	disconnect_totp: disconnectTOTP,
+	disconnect_oauth: disconnectOAuth,
 	delete_passkey: deletePasskey,
 	regenerate_recovery_code: regenerateRecoveryCode,
 	delete_account: deleteAccount
@@ -265,6 +268,39 @@ async function disconnectTOTP(event: RequestEvent) {
 	return {};
 }
 
+async function disconnectOAuth(event: RequestEvent) {
+	if (event.locals.session === null || event.locals.user === null) {
+		return fail(401, { connection: { message: 'Not authenticated' } });
+	}
+	if (
+		!event.locals.user.emailVerified ||
+		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+	) {
+		return fail(403, { connection: { message: 'Forbidden' } });
+	}
+	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+		return reauthenticationRequired('connection');
+	}
+	const formData = await event.request.formData();
+	const provider = formData.get('provider');
+	if (typeof provider !== 'string' || !isOAuthProvider(provider)) {
+		return fail(400, { connection: { message: 'Invalid OAuth provider' } });
+	}
+
+	const result = deleteUserOAuthAccount(event.locals.user.id, provider);
+	if (result === 'not-found') {
+		return fail(404, { connection: { message: 'Connection not found' } });
+	}
+	if (result === 'last-sign-in-method') {
+		return fail(400, {
+			connection: {
+				message: 'Set a password or add a passkey before removing your only sign-in method'
+			}
+		});
+	}
+	return { connection: { message: `Disconnected ${getOAuthProviderName(provider)}` } };
+}
+
 async function deletePasskey(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
@@ -376,7 +412,9 @@ async function deleteAccount(event: RequestEvent) {
 	return {};
 }
 
-function reauthenticationRequired(field?: 'username' | 'password' | 'email' | 'account') {
+function reauthenticationRequired(
+	field?: 'username' | 'password' | 'email' | 'connection' | 'account'
+) {
 	const message = 'Confirm your identity to continue';
 	return fail(428, {
 		reauthenticationRequired: true,

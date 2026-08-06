@@ -33,6 +33,14 @@ export function getOAuthProviderName(provider: OAuthProvider): string {
 	return OAUTH_PROVIDER_NAMES[provider];
 }
 
+export function canRemoveOAuthConnection(
+	hasPassword: boolean,
+	hasPasskey: boolean,
+	connectionCount: number
+): boolean {
+	return hasPassword || hasPasskey || connectionCount > 1;
+}
+
 export function getOAuthErrorMessage(code: OAuthErrorCode, provider: OAuthProvider | null): string {
 	const providerName = provider === null ? 'OAuth provider' : getOAuthProviderName(provider);
 	switch (code) {

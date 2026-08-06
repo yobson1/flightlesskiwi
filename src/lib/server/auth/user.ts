@@ -13,7 +13,7 @@ import {
 import { hashPassword, hashRecoveryCode } from '$lib/server/auth/password';
 import { generateRandomRecoveryCode, generateSecureRandomString } from '$lib/server/auth/utils';
 import type { OAuthUserProfile } from '$lib/server/oauth';
-import type { OAuthProvider } from '$lib/types/oauth';
+import { canRemoveOAuthConnection, type OAuthProvider } from '$lib/types/oauth';
 
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
@@ -176,6 +176,51 @@ export function createOrLinkOAuthUser(
 	const user = getUserById(userId);
 	if (user === null) throw new Error('OAuth user could not be loaded');
 	return user;
+}
+
+export function deleteUserOAuthAccount(
+	userId: string,
+	provider: OAuthProvider
+): 'deleted' | 'not-found' | 'last-sign-in-method' {
+	return db.transaction((tx) => {
+		const account = tx
+			.select({ provider: oauthAccount.provider })
+			.from(oauthAccount)
+			.where(and(eq(oauthAccount.userId, userId), eq(oauthAccount.provider, provider)))
+			.get();
+		if (account === undefined) return 'not-found';
+
+		const user = tx
+			.select({ passwordHash: userTable.passwordHash })
+			.from(userTable)
+			.where(eq(userTable.id, userId))
+			.get();
+		if (user === undefined) return 'not-found';
+		const passkey = tx
+			.select({ id: passkeyCredential.id })
+			.from(passkeyCredential)
+			.where(eq(passkeyCredential.userId, userId))
+			.get();
+		const oauthAccounts = tx
+			.select({ provider: oauthAccount.provider })
+			.from(oauthAccount)
+			.where(eq(oauthAccount.userId, userId))
+			.all();
+		if (
+			!canRemoveOAuthConnection(
+				user.passwordHash !== null,
+				passkey !== undefined,
+				oauthAccounts.length
+			)
+		) {
+			return 'last-sign-in-method';
+		}
+
+		tx.delete(oauthAccount)
+			.where(and(eq(oauthAccount.userId, userId), eq(oauthAccount.provider, provider)))
+			.run();
+		return 'deleted';
+	});
 }
 
 export function getUserById(userId: string): AuthUser | null {

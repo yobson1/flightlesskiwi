@@ -22,7 +22,7 @@ export async function GET(event: RequestEvent) {
 	}
 
 	const flow = event.url.searchParams.get('flow') === 'reauth' ? 'reauth' : 'login';
-	let returnTo: string | null = null;
+	let returnTo: string | null;
 	if (flow === 'reauth') {
 		if (event.locals.session === null || event.locals.user === null) {
 			redirect(303, '/#login');
