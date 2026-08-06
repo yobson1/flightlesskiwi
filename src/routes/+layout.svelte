@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { browser } from '$app/env';
+	import { browser, version } from '$app/env';
 	import { invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -302,7 +302,9 @@
 	<footer class="w-full text-muted-foreground">
 		<Separator />
 		<div class="mx-auto flex w-full max-w-7xl items-center justify-between p-4">
-			<p>&copy; {currentYear} flightlesskiwi</p>
+			<div class="flex items-center gap-2">
+				<p>&copy; {currentYear} flightlesskiwi <span class="text-xs">v{version}</span></p>
+			</div>
 			<nav class="flex items-center gap-4" aria-label="Footer">
 				<a href="/privacy" class="text-sm transition-colors hover:text-foreground"> Privacy </a>
 				<a href="/status" class="text-sm transition-colors hover:text-foreground"> Status </a>
