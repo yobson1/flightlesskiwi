@@ -2,6 +2,7 @@ import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { getOAuthErrorMessage } from '$lib/types/oauth';
 import {
 	Discord,
+	formatOAuthError,
 	generateCodeVerifier,
 	getAuthorizationResponseError,
 	GitHub,
@@ -145,5 +146,57 @@ describe('OAuth provider clients', () => {
 				preferred_username: null
 			}
 		});
+	});
+
+	test('normalizes Twitch array-valued token scopes before OIDC validation', async () => {
+		const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValue(
+			Response.json({
+				access_token: 'access-token',
+				expires_in: 3600,
+				id_token: 'invalid-jwt',
+				refresh_token: 'refresh-token',
+				scope: ['openid', 'user:read:email'],
+				token_type: 'bearer'
+			})
+		);
+		const redirectURI = 'https://example.com/auth/oauth/twitch/callback';
+		const twitch = new Twitch('twitch-client', 'twitch-secret', redirectURI);
+
+		let cause: unknown;
+		try {
+			await twitch.validateAuthorizationCode(
+				new URL(`${redirectURI}?code=authorization-code&state=expected-state`),
+				'expected-state',
+				generateCodeVerifier(),
+				'expected-nonce'
+			);
+		} catch (error) {
+			cause = error;
+		}
+
+		const details = formatOAuthError(cause);
+		expect(details).not.toContain('scope" property must be a string');
+		expect(details).toContain('JWT');
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	test('formats nested OAuth failures without logging sensitive response bodies', () => {
+		const inner = Object.assign(
+			new Error('"response" body "scope" property must be a string', {
+				cause: { body: { access_token: 'must-not-be-logged' } }
+			}),
+			{ name: 'OperationProcessingError', code: 'OAUTH_INVALID_RESPONSE' }
+		);
+		const outer = Object.assign(new Error('invalid response encountered', { cause: inner }), {
+			name: 'ClientError',
+			code: 'OAUTH_INVALID_RESPONSE'
+		});
+
+		const details = formatOAuthError(outer);
+
+		expect(details).toContain('ClientError: invalid response encountered');
+		expect(details).toContain('OperationProcessingError');
+		expect(details).toContain('"response" body "scope" property must be a string');
+		expect(details).not.toContain('must-not-be-logged');
 	});
 });

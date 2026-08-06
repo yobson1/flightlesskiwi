@@ -5,6 +5,7 @@ import { completeLoginFirstFactor } from '$lib/server/auth/login';
 import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
 import { OAuthCallbackError, validateOAuthCallback } from '$lib/server/auth/oauth';
 import { createOrLinkOAuthUser, getUserFromOAuthAccount } from '$lib/server/auth/user';
+import { formatOAuthError } from '$lib/server/oauth';
 import { isOAuthProvider, type OAuthErrorCode, type OAuthProvider } from '$lib/types/oauth';
 import type { RequestEvent } from './$types';
 
@@ -57,9 +58,10 @@ export async function GET(event: RequestEvent) {
 		if (isRedirect(cause)) throw cause;
 		if (cause instanceof OAuthCallbackError) {
 			if (shouldLogOAuthError(cause.code)) {
+				const oauthCause = cause.cause instanceof Error ? cause.cause : cause;
 				logError(
-					`Failed to complete ${event.params.provider} OAuth`,
-					cause.cause instanceof Error ? cause.cause : cause
+					`Failed to complete ${event.params.provider} OAuth: ${formatOAuthError(oauthCause)}`,
+					oauthCause
 				);
 			}
 			const destination =

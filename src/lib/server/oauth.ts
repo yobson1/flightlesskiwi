@@ -2,6 +2,7 @@ import * as client from 'openid-client';
 import { isRecord } from '$lib/utils';
 
 type TokenResponse = Awaited<ReturnType<typeof client.authorizationCodeGrant>>;
+const TWITCH_TOKEN_ENDPOINT = 'https://id.twitch.tv/oauth2/token';
 
 export interface OAuthUserProfile {
 	id: string;
@@ -185,22 +186,21 @@ export class Discord extends OAuth2Provider {
 
 export class Twitch extends OAuth2Provider {
 	constructor(clientId: string, clientSecret: string, redirectURI: string) {
-		super(
-			new client.Configuration(
-				{
-					issuer: 'https://id.twitch.tv/oauth2',
-					authorization_endpoint: 'https://id.twitch.tv/oauth2/authorize',
-					token_endpoint: 'https://id.twitch.tv/oauth2/token',
-					jwks_uri: 'https://id.twitch.tv/oauth2/keys',
-					userinfo_endpoint: 'https://id.twitch.tv/oauth2/userinfo',
-					id_token_signing_alg_values_supported: ['RS256']
-				},
-				clientId,
-				{ client_secret: clientSecret },
-				client.ClientSecretPost(clientSecret)
-			),
-			redirectURI
+		const configuration = new client.Configuration(
+			{
+				issuer: 'https://id.twitch.tv/oauth2',
+				authorization_endpoint: 'https://id.twitch.tv/oauth2/authorize',
+				token_endpoint: TWITCH_TOKEN_ENDPOINT,
+				jwks_uri: 'https://id.twitch.tv/oauth2/keys',
+				userinfo_endpoint: 'https://id.twitch.tv/oauth2/userinfo',
+				id_token_signing_alg_values_supported: ['RS256']
+			},
+			clientId,
+			{ client_secret: clientSecret },
+			client.ClientSecretPost(clientSecret)
 		);
+		configuration[client.customFetch] = fetchTwitch;
+		super(configuration, redirectURI);
 	}
 
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
@@ -233,7 +233,64 @@ export class Twitch extends OAuth2Provider {
 	}
 }
 
+async function fetchTwitch(url: string, options: client.CustomFetchOptions): Promise<Response> {
+	const response = await fetch(url, {
+		...options,
+		body: options.body as BodyInit | null | undefined
+	});
+	if (url !== TWITCH_TOKEN_ENDPOINT || !response.ok) return response;
+
+	let body: unknown;
+	try {
+		body = await response.clone().json();
+	} catch {
+		return response;
+	}
+	if (
+		!isRecord(body) ||
+		!Array.isArray(body.scope) ||
+		!body.scope.every((scope) => typeof scope === 'string')
+	) {
+		return response;
+	}
+
+	const headers = new Headers(response.headers);
+	headers.delete('content-length');
+	return Response.json(
+		{ ...body, scope: body.scope.join(' ') },
+		{ status: response.status, statusText: response.statusText, headers }
+	);
+}
+
 export class OAuthUserProfileError extends Error {}
+
+export function formatOAuthError(cause: unknown): string {
+	const errors: string[] = [];
+	const seen = new Set<Error>();
+	let current = cause;
+	while (current instanceof Error && !seen.has(current) && errors.length < 5) {
+		seen.add(current);
+		const metadata: string[] = [];
+		if (isRecord(current) && typeof current.code === 'string') metadata.push(current.code);
+		if (isRecord(current) && typeof current.status === 'number') {
+			metadata.push(`HTTP ${current.status}`);
+		}
+		if (isRecord(current) && typeof current.error === 'string') {
+			metadata.push(`error=${sanitizeErrorDetail(current.error)}`);
+		}
+		if (isRecord(current) && typeof current.error_description === 'string') {
+			metadata.push(`description=${sanitizeErrorDetail(current.error_description)}`);
+		}
+		const suffix = metadata.length === 0 ? '' : ` (${metadata.join(', ')})`;
+		errors.push(`${current.name}: ${sanitizeErrorDetail(current.message)}${suffix}`);
+		current = current.cause;
+	}
+	return errors.join(' caused by ');
+}
+
+function sanitizeErrorDetail(value: string): string {
+	return value.replaceAll(/\s+/g, ' ').slice(0, 500);
+}
 
 export function getAuthorizationResponseError(
 	cause: unknown
