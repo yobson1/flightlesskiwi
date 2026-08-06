@@ -195,6 +195,21 @@ describe('benchmark chart metric helpers', () => {
 		expect(() => buildMetricChartPoints([], [], 1)).toThrow(RangeError);
 	});
 
+	test('retains only the endpoints and transitions of constant-value runs', () => {
+		expect(buildMetricChartPoints([0, 1, 2, 3, 4, 5], [98, 98, 98, 98, 97, 97])).toEqual([
+			{ timeSeconds: 0, value: 98 },
+			{ timeSeconds: 3, value: 98 },
+			{ timeSeconds: 4, value: 97 },
+			{ timeSeconds: 5, value: 97 }
+		]);
+		expect(
+			buildMetricChartPoints([0, 1, 2, 3, 4, 5, 6, 7], [98, 98, 98, 98, 98, 98, 98, 98], 4)
+		).toEqual([
+			{ timeSeconds: 0, value: 98 },
+			{ timeSeconds: 7, value: 98 }
+		]);
+	});
+
 	test('finds the most recent chart point only within a series time range', () => {
 		const points = [
 			{ timeSeconds: 1, value: 10 },

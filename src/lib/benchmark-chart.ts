@@ -277,10 +277,11 @@ export function buildMetricChartPoints(
 		valueCount++;
 	}
 	const finish = (points: MetricChartPoint[]) => {
+		const retainedPoints = removeRedundantMetricChartPoints(points);
 		console.info(
-			`buildMetricChartPoints: had ${valueCount} points, returning ${points.length}, discarded ${valueCount - points.length}`
+			`buildMetricChartPoints: had ${valueCount} points, returning ${retainedPoints.length}, discarded ${valueCount - retainedPoints.length}`
 		);
-		return points;
+		return retainedPoints;
 	};
 	if (firstIndex === -1 || lastIndex === -1) return finish([]);
 
@@ -346,6 +347,22 @@ export function findMetricChartPointAtOrBefore(
 	}
 
 	return points[lowerIndex];
+}
+
+function removeRedundantMetricChartPoints(points: MetricChartPoint[]): MetricChartPoint[] {
+	if (points.length <= 2) return points;
+
+	const retainedPoints = [points[0]!];
+	for (let index = 1; index < points.length - 1; index++) {
+		const previous = points[index - 1]!;
+		const current = points[index]!;
+		const next = points[index + 1]!;
+		if (current.value !== previous.value || current.value !== next.value) {
+			retainedPoints.push(current);
+		}
+	}
+	retainedPoints.push(points.at(-1)!);
+	return retainedPoints;
 }
 
 export function percentileMetricValues(
