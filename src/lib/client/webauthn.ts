@@ -1,6 +1,8 @@
 import {
+	browserSupportsWebAuthnAutofill,
 	startAuthentication,
 	startRegistration,
+	WebAuthnAbortService,
 	type AuthenticationResponseJSON,
 	type PublicKeyCredentialCreationOptionsJSON,
 	type PublicKeyCredentialRequestOptionsJSON,
@@ -15,12 +17,14 @@ import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 import { isRecord } from '$lib/utils';
 
 async function getWebAuthnOptions(
-	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
+	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>,
+	signal?: AbortSignal
 ): Promise<unknown> {
 	const response = await fetch('/api/webauthn/options', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ purpose })
+		body: JSON.stringify({ purpose }),
+		signal
 	});
 	if (!response.ok) {
 		throw new Error('Failed to create WebAuthn options');
@@ -29,17 +33,26 @@ async function getWebAuthnOptions(
 }
 
 export async function createWebAuthnAssertion(
-	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
+	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>,
+	options: WebAuthnAssertionOptions = {}
 ): Promise<WebAuthnAssertion> {
 	verifyWebAuthnSupport();
-	const options = await getWebAuthnOptions(purpose);
-	if (!isAuthenticationOptions(options)) {
+	if (options.useBrowserAutofill && !(await browserSupportsWebAuthnAutofill())) {
+		throw new Error('Browser does not support WebAuthn autofill');
+	}
+	const authenticationOptions = await getWebAuthnOptions(purpose, options.signal);
+	if (!isAuthenticationOptions(authenticationOptions)) {
 		throw new Error('Invalid WebAuthn authentication options');
 	}
 
 	return startAuthentication({
-		optionsJSON: options
+		optionsJSON: authenticationOptions,
+		useBrowserAutofill: options.useBrowserAutofill
 	});
+}
+
+export function cancelWebAuthnCeremony(): void {
+	WebAuthnAbortService.cancelCeremony();
 }
 
 export async function createWebAuthnRegistration(
@@ -93,6 +106,11 @@ function verifyWebAuthnSupport(): void {
 }
 
 export type WebAuthnAssertion = AuthenticationResponseJSON;
+
+export interface WebAuthnAssertionOptions {
+	useBrowserAutofill?: boolean;
+	signal?: AbortSignal;
+}
 
 export interface WebAuthnRegistration {
 	credential: RegistrationResponseJSON;

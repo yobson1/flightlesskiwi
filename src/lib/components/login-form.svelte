@@ -3,7 +3,12 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import { MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH } from '$lib/auth-constants';
 	import { authFormRequest, authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
+	import {
+		cancelWebAuthnCeremony,
+		createWebAuthnAssertion,
+		isWebAuthnCancellation,
+		type WebAuthnAssertion
+	} from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import AuthSidePanel from '$lib/components/auth-side-panel.svelte';
 	import OAuthProviderButtons from '$lib/components/oauth-provider-buttons.svelte';
@@ -11,7 +16,7 @@
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { cn } from '$lib/utils.js';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { AuthModalView } from '$lib/types/auth';
 	import type { OAuthProvider } from '$lib/types/oauth';
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -40,9 +45,23 @@
 	let message = $state(untrack(() => initialMessage ?? ''));
 	let pending = $state(false);
 	let passkeyPending = $state(false);
+	let passkeyAutofillController: AbortController | null = null;
+
+	onMount(() => {
+		const controller = new AbortController();
+		passkeyAutofillController = controller;
+		void signInWithPasskeyAutofill(controller);
+
+		return () => {
+			controller.abort();
+			if (passkeyAutofillController === controller) passkeyAutofillController = null;
+			cancelWebAuthnCeremony();
+		};
+	});
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		cancelPasskeyAutofill();
 		message = '';
 		pending = true;
 		try {
@@ -60,25 +79,65 @@
 	}
 
 	async function signInWithPasskey() {
+		cancelPasskeyAutofill();
 		message = '';
 		passkeyPending = true;
 		try {
 			const assertion = await createWebAuthnAssertion('passkey-login');
-			const result = await authRequest('/api/auth/login/passkey', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(assertion)
-			});
-			await onComplete?.(result.next);
+			await completePasskeyLogin(assertion);
 		} catch (cause) {
 			if (isWebAuthnCancellation(cause)) {
 				message = 'Passkey sign-in was cancelled.';
 			} else {
-				message = cause instanceof Error ? cause.message : 'Unable to sign in with a passkey';
+				message = getPasskeyErrorMessage(cause);
 			}
 		} finally {
 			passkeyPending = false;
 		}
+	}
+
+	async function signInWithPasskeyAutofill(controller: AbortController) {
+		let assertion: WebAuthnAssertion;
+		try {
+			assertion = await createWebAuthnAssertion('passkey-login', {
+				useBrowserAutofill: true,
+				signal: controller.signal
+			});
+		} catch {
+			// Conditional UI is passive; explicit password and passkey sign-in remain available.
+			return;
+		}
+		if (controller.signal.aborted) return;
+
+		passkeyAutofillController = null;
+		message = '';
+		passkeyPending = true;
+		try {
+			await completePasskeyLogin(assertion);
+		} catch (cause) {
+			message = getPasskeyErrorMessage(cause);
+		} finally {
+			passkeyPending = false;
+		}
+	}
+
+	async function completePasskeyLogin(assertion: WebAuthnAssertion) {
+		const result = await authRequest('/api/auth/login/passkey', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(assertion)
+		});
+		await onComplete?.(result.next);
+	}
+
+	function getPasskeyErrorMessage(cause: unknown) {
+		return cause instanceof Error ? cause.message : 'Unable to sign in with a passkey';
+	}
+
+	function cancelPasskeyAutofill() {
+		passkeyAutofillController?.abort();
+		passkeyAutofillController = null;
+		cancelWebAuthnCeremony();
 	}
 </script>
 
@@ -107,7 +166,7 @@
 					type="email"
 					bind:value={email}
 					placeholder="you@example.com"
-					autocomplete="email"
+					autocomplete="email webauthn"
 					maxlength={MAX_EMAIL_LENGTH}
 					disabled={pending || passkeyPending}
 					required
