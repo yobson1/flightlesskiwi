@@ -7,6 +7,7 @@ import {
 	calculateFrametimeMovingAverage,
 	calculateFrametimeStability,
 	calculateFrametimeVariance,
+	findMetricChartPointAtOrBefore,
 	formatMetricValue,
 	getBenchmarkChartColorIndex,
 	getBenchmarkRunMetric,
@@ -192,5 +193,19 @@ describe('benchmark chart metric helpers', () => {
 		]);
 		expect(buildMetricChartPoints([0, 1, 2, 3], [0, 1, 2, 3], 3)).toHaveLength(2);
 		expect(() => buildMetricChartPoints([], [], 1)).toThrow(RangeError);
+	});
+
+	test('finds the most recent chart point only within a series time range', () => {
+		const points = [
+			{ timeSeconds: 1, value: 10 },
+			{ timeSeconds: 3, value: 30 },
+			{ timeSeconds: 5, value: 50 }
+		];
+
+		expect(findMetricChartPointAtOrBefore(points, 3)).toBe(points[1]);
+		expect(findMetricChartPointAtOrBefore(points, 4)).toBe(points[1]);
+		expect(findMetricChartPointAtOrBefore(points, 0)).toBeUndefined();
+		expect(findMetricChartPointAtOrBefore(points, 6)).toBeUndefined();
+		expect(findMetricChartPointAtOrBefore([], 3)).toBeUndefined();
 	});
 });

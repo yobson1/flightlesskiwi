@@ -6,6 +6,11 @@ export interface BenchmarkChartRun {
 	benchmarkRun: BenchmarkRun | null;
 }
 
+export interface MetricChartPoint {
+	timeSeconds: number;
+	value: number;
+}
+
 interface BenchmarkPieSlice {
 	label: string;
 	percentage: number;
@@ -257,7 +262,7 @@ export function buildMetricChartPoints(
 	timeSeconds: readonly number[],
 	values: ReadonlyArray<number | null>,
 	maximumPoints = 3_000
-): Array<{ timeSeconds: number; value: number }> {
+): MetricChartPoint[] {
 	if (!Number.isSafeInteger(maximumPoints) || maximumPoints < 2) {
 		throw new RangeError('maximumPoints must be an integer of at least 2');
 	}
@@ -271,16 +276,22 @@ export function buildMetricChartPoints(
 		lastIndex = index;
 		valueCount++;
 	}
-	if (firstIndex === -1 || lastIndex === -1) return [];
+	const finish = (points: MetricChartPoint[]) => {
+		console.info(
+			`buildMetricChartPoints: had ${valueCount} points, returning ${points.length}, discarded ${valueCount - points.length}`
+		);
+		return points;
+	};
+	if (firstIndex === -1 || lastIndex === -1) return finish([]);
 
 	const point = (index: number) => ({
 		timeSeconds: timeSeconds[index] ?? index,
 		value: values[index]!
 	});
 	if (valueCount <= maximumPoints) {
-		return values.flatMap((value, index) => (value === null ? [] : [point(index)]));
+		return finish(values.flatMap((value, index) => (value === null ? [] : [point(index)])));
 	}
-	if (maximumPoints < 4) return [point(firstIndex), point(lastIndex)];
+	if (maximumPoints < 4) return finish([point(firstIndex), point(lastIndex)]);
 
 	const points = [point(firstIndex)];
 	const bucketCount = Math.floor((maximumPoints - 2) / 2);
@@ -307,7 +318,34 @@ export function buildMetricChartPoints(
 	}
 
 	points.push(point(lastIndex));
-	return points;
+	return finish(points);
+}
+
+export function findMetricChartPointAtOrBefore(
+	points: readonly MetricChartPoint[],
+	timeSeconds: number
+): MetricChartPoint | undefined {
+	const first = points[0];
+	const last = points.at(-1);
+	if (
+		!first ||
+		!last ||
+		!Number.isFinite(timeSeconds) ||
+		timeSeconds < first.timeSeconds ||
+		timeSeconds > last.timeSeconds
+	) {
+		return undefined;
+	}
+
+	let lowerIndex = 0;
+	let upperIndex = points.length - 1;
+	while (lowerIndex < upperIndex) {
+		const middleIndex = Math.ceil((lowerIndex + upperIndex) / 2);
+		if (points[middleIndex]!.timeSeconds <= timeSeconds) lowerIndex = middleIndex;
+		else upperIndex = middleIndex - 1;
+	}
+
+	return points[lowerIndex];
 }
 
 export function percentileMetricValues(
