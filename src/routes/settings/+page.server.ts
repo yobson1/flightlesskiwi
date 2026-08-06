@@ -55,7 +55,11 @@ import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/ser
 import { revokeOAuthTokens } from '$lib/server/auth/oauth';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, user as userTable } from '$lib/server/db/schema';
-import { getOAuthProviderName, isOAuthProvider } from '$lib/types/oauth';
+import {
+	getOAuthProviderAuthorizationSettingsURL,
+	getOAuthProviderName,
+	isOAuthProvider
+} from '$lib/types/oauth';
 import type { Actions, RequestEvent } from './$types';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>('password-update', 5, 30 * 60);
@@ -315,6 +319,13 @@ async function disconnectOAuth(event: RequestEvent) {
 		return {
 			connection: {
 				message: `Disconnected ${providerName} locally, but ${providerName} did not confirm revocation. Remove flightlesskiwi from your ${providerName} authorized apps.`
+			}
+		};
+	}
+	if (getOAuthProviderAuthorizationSettingsURL(provider) !== null) {
+		return {
+			connection: {
+				message: `Disconnected ${providerName} locally and revoked its stored access token. Finish removing flightlesskiwi in ${providerName} Connections.`
 			}
 		};
 	}

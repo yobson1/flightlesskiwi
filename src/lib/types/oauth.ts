@@ -24,6 +24,10 @@ const OAUTH_PROVIDER_NAMES: Record<OAuthProvider, string> = {
 	twitch: 'Twitch'
 };
 
+const OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS: Partial<Record<OAuthProvider, string>> = {
+	twitch: 'https://www.twitch.tv/settings/connections'
+};
+
 export function isOAuthProvider(value: string): value is OAuthProvider {
 	return (OAUTH_PROVIDERS as readonly string[]).includes(value);
 }
@@ -34,6 +38,10 @@ export function isOAuthErrorCode(value: string): value is OAuthErrorCode {
 
 export function getOAuthProviderName(provider: OAuthProvider): string {
 	return OAUTH_PROVIDER_NAMES[provider];
+}
+
+export function getOAuthProviderAuthorizationSettingsURL(provider: OAuthProvider): string | null {
+	return OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS[provider] ?? null;
 }
 
 export function canRemoveOAuthConnection(

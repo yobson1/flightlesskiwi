@@ -36,6 +36,7 @@
 	import { toast } from 'svelte-sonner';
 	import {
 		canRemoveOAuthConnection,
+		getOAuthProviderAuthorizationSettingsURL,
 		getOAuthProviderName,
 		type OAuthProvider
 	} from '$lib/types/oauth';
@@ -142,6 +143,11 @@
 			);
 		};
 		requestSensitiveAction(connect);
+	}
+
+	function finishOAuthDisconnect(authorizationSettingsURL: string | null) {
+		removeOAuthProvider = null;
+		if (authorizationSettingsURL !== null) window.location.assign(authorizationSettingsURL);
 	}
 
 	function requestAccountDeletion() {
@@ -405,6 +411,7 @@
 				{#if connectionProviders.length > 0}
 					{#each connectionProviders as provider, index (provider)}
 						{@const connected = data.user.oauthProviders.includes(provider)}
+						{@const authorizationSettingsURL = getOAuthProviderAuthorizationSettingsURL(provider)}
 						<div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
 							<div class="flex min-w-0 items-start gap-3">
 								<div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -437,9 +444,7 @@
 									action="/settings?/disconnect_oauth"
 									use:enhance={settingsSubmit(
 										'Connection removed',
-										() => {
-											removeOAuthProvider = null;
-										},
+										() => finishOAuthDisconnect(authorizationSettingsURL),
 										{
 											close: () => (removeOAuthProvider = null),
 											reopen: () => (removeOAuthProvider = provider)
@@ -475,9 +480,18 @@
 												Disconnect {getOAuthProviderName(provider)}?
 											</AlertDialog.Title>
 											<AlertDialog.Description>
-												You will no longer be able to sign in with this {getOAuthProviderName(
-													provider
-												)} account. We will also revoke flightlesskiwi&apos;s authorization with the provider.
+												{#if authorizationSettingsURL === null}
+													You will no longer be able to sign in with this {getOAuthProviderName(
+														provider
+													)} account. We will also revoke flightlesskiwi&apos;s authorization with the
+													provider.
+												{:else}
+													You will no longer be able to sign in with this {getOAuthProviderName(
+														provider
+													)} account. We will revoke the stored access token, then take you to {getOAuthProviderName(
+														provider
+													)} Connections so you can fully remove flightlesskiwi.
+												{/if}
 												You can reconnect it later by signing in with the provider again.
 											</AlertDialog.Description>
 										</AlertDialog.Header>
@@ -487,7 +501,9 @@
 												variant="destructive"
 												onclick={() => submitForm(`disconnect-oauth-${provider}`)}
 											>
-												Disconnect
+												{authorizationSettingsURL === null
+													? 'Disconnect'
+													: 'Disconnect and continue'}
 											</Button>
 										</AlertDialog.Footer>
 									</AlertDialog.Content>
