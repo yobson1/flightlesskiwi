@@ -67,6 +67,10 @@ export async function createWebAuthnRegistration(
 	};
 }
 
+export function isWebAuthnCancellation(cause: unknown): cause is Error {
+	return cause instanceof Error && cause.name === 'NotAllowedError';
+}
+
 function isAuthenticationOptions(value: unknown): value is PublicKeyCredentialRequestOptionsJSON {
 	return (
 		isRecord(value) &&

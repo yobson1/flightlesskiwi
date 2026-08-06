@@ -1,5 +1,6 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
+import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import { decryptToString, encryptString } from '$lib/server/auth/encryption';
 
 const recoveryCodeCookieName = 'recovery_code_setup';
@@ -10,9 +11,7 @@ export function getPendingRecoveryCode(event: RequestEvent, userId: string): str
 	if (!encoded) return null;
 
 	try {
-		const payload = JSON.parse(
-			decryptToString(Buffer.from(encoded, 'base64url'))
-		) as PendingRecoveryCode;
+		const payload = JSON.parse(decryptToString(decodeBase64url(encoded))) as PendingRecoveryCode;
 		if (
 			typeof payload !== 'object' ||
 			payload === null ||
@@ -35,7 +34,7 @@ export function setPendingRecoveryCodeCookie(
 	code: string
 ): void {
 	const encrypted = encryptString(JSON.stringify({ userId, code } satisfies PendingRecoveryCode));
-	event.cookies.set(recoveryCodeCookieName, encrypted.toString('base64url'), cookieAttributes());
+	event.cookies.set(recoveryCodeCookieName, encodeBase64url(encrypted), cookieAttributes());
 }
 
 export function deletePendingRecoveryCodeCookie(event: RequestEvent): void {

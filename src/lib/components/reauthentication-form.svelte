@@ -4,7 +4,7 @@
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { MAX_PASSWORD_LENGTH, TOTP_CODE_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { createWebAuthnAssertion } from '$lib/client/webauthn';
+	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -64,7 +64,7 @@
 			});
 			await onComplete(null);
 		} catch (cause) {
-			if (cause instanceof Error && cause.name === 'NotAllowedError') {
+			if (isWebAuthnCancellation(cause)) {
 				message = 'Passkey verification was cancelled.';
 			} else if (cause instanceof AuthAPIError && cause.modal) {
 				await onComplete(cause.modal);

@@ -12,7 +12,7 @@
 		setAuthTurnstileReset,
 		setAuthTurnstileToken
 	} from '$lib/client/auth-turnstile';
-	import { createWebAuthnAssertion } from '$lib/client/webauthn';
+	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import LoginForm from '$lib/components/login-form.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
@@ -113,7 +113,7 @@
 			await onComplete?.(result.next);
 		} catch (cause) {
 			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
-			if (cause instanceof Error && cause.name === 'NotAllowedError') {
+			if (isWebAuthnCancellation(cause)) {
 				passkeyMessage = 'Passkey verification was cancelled.';
 			} else {
 				passkeyMessage = cause instanceof Error ? cause.message : 'Unable to verify your passkey';

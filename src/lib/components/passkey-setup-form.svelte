@@ -4,7 +4,11 @@
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { createWebAuthnRegistration, type WebAuthnRegistration } from '$lib/client/webauthn';
+	import {
+		createWebAuthnRegistration,
+		isWebAuthnCancellation,
+		type WebAuthnRegistration
+	} from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -32,7 +36,7 @@
 			registration = await createWebAuthnRegistration(options);
 			name = registration.suggested_name;
 		} catch (cause) {
-			if (cause instanceof Error && cause.name === 'NotAllowedError') {
+			if (isWebAuthnCancellation(cause)) {
 				message = 'Passkey creation was cancelled.';
 			} else {
 				message = cause instanceof Error ? cause.message : 'Unable to create passkey';

@@ -3,7 +3,7 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import { MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH } from '$lib/auth-constants';
 	import { authFormRequest, authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { createWebAuthnAssertion } from '$lib/client/webauthn';
+	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import AuthSidePanel from '$lib/components/auth-side-panel.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -64,7 +64,7 @@
 			});
 			await onComplete?.(result.next);
 		} catch (cause) {
-			if (cause instanceof Error && cause.name === 'NotAllowedError') {
+			if (isWebAuthnCancellation(cause)) {
 				message = 'Passkey sign-in was cancelled.';
 			} else {
 				message = cause instanceof Error ? cause.message : 'Unable to sign in with a passkey';

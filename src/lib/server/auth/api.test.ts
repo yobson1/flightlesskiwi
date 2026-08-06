@@ -1,20 +1,10 @@
 import { describe, expect, mock, test } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
+import { TEST_PRIVATE_ENV } from '$lib/server/test-env';
 
-mock.module('$app/env/private', () => ({
-	CLIENT_IP_HEADER: 'X-Real-IP',
-	TRUSTED_PROXY_ADDRESS: '127.0.0.1'
-}));
-mock.module('$lib/logger', () => ({ error: () => undefined }));
-mock.module('$lib/server/auth', () => ({
-	isSessionRecentlyReauthenticated: () => true
-}));
-mock.module('$lib/server/auth/webauthn-verify', () => ({
-	verifyWebAuthnAssertionRequest: () => undefined,
-	WebAuthnAssertionRequestError: class extends Error {}
-}));
+mock.module('$app/env/private', () => TEST_PRIVATE_ENV);
 
-const { getClientIP } = await import('./api');
+const { getClientIP } = await import('./client-ip');
 
 function createEvent(directAddress: string | Error, forwardedAddress?: string): RequestEvent {
 	const headers = new Headers();

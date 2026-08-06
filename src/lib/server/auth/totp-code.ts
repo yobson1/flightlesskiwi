@@ -8,26 +8,22 @@ export function verifyTOTPKey(
 	code: string,
 	timestamp: number = Date.now()
 ): number | null {
-	const counter = TOTP.counter({ period: TOTP_INTERVAL_SECONDS, timestamp });
-	const delta = TOTP.validate({
-		token: code,
-		secret: new Secret({ buffer: key.slice().buffer }),
-		algorithm: 'SHA1',
-		digits: TOTP_CODE_LENGTH,
-		period: TOTP_INTERVAL_SECONDS,
-		timestamp,
-		window: 0
-	});
+	const totp = createTOTP(key);
+	const counter = totp.counter({ timestamp });
+	const delta = totp.validate({ token: code, timestamp, window: 0 });
 	return delta === null ? null : counter + delta;
 }
 
 export function createTOTPKeyURI(issuer: string, accountName: string, key: Uint8Array): string {
+	return createTOTP(key, { issuer, label: accountName }).toString();
+}
+
+function createTOTP(key: Uint8Array, account?: { issuer: string; label: string }): TOTP {
 	return new TOTP({
-		issuer,
-		label: accountName,
+		...account,
 		secret: new Secret({ buffer: key.slice().buffer }),
 		algorithm: 'SHA1',
 		digits: TOTP_CODE_LENGTH,
 		period: TOTP_INTERVAL_SECONDS
-	}).toString();
+	});
 }
