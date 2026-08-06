@@ -43,7 +43,7 @@
 		buildMetricChartPoints,
 		calculateFrametimeMovingAverage,
 		formatMetricValue,
-		hasNonZeroMetricValues,
+		getBenchmarkRunMetric,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -52,9 +52,10 @@
 	import {
 		getBenchmarkEChartAxis,
 		getBenchmarkEChartBaseOption,
-		getBenchmarkEChartLegend,
+		getBenchmarkEChartPlotTooltip,
 		getBenchmarkEChartPlotXAxis,
 		getBenchmarkEChartSeriesColor,
+		getBenchmarkEChartZoomablePlotOption,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
 	} from '$lib/benchmark-echart';
@@ -72,8 +73,8 @@
 	const title = $derived(metric.prettyName);
 	const metricSeries = $derived.by(() =>
 		runs.flatMap((run) => {
-			const runMetric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metric.key);
-			if (!runMetric || !hasNonZeroMetricValues(runMetric.values)) return [];
+			const runMetric = getBenchmarkRunMetric(run, metric.key);
+			if (!runMetric) return [];
 
 			const points = buildMetricChartPoints(runMetric.timeSeconds, runMetric.values);
 			if (points.length === 0) return [];
@@ -88,7 +89,6 @@
 
 			return [
 				{
-					key: run.id,
 					label: stripFileExtension(run.originalName),
 					movingAveragePoints,
 					points
@@ -97,12 +97,11 @@
 		})
 	);
 	const plotSeries = $derived(
-		metricSeries.flatMap(({ key, label, movingAveragePoints, points }, colorIndex) => [
-			{ key, label, points, colorIndex, movingAverage: false },
+		metricSeries.flatMap(({ label, movingAveragePoints, points }, colorIndex) => [
+			{ label, points, colorIndex, movingAverage: false },
 			...(movingAveragePoints.length > 0
 				? [
 						{
-							key: `${key}:moving-average`,
 							label: `${label} · moving average`,
 							points: movingAveragePoints,
 							colorIndex,
@@ -118,66 +117,7 @@
 		return {
 			...baseOption,
 			color: plotSeries.map(({ colorIndex }) => getBenchmarkEChartSeriesColor(theme, colorIndex)),
-			dataZoom: [
-				{
-					filterMode: 'none',
-					moveOnMouseMove: true,
-					moveOnMouseWheel: false,
-					type: 'inside',
-					xAxisIndex: 0,
-					zoomOnMouseWheel: true
-				},
-				{
-					borderColor: theme.border,
-					bottom: hasLegend ? 28 : 4,
-					dataBackground: {
-						areaStyle: { color: theme.border, opacity: 0.25 },
-						lineStyle: { color: theme.mutedForeground, opacity: 0.55 }
-					},
-					fillerColor: theme.border,
-					handleStyle: {
-						borderColor: theme.mutedForeground,
-						color: theme.background
-					},
-					height: 16,
-					moveHandleStyle: { color: theme.mutedForeground },
-					selectedDataBackground: {
-						areaStyle: { color: theme.mutedForeground, opacity: 0.2 },
-						lineStyle: { color: theme.mutedForeground }
-					},
-					showDetail: false,
-					type: 'slider',
-					xAxisIndex: 0
-				}
-			],
-			grid: {
-				bottom: hasLegend ? 88 : 64,
-				left: 60,
-				right: 16,
-				top: 12
-			},
-			legend: {
-				...getBenchmarkEChartLegend(theme),
-				bottom: 0,
-				show: hasLegend,
-				type: 'scroll'
-			},
-			toolbox: {
-				feature: {
-					dataZoom: {
-						brushStyle: {
-							borderColor: theme.mutedForeground,
-							borderWidth: 1,
-							color: theme.border
-						},
-						xAxisIndex: 0,
-						yAxisIndex: false
-					}
-				},
-				itemSize: 0,
-				show: true,
-				showTitle: false
-			},
+			...getBenchmarkEChartZoomablePlotOption(theme, { hasLegend, left: 60 }),
 			series: plotSeries.map(({ label, movingAverage, points }) => ({
 				data: points.map(({ timeSeconds, value }) => [timeSeconds, value]),
 				emphasis: { focus: 'series' },
@@ -191,13 +131,8 @@
 			})),
 			tooltip: {
 				...baseOption.tooltip,
-				axisPointer: {
-					lineStyle: { color: theme.mutedForeground },
-					snap: true,
-					type: 'line'
-				},
-				formatter: (params: unknown) => formatLineTooltip(params, unit),
-				trigger: 'axis'
+				...getBenchmarkEChartPlotTooltip(theme),
+				formatter: (params: unknown) => formatLineTooltip(params, unit)
 			},
 			xAxis: {
 				...getBenchmarkEChartPlotXAxis(theme, (value: number) => formatMetricValue(value)),

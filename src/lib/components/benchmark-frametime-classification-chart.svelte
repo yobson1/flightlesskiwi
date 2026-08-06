@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		calculateFrametimeClassification,
-		hasNonZeroMetricValues,
+		getBenchmarkRunMetric,
 		LOW_FPS_THRESHOLD,
 		STUTTER_FACTOR,
 		stripFileExtension,
@@ -15,7 +15,7 @@
 
 	let { run }: Props = $props();
 
-	const frametime = $derived(run.benchmarkRun?.data.metrics.find(({ key }) => key === 'frametime'));
+	const frametime = $derived(getBenchmarkRunMetric(run, 'frametime'));
 	const classification = $derived(
 		frametime ? calculateFrametimeClassification(frametime.values) : []
 	);
@@ -28,7 +28,7 @@
 	);
 </script>
 
-{#if frametime && hasNonZeroMetricValues(frametime.values)}
+{#if frametime}
 	<BenchmarkPieChart
 		title={`Frame classification · ${stripFileExtension(run.originalName)}`}
 		description={`Share of captured time that was smooth, below ${LOW_FPS_THRESHOLD} FPS, or a stutter above ${STUTTER_FACTOR}× the moving average.`}

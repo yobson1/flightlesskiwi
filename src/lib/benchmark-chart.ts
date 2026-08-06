@@ -1,4 +1,4 @@
-import type { BenchmarkRun } from '$lib/benchmark-run';
+import type { BenchmarkMetric, BenchmarkMetricKey, BenchmarkRun } from '$lib/benchmark-run';
 
 export interface BenchmarkChartRun {
 	id: string;
@@ -6,16 +6,16 @@ export interface BenchmarkChartRun {
 	benchmarkRun: BenchmarkRun | null;
 }
 
-export interface BenchmarkPieSlice {
+interface BenchmarkPieSlice {
 	label: string;
 	percentage: number;
 }
 
-export interface FrametimeClassificationSlice extends BenchmarkPieSlice {
+interface FrametimeClassificationSlice extends BenchmarkPieSlice {
 	durationSeconds: number;
 }
 
-export interface FrametimeDistributionPoint {
+interface FrametimeDistributionPoint {
 	frametime: number;
 	percentage: number;
 }
@@ -51,8 +51,7 @@ export function calculateFrametimeStability(values: Array<number | null>): {
 	p99Overhead: number;
 } | null {
 	const average = averageMetricValues(values);
-	const median = percentileMetricValue(values, 0.5);
-	const p99 = percentileMetricValue(values, 0.99);
+	const [median = null, p99 = null] = percentileMetricValues(values, [0.5, 0.99]);
 
 	if (
 		average === null ||
@@ -202,6 +201,14 @@ export function hasNonZeroMetricValues(values: Array<number | null>): boolean {
 	return values.some((value) => value !== null && value !== 0);
 }
 
+export function getBenchmarkRunMetric(
+	run: BenchmarkChartRun,
+	key: BenchmarkMetricKey
+): BenchmarkMetric | undefined {
+	const metric = run.benchmarkRun?.data.metrics.find((candidate) => candidate.key === key);
+	return metric && hasNonZeroMetricValues(metric.values) ? metric : undefined;
+}
+
 export function percentagesRelativeToMinimum(values: readonly number[]): number[] {
 	if (values.length === 0 || values.some((value) => !Number.isFinite(value) || value <= 0)) {
 		return [];
@@ -228,9 +235,8 @@ export function sortBenchmarkChartRunsByAverageFps(
 ): BenchmarkChartRun[] {
 	return runs
 		.map((run, index) => {
-			const fps = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'fps');
-			const average =
-				fps && hasNonZeroMetricValues(fps.values) ? averageMetricValues(fps.values) : null;
+			const fps = getBenchmarkRunMetric(run, 'fps');
+			const average = fps ? averageMetricValues(fps.values) : null;
 			return {
 				run,
 				index,
@@ -304,23 +310,25 @@ export function buildMetricChartPoints(
 	return points;
 }
 
-export function percentileMetricValue(
+export function percentileMetricValues(
 	values: Array<number | null>,
-	percentile: number
-): number | null {
+	percentiles: readonly number[]
+): Array<number | null> {
 	const sorted = values
 		.filter((value): value is number => value !== null)
 		.toSorted((a, b) => a - b);
-	if (sorted.length === 0) return null;
-	if (sorted.length === 1) return sorted[0]!;
+	if (sorted.length === 0) return percentiles.map(() => null);
+	if (sorted.length === 1) return percentiles.map(() => sorted[0]!);
 
-	const position = Math.min(1, Math.max(0, percentile)) * (sorted.length - 1);
-	const lowerIndex = Math.floor(position);
-	const upperIndex = Math.ceil(position);
-	const lower = sorted[lowerIndex]!;
-	const upper = sorted[upperIndex]!;
+	return percentiles.map((percentile) => {
+		const position = Math.min(1, Math.max(0, percentile)) * (sorted.length - 1);
+		const lowerIndex = Math.floor(position);
+		const upperIndex = Math.ceil(position);
+		const lower = sorted[lowerIndex]!;
+		const upper = sorted[upperIndex]!;
 
-	return lower + (upper - lower) * (position - lowerIndex);
+		return lower + (upper - lower) * (position - lowerIndex);
+	});
 }
 
 export function formatMetricValue(value: number, unit = ''): string {

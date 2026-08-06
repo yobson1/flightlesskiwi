@@ -3,7 +3,7 @@
 		calculateFrametimeDistribution,
 		FRAMETIME_DISTRIBUTION_BIN_SIZE,
 		formatMetricValue,
-		hasNonZeroMetricValues,
+		getBenchmarkRunMetric,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -11,9 +11,10 @@
 	import {
 		getBenchmarkEChartAxis,
 		getBenchmarkEChartBaseOption,
-		getBenchmarkEChartLegend,
+		getBenchmarkEChartPlotTooltip,
 		getBenchmarkEChartPlotXAxis,
 		getBenchmarkEChartSeriesColor,
+		getBenchmarkEChartZoomablePlotOption,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
 	} from '$lib/benchmark-echart';
@@ -26,61 +27,21 @@
 
 	const series = $derived.by(() =>
 		runs.flatMap((run) => {
-			const frametime = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'frametime');
-			if (!frametime || !hasNonZeroMetricValues(frametime.values)) return [];
+			const frametime = getBenchmarkRunMetric(run, 'frametime');
+			if (!frametime) return [];
 
 			const data = calculateFrametimeDistribution(frametime.values);
 			return data.length === 0 ? [] : [{ label: stripFileExtension(run.originalName), data }];
 		})
 	);
 	const hasLegend = $derived(series.length > 1);
-	const hasData = $derived(
-		runs.some((run) => {
-			const frametime = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'frametime');
-			return frametime && hasNonZeroMetricValues(frametime.values);
-		})
-	);
+	const hasData = $derived(runs.some((run) => getBenchmarkRunMetric(run, 'frametime')));
 	const createOption = $derived((theme: BenchmarkEChartTheme): BenchmarkEChartOption => {
 		const baseOption = getBenchmarkEChartBaseOption(theme);
 		return {
 			...baseOption,
 			color: series.map((_, index) => getBenchmarkEChartSeriesColor(theme, index)),
-			dataZoom: [
-				{
-					filterMode: 'none',
-					moveOnMouseMove: true,
-					moveOnMouseWheel: false,
-					type: 'inside',
-					xAxisIndex: 0,
-					zoomOnMouseWheel: true
-				},
-				{
-					borderColor: theme.border,
-					bottom: hasLegend ? 28 : 4,
-					fillerColor: theme.border,
-					handleStyle: {
-						borderColor: theme.mutedForeground,
-						color: theme.background
-					},
-					height: 16,
-					moveHandleStyle: { color: theme.mutedForeground },
-					showDetail: false,
-					type: 'slider',
-					xAxisIndex: 0
-				}
-			],
-			grid: {
-				bottom: hasLegend ? 88 : 64,
-				left: 68,
-				right: 16,
-				top: 12
-			},
-			legend: {
-				...getBenchmarkEChartLegend(theme),
-				bottom: 0,
-				show: hasLegend,
-				type: 'scroll'
-			},
+			...getBenchmarkEChartZoomablePlotOption(theme, { hasLegend, left: 68 }),
 			series: series.map(({ label, data }) => ({
 				areaStyle: { opacity: 0.08 },
 				data: data.map(({ frametime, percentage }) => [frametime, percentage]),
@@ -92,12 +53,7 @@
 			})),
 			tooltip: {
 				...baseOption.tooltip,
-				axisPointer: {
-					lineStyle: { color: theme.mutedForeground },
-					snap: true,
-					type: 'line'
-				},
-				trigger: 'axis',
+				...getBenchmarkEChartPlotTooltip(theme),
 				valueFormatter: (value: unknown) =>
 					typeof value === 'number' ? formatMetricValue(value, '%') : String(value)
 			},

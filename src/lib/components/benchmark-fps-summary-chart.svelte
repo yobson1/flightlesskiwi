@@ -2,9 +2,9 @@
 	import {
 		averageMetricValues,
 		getBenchmarkChartColorIndex,
-		hasNonZeroMetricValues,
+		getBenchmarkRunMetric,
 		percentagesRelativeToMinimum,
-		percentileMetricValue,
+		percentileMetricValues,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -19,21 +19,20 @@
 
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
-			const fps = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'fps');
-			if (!fps || !hasNonZeroMetricValues(fps.values)) return [];
+			const fps = getBenchmarkRunMetric(run, 'fps');
+			if (!fps) return [];
 
-			const low = percentileMetricValue(fps.values, 0.01);
+			const [low = null, high = null] = percentileMetricValues(fps.values, [0.01, 0.97]);
 			const average = averageMetricValues(fps.values);
-			const high = percentileMetricValue(fps.values, 0.97);
 			return low === null || average === null || high === null
 				? []
 				: [{ run: stripFileExtension(run.originalName), low, average, high }];
 		})
 	);
 	const series = [
-		{ key: 'low', label: '1st percentile', value: 'low', colorIndex: 2 },
-		{ key: 'average', label: 'Average', value: 'average', colorIndex: 0 },
-		{ key: 'high', label: '97th percentile', value: 'high', colorIndex: 1 }
+		{ label: '1st percentile', value: 'low', colorIndex: 2 },
+		{ label: 'Average', value: 'average', colorIndex: 0 },
+		{ label: '97th percentile', value: 'high', colorIndex: 1 }
 	];
 	const relativeAverageData = $derived.by(() => {
 		const percentages = percentagesRelativeToMinimum(chartData.map(({ average }) => average));
@@ -43,14 +42,10 @@
 		}));
 	});
 	const hasMultipleFpsRuns = $derived(
-		runs.filter((run) => {
-			const fps = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'fps');
-			return fps && hasNonZeroMetricValues(fps.values);
-		}).length > 1
+		runs.filter((run) => getBenchmarkRunMetric(run, 'fps')).length > 1
 	);
 	const relativeAverageSeries = $derived([
 		{
-			key: 'percentage',
 			label: 'Relative average FPS',
 			value: 'percentage',
 			colorIndex: getBenchmarkChartColorIndex(benchmarkId, 'performance:relative-average-fps')

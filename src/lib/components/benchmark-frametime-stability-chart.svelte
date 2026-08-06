@@ -2,7 +2,7 @@
 	import {
 		calculateFrametimeStability,
 		getBenchmarkChartColorIndex,
-		hasNonZeroMetricValues,
+		getBenchmarkRunMetric,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -17,8 +17,8 @@
 
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
-			const frametime = run.benchmarkRun?.data.metrics.find(({ key }) => key === 'frametime');
-			if (!frametime || !hasNonZeroMetricValues(frametime.values)) return [];
+			const frametime = getBenchmarkRunMetric(run, 'frametime');
+			if (!frametime) return [];
 
 			const stability = calculateFrametimeStability(frametime.values);
 			return stability === null
@@ -28,7 +28,6 @@
 	);
 	const series = $derived([
 		{
-			key: 'standardDeviation',
 			label: 'Standard deviation ÷ mean',
 			value: 'standardDeviation',
 			colorIndex: getBenchmarkChartColorIndex(
@@ -37,7 +36,6 @@
 			)
 		},
 		{
-			key: 'p99Overhead',
 			label: 'P99 overhead above median',
 			value: 'p99Overhead',
 			colorIndex: getBenchmarkChartColorIndex(benchmarkId, 'performance:frametime-p99-overhead')

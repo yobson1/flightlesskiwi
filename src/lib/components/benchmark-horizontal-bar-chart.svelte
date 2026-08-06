@@ -16,7 +16,6 @@
 	}
 
 	interface BenchmarkBarSeries {
-		key: string;
 		label: string;
 		value: string;
 		colorIndex: number;

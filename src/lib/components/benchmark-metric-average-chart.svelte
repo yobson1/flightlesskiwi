@@ -2,7 +2,7 @@
 	import {
 		averageMetricValues,
 		getBenchmarkChartColorIndex,
-		hasNonZeroMetricValues,
+		getBenchmarkRunMetric,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -21,15 +21,14 @@
 	const unit = $derived(metric.unit);
 	const chartData = $derived.by(() =>
 		runs.flatMap((run) => {
-			const runMetric = run.benchmarkRun?.data.metrics.find(({ key }) => key === metric.key);
-			if (!runMetric || !hasNonZeroMetricValues(runMetric.values)) return [];
+			const runMetric = getBenchmarkRunMetric(run, metric.key);
+			if (!runMetric) return [];
 			const average = averageMetricValues(runMetric.values);
 			return average === null ? [] : [{ run: stripFileExtension(run.originalName), average }];
 		})
 	);
 	const series = $derived([
 		{
-			key: 'average',
 			label: `Average ${title}`,
 			value: 'average',
 			colorIndex: getBenchmarkChartColorIndex(benchmarkId, `summary:${metric.key}`)

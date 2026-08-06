@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		calculateFrametimeVariance,
-		hasNonZeroMetricValues,
+		getBenchmarkRunMetric,
 		stripFileExtension,
 		type BenchmarkChartRun
 	} from '$lib/benchmark-chart';
@@ -13,7 +13,7 @@
 
 	let { run }: Props = $props();
 
-	const frametime = $derived(run.benchmarkRun?.data.metrics.find(({ key }) => key === 'frametime'));
+	const frametime = $derived(getBenchmarkRunMetric(run, 'frametime'));
 	const variance = $derived(frametime ? calculateFrametimeVariance(frametime.values) : []);
 	const colors = ['#2297f3', '#0f78b4', '#fbbf24', '#f17d20', '#dc2626'];
 	const data = $derived(
@@ -25,7 +25,7 @@
 	);
 </script>
 
-{#if frametime && hasNonZeroMetricValues(frametime.values)}
+{#if frametime}
 	<BenchmarkPieChart
 		title={`Frame-to-frame variance · ${stripFileExtension(run.originalName)}`}
 		description="Absolute time difference between consecutive frames. Smaller differences indicate steadier pacing."

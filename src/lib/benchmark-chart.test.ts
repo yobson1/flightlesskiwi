@@ -9,9 +9,10 @@ import {
 	calculateFrametimeVariance,
 	formatMetricValue,
 	getBenchmarkChartColorIndex,
+	getBenchmarkRunMetric,
 	hasNonZeroMetricValues,
 	percentagesRelativeToMinimum,
-	percentileMetricValue,
+	percentileMetricValues,
 	sortBenchmarkChartRunsByAverageFps,
 	stripFileExtension
 } from './benchmark-chart';
@@ -58,9 +59,9 @@ describe('benchmark chart metric helpers', () => {
 
 	test('calculates averages and interpolated percentiles while ignoring missing samples', () => {
 		expect(averageMetricValues([10, null, 20])).toBe(15);
-		expect(percentileMetricValue([0, null, 100], 0.25)).toBe(25);
+		expect(percentileMetricValues([0, null, 100], [0.25, 0.75])).toEqual([25, 75]);
 		expect(averageMetricValues([null])).toBe(null);
-		expect(percentileMetricValue([], 0.5)).toBe(null);
+		expect(percentileMetricValues([], [0.5])).toEqual([null]);
 	});
 
 	test('calculates normalized frametime stability while ignoring missing samples', () => {
@@ -120,6 +121,17 @@ describe('benchmark chart metric helpers', () => {
 		expect(hasNonZeroMetricValues([null, 0, 0])).toBe(false);
 		expect(hasNonZeroMetricValues([null, 0, 0.01])).toBe(true);
 		expect(hasNonZeroMetricValues([-1, 0])).toBe(true);
+	});
+
+	test('finds captured metrics on chart runs', () => {
+		const benchmarkRun = parsedBenchmarkRun([0, 60]);
+		const run = { id: 'run-1', originalName: 'run.csv', benchmarkRun };
+
+		expect(getBenchmarkRunMetric(run, 'fps')).toBe(benchmarkRun.data.metrics[0]);
+		expect(getBenchmarkRunMetric(run, 'frametime')).toBeUndefined();
+		expect(
+			getBenchmarkRunMetric({ ...run, benchmarkRun: parsedBenchmarkRun([0, 0]) }, 'fps')
+		).toBeUndefined();
 	});
 
 	test('expresses values relative to the lowest 100% baseline', () => {

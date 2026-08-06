@@ -93,6 +93,86 @@ export function getBenchmarkEChartLegend(theme: BenchmarkEChartTheme) {
 	};
 }
 
+export function getBenchmarkEChartPlotTooltip(theme: BenchmarkEChartTheme) {
+	return {
+		axisPointer: {
+			lineStyle: { color: theme.mutedForeground },
+			snap: true,
+			type: 'line'
+		},
+		trigger: 'axis'
+	};
+}
+
+export function getBenchmarkEChartZoomablePlotOption(
+	theme: BenchmarkEChartTheme,
+	options: { hasLegend: boolean; left: number }
+) {
+	const { hasLegend, left } = options;
+	return {
+		dataZoom: [
+			{
+				filterMode: 'none',
+				moveOnMouseMove: true,
+				moveOnMouseWheel: false,
+				type: 'inside',
+				xAxisIndex: 0,
+				zoomOnMouseWheel: true
+			},
+			{
+				borderColor: theme.border,
+				bottom: hasLegend ? 28 : 4,
+				dataBackground: {
+					areaStyle: { color: theme.border, opacity: 0.25 },
+					lineStyle: { color: theme.mutedForeground, opacity: 0.55 }
+				},
+				fillerColor: theme.border,
+				handleStyle: {
+					borderColor: theme.mutedForeground,
+					color: theme.background
+				},
+				height: 16,
+				moveHandleStyle: { color: theme.mutedForeground },
+				selectedDataBackground: {
+					areaStyle: { color: theme.mutedForeground, opacity: 0.2 },
+					lineStyle: { color: theme.mutedForeground }
+				},
+				showDetail: false,
+				type: 'slider',
+				xAxisIndex: 0
+			}
+		],
+		grid: {
+			bottom: hasLegend ? 88 : 64,
+			left,
+			right: 16,
+			top: 12
+		},
+		legend: {
+			...getBenchmarkEChartLegend(theme),
+			bottom: 0,
+			show: hasLegend,
+			type: 'scroll'
+		},
+		toolbox: {
+			feature: {
+				dataZoom: {
+					brushStyle: {
+						borderColor: theme.mutedForeground,
+						borderWidth: 1,
+						color: theme.border
+					},
+					xAxisIndex: 0,
+					yAxisIndex: false
+				}
+			},
+			itemSize: 0,
+			show: true,
+			showTitle: false
+		}
+	};
+}
+
 export function getBenchmarkEChartSeriesColor(theme: BenchmarkEChartTheme, index: number): string {
 	return theme.colors[index % theme.colors.length] ?? theme.foreground;
 }
