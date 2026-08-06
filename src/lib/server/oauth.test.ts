@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
-import { Discord, generateCodeVerifier, GitHub, Twitch } from './oauth';
+import { getOAuthErrorMessage } from '$lib/types/oauth';
+import {
+	Discord,
+	generateCodeVerifier,
+	getAuthorizationResponseError,
+	GitHub,
+	Twitch
+} from './oauth';
 
 afterEach(() => {
 	mock.restore();
@@ -69,6 +76,32 @@ describe('OAuth provider clients', () => {
 				generateCodeVerifier()
 			)
 		).rejects.toThrow();
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	test('extracts a validated provider cancellation for a user-facing message', async () => {
+		const fetchMock = spyOn(globalThis, 'fetch').mockResolvedValue(
+			Response.json({ access_token: 'access-token', token_type: 'bearer' })
+		);
+		const redirectURI = 'https://example.com/auth/oauth/github/callback';
+		const github = new GitHub('github-client', 'github-secret', redirectURI);
+		const callbackURL = new URL(redirectURI);
+		callbackURL.searchParams.set('error', 'access_denied');
+		callbackURL.searchParams.set('error_description', 'The user denied the request');
+		callbackURL.searchParams.set('state', 'expected-state');
+
+		let cause: unknown;
+		try {
+			await github.validateAuthorizationCode(callbackURL, 'expected-state', generateCodeVerifier());
+		} catch (error) {
+			cause = error;
+		}
+
+		expect(getAuthorizationResponseError(cause)).toEqual({
+			code: 'access_denied',
+			description: 'The user denied the request'
+		});
+		expect(getOAuthErrorMessage('cancelled', 'github')).toBe('GitHub sign-in was cancelled.');
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 

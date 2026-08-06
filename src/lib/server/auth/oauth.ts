@@ -12,7 +12,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import { decryptToString, encryptString } from '$lib/server/auth/encryption';
 import * as oauth from '$lib/server/oauth';
-import { OAUTH_PROVIDERS, type OAuthProvider } from '$lib/types/oauth';
+import { OAUTH_PROVIDERS, type OAuthErrorCode, type OAuthProvider } from '$lib/types/oauth';
 import { isRecord } from '$lib/utils';
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
@@ -61,7 +61,7 @@ export async function validateOAuthCallback(
 	provider: OAuthProvider
 ): Promise<OAuthCallback> {
 	const state = consumeOAuthState(event, provider);
-	if (state === null) throw new OAuthCallbackError('OAuth sign-in request expired');
+	if (state === null) throw new OAuthCallbackError('OAuth sign-in request expired', 'expired');
 	const oauthClient = getOAuthClient(provider);
 	if (oauthClient === null) throw new OAuthConfigurationError(`${provider} OAuth is not enabled`);
 
@@ -73,11 +73,34 @@ export async function validateOAuthCallback(
 			state.nonce
 		);
 		const profile = await oauthClient.getUser(tokens);
-		if (!profile.emailVerified) throw new OAuthCallbackError('OAuth email is not verified');
+		if (!profile.emailVerified) {
+			throw new OAuthCallbackError(
+				'OAuth email is not verified',
+				'unverified-email',
+				state.flow,
+				state.returnTo
+			);
+		}
 		return { profile, flow: state.flow, returnTo: state.returnTo };
 	} catch (cause) {
 		if (cause instanceof OAuthCallbackError) throw cause;
-		throw new OAuthCallbackError('OAuth provider verification failed', { cause });
+		const authorizationError = oauth.getAuthorizationResponseError(cause);
+		if (authorizationError !== null) {
+			throw new OAuthCallbackError(
+				authorizationError.description ?? authorizationError.code,
+				getOAuthCallbackErrorCode(authorizationError.code),
+				state.flow,
+				state.returnTo,
+				{ cause }
+			);
+		}
+		throw new OAuthCallbackError(
+			'OAuth provider verification failed',
+			'failed',
+			state.flow,
+			state.returnTo,
+			{ cause }
+		);
 	}
 }
 
@@ -168,7 +191,34 @@ function oauthCallbackPath(provider: OAuthProvider): string {
 }
 
 export class OAuthConfigurationError extends Error {}
-export class OAuthCallbackError extends Error {}
+export class OAuthCallbackError extends Error {
+	constructor(
+		message: string,
+		readonly code: OAuthErrorCode,
+		readonly flow: OAuthFlow = 'login',
+		readonly returnTo: string | null = null,
+		options?: ErrorOptions
+	) {
+		super(message, options);
+	}
+}
+
+function getOAuthCallbackErrorCode(code: string): OAuthErrorCode {
+	switch (code) {
+		case 'access_denied':
+			return 'cancelled';
+		case 'temporarily_unavailable':
+		case 'server_error':
+			return 'unavailable';
+		case 'invalid_request':
+		case 'unauthorized_client':
+		case 'unsupported_response_type':
+		case 'invalid_scope':
+			return 'rejected';
+		default:
+			return 'failed';
+	}
+}
 
 interface OAuthCredentials {
 	clientId: string;

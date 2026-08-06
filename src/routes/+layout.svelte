@@ -26,6 +26,7 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import Wordmark from '$lib/components/wordmark.svelte';
 	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
+	import { getOAuthErrorMessage, isOAuthErrorCode, isOAuthProvider } from '$lib/types/oauth';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutProps } from './$types';
 
@@ -43,6 +44,7 @@
 	let visibleAuth = $derived(data.auth);
 	const currentYear = new Date().getFullYear();
 	const turnstileEnabled = untrack(() => data.turnstileSiteKey !== null);
+	const oauthErrorMessage = untrack(() => readOAuthErrorMessage(page.url));
 
 	configureAuthTurnstile(turnstileEnabled);
 	setupNavigationCursor();
@@ -64,24 +66,37 @@
 	});
 
 	onMount(() => {
-		consumeOAuthError();
 		const fragmentView = parseAuthModalHash(window.location.hash);
+		if (oauthErrorMessage !== null) toast.error(oauthErrorMessage);
 		if (fragmentView === null && authRequired && authView !== null) {
 			returnHash = window.location.hash;
 			setModalFragment(authView);
 		} else {
 			syncModalFromHash();
 		}
+		const consumeOAuthErrorTimer = window.setTimeout(consumeOAuthError, 0);
 		window.addEventListener('hashchange', syncModalFromHash);
-		return () => window.removeEventListener('hashchange', syncModalFromHash);
+		return () => {
+			window.clearTimeout(consumeOAuthErrorTimer);
+			window.removeEventListener('hashchange', syncModalFromHash);
+		};
 	});
 
 	function consumeOAuthError() {
 		const url = new SvelteURL(window.location.href);
 		if (!url.searchParams.has('oauth_error')) return;
-		toast.error('OAuth authentication could not be completed. Please try again.');
 		url.searchParams.delete('oauth_error');
+		url.searchParams.delete('oauth_provider');
 		replaceState(resolve(`${url.pathname}${url.search}${url.hash}` as '/'), page.state);
+	}
+
+	function readOAuthErrorMessage(url: URL): string | null {
+		const code = url.searchParams.get('oauth_error');
+		if (code === null || !isOAuthErrorCode(code)) return null;
+		const providerValue = url.searchParams.get('oauth_provider');
+		const provider =
+			providerValue !== null && isOAuthProvider(providerValue) ? providerValue : null;
+		return getOAuthErrorMessage(code, provider);
 	}
 
 	function requiredAuthModal(auth: ClientAuthState | null): AuthModalView | null {
@@ -291,6 +306,7 @@
 <AuthModal
 	view={authView}
 	auth={visibleAuth}
+	{oauthErrorMessage}
 	turnstileSiteKey={data.turnstileSiteKey}
 	oauthProviders={data.oauthProviders}
 	viewData={authViewData}

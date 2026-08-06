@@ -11,12 +11,14 @@
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { cn } from '$lib/utils.js';
+	import { untrack } from 'svelte';
 	import type { AuthModalView } from '$lib/types/auth';
 	import type { OAuthProvider } from '$lib/types/oauth';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		oauthProviders?: OAuthProvider[];
+		initialMessage?: string | null;
 		onSwitchToSignup?: () => void;
 		onForgotPassword?: () => void;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
@@ -25,6 +27,7 @@
 	let {
 		class: className,
 		oauthProviders = [],
+		initialMessage = null,
 		onSwitchToSignup,
 		onForgotPassword,
 		onComplete,
@@ -34,7 +37,7 @@
 	const id = $props.id();
 	let email = $state('');
 	let password = $state('');
-	let message = $state('');
+	let message = $state(untrack(() => initialMessage ?? ''));
 	let pending = $state(false);
 	let passkeyPending = $state(false);
 

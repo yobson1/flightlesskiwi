@@ -4,24 +4,21 @@
 	import SimpleIconsTwitch from '~icons/simple-icons/twitch';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
-	import type { OAuthProvider } from '$lib/types/oauth';
+	import { getOAuthProviderName, type OAuthProvider } from '$lib/types/oauth';
 
 	interface Props {
 		providers: OAuthProvider[];
 		verb: 'Sign in' | 'Sign up' | 'Continue';
 		flow?: 'login' | 'reauth';
+		returnView?: 'login' | 'signup';
 	}
 
-	let { providers, verb, flow = 'login' }: Props = $props();
-
-	function providerName(provider: OAuthProvider): string {
-		return provider[0]!.toUpperCase() + provider.slice(1);
-	}
+	let { providers, verb, flow = 'login', returnView = 'login' }: Props = $props();
 
 	function providerURL(provider: OAuthProvider): string {
 		return flow === 'reauth'
 			? `/auth/oauth/${provider}?flow=reauth&return_to=${encodeURIComponent('/settings')}`
-			: `/auth/oauth/${provider}`;
+			: `/auth/oauth/${provider}?return_to=${encodeURIComponent(`/#${returnView}`)}`;
 	}
 </script>
 
@@ -36,7 +33,7 @@
 				type="button"
 				href={providerURL(provider)}
 				data-sveltekit-reload
-				aria-label={`${verb} with ${providerName(provider)}`}
+				aria-label={`${verb} with ${getOAuthProviderName(provider)}`}
 			>
 				{#if provider === 'github'}
 					<SimpleIconsGithub />
@@ -45,7 +42,7 @@
 				{:else}
 					<SimpleIconsTwitch />
 				{/if}
-				{providerName(provider)}
+				{getOAuthProviderName(provider)}
 			</Button>
 		{/each}
 	</Field.Field>

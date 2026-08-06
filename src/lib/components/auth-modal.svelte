@@ -32,6 +32,7 @@
 	interface Props {
 		view: AuthModalView | null;
 		auth: ClientAuthState | null;
+		oauthErrorMessage: string | null;
 		turnstileSiteKey: string | null;
 		oauthProviders: OAuthProvider[];
 		viewData?: unknown;
@@ -44,6 +45,7 @@
 	let {
 		view,
 		auth,
+		oauthErrorMessage,
 		turnstileSiteKey,
 		oauthProviders,
 		viewData,
@@ -207,6 +209,7 @@
 				{#if view === 'login'}
 					<LoginForm
 						{oauthProviders}
+						initialMessage={oauthErrorMessage}
 						onSwitchToSignup={() => switchView('signup')}
 						onForgotPassword={() => switchView('password-reset')}
 						{onComplete}
@@ -226,7 +229,12 @@
 						{onComplete}
 					/>
 				{:else if view === 'signup'}
-					<SignupForm {oauthProviders} onSwitchToLogin={() => switchView('login')} {onComplete} />
+					<SignupForm
+						{oauthProviders}
+						initialMessage={oauthErrorMessage}
+						onSwitchToLogin={() => switchView('login')}
+						{onComplete}
+					/>
 				{:else if view === 'verify-email'}
 					<OTPForm kind="email" email={auth?.user.verificationEmail} {onComplete} />
 				{:else if view === 'setup'}

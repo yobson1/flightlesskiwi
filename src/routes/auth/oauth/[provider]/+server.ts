@@ -37,6 +37,8 @@ export async function GET(event: RequestEvent) {
 	} else {
 		if (event.locals.session !== null) redirect(303, '/');
 		invalidateLoginAttemptRequest(event);
+		const requestedReturnTo = normalizeOAuthReturnTo(event.url.searchParams.get('return_to'));
+		returnTo = requestedReturnTo === '/#signup' ? requestedReturnTo : '/#login';
 	}
 
 	let authorizationURL: URL;

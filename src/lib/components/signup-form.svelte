@@ -15,12 +15,14 @@
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { cn } from '$lib/utils.js';
+	import { untrack } from 'svelte';
 	import type { AuthModalView } from '$lib/types/auth';
 	import type { OAuthProvider } from '$lib/types/oauth';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		oauthProviders?: OAuthProvider[];
+		initialMessage?: string | null;
 		onSwitchToLogin?: () => void;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
@@ -28,13 +30,14 @@
 	let {
 		class: className,
 		oauthProviders = [],
+		initialMessage = null,
 		onSwitchToLogin,
 		onComplete,
 		...restProps
 	}: Props = $props();
 
 	const id = $props.id();
-	let message = $state('');
+	let message = $state(untrack(() => initialMessage ?? ''));
 	let pending = $state(false);
 
 	async function submit(event: SubmitEvent) {
@@ -147,7 +150,7 @@
 					{/if}
 				</Button>
 			</Field.Field>
-			<OAuthProviderButtons providers={oauthProviders} verb="Sign up" />
+			<OAuthProviderButtons providers={oauthProviders} verb="Sign up" returnView="signup" />
 			<Field.Description class="text-center">
 				Already have an account?
 				<button

@@ -235,6 +235,13 @@ export class Twitch extends OAuth2Provider {
 
 export class OAuthUserProfileError extends Error {}
 
+export function getAuthorizationResponseError(
+	cause: unknown
+): OAuthAuthorizationResponseError | null {
+	if (!(cause instanceof client.AuthorizationResponseError)) return null;
+	return { code: cause.error, description: cause.error_description };
+}
+
 export function generateState(): string {
 	return client.randomState();
 }
@@ -245,4 +252,9 @@ export function generateCodeVerifier(): string {
 
 export function generateNonce(): string {
 	return client.randomNonce();
+}
+
+export interface OAuthAuthorizationResponseError {
+	code: string;
+	description?: string;
 }
