@@ -1,17 +1,18 @@
+import { WEBAUTHN_RP_ID } from '$app/env/private';
 import { json } from '@sveltejs/kit';
+import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { encodeBase64url } from '$lib/encoding';
-import { isSessionRecentlyReauthenticated } from '$lib/server/auth';
 import { getClientIP } from '$lib/server/auth/api';
 import { validatePasswordResetSessionRequest } from '$lib/server/auth/password-reset';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { createWebAuthnChallenge } from '$lib/server/auth/webauthn';
+import { getUserPasskeyCredentials, storeWebAuthnChallenge } from '$lib/server/auth/webauthn';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 import type { RequestEvent } from './$types';
 
 const challengeBucket = new RefillingTokenBucket<string>('webauthn-challenge-ip', 30, 10);
-const purposes = new Set<WebAuthnChallengePurpose>([
+type WebAuthnAuthenticationPurpose = Exclude<WebAuthnChallengePurpose, 'passkey-register'>;
+const purposes = new Set<WebAuthnAuthenticationPurpose>([
 	'passkey-login',
-	'passkey-register',
 	'passkey-2fa',
 	'password-reset-2fa',
 	'settings-reauth'
@@ -32,11 +33,11 @@ export async function POST(event: RequestEvent) {
 		body === null ||
 		!('purpose' in body) ||
 		typeof body.purpose !== 'string' ||
-		!purposes.has(body.purpose as WebAuthnChallengePurpose)
+		!purposes.has(body.purpose as WebAuthnAuthenticationPurpose)
 	) {
 		return new Response('Invalid purpose', { status: 400 });
 	}
-	const purpose = body.purpose as WebAuthnChallengePurpose;
+	const purpose = body.purpose as WebAuthnAuthenticationPurpose;
 
 	let userId: string | null;
 	if (purpose === 'passkey-login') {
@@ -60,13 +61,6 @@ export async function POST(event: RequestEvent) {
 			return new Response('Forbidden', { status: 403 });
 		}
 		if (
-			purpose === 'passkey-register' &&
-			((event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) ||
-				!isSessionRecentlyReauthenticated(event.locals.session))
-		) {
-			return new Response('Forbidden', { status: 403 });
-		}
-		if (
 			purpose === 'passkey-2fa' &&
 			(!event.locals.user.registeredPasskey || event.locals.session.twoFactorVerified)
 		) {
@@ -81,9 +75,18 @@ export async function POST(event: RequestEvent) {
 		userId = event.locals.user.id;
 	}
 
-	const challenge = createWebAuthnChallenge(userId, purpose);
-	return json(
-		{ challenge: encodeBase64url(challenge) },
-		{ headers: { 'cache-control': 'no-store' } }
-	);
+	const credentials = userId === null ? [] : getUserPasskeyCredentials(userId);
+	const options = await generateAuthenticationOptions({
+		rpID: WEBAUTHN_RP_ID!,
+		allowCredentials:
+			userId === null
+				? undefined
+				: credentials.map((credential) => ({
+						id: encodeBase64url(credential.id)
+					})),
+		userVerification: 'required'
+	});
+
+	storeWebAuthnChallenge(options.challenge, userId, purpose);
+	return json(options, { headers: { 'cache-control': 'no-store' } });
 }

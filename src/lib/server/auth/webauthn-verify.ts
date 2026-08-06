@@ -13,12 +13,11 @@ import {
 	isWebAuthnChallengeValid,
 	consumeWebAuthnChallenge,
 	updatePasskeyCounter,
+	WEBAUTHN_SUPPORTED_ALGORITHM_IDS,
 	type WebAuthnUserCredential
 } from '$lib/server/auth/webauthn';
 import { isRecord } from '$lib/utils';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
-
-const supportedAlgorithmIDs = [-7, -257] as const;
 
 export async function verifyWebAuthnAssertionRequest(
 	request: Request,
@@ -65,7 +64,7 @@ export async function verifyWebAuthnRegistration(
 		throw new WebAuthnVerificationError('Invalid registration response');
 	}
 
-	let challenge: Uint8Array | null = null;
+	let challenge: string | null = null;
 	let verification;
 	try {
 		if (decodeClientDataJSON(response.response.clientDataJSON).crossOrigin === true) {
@@ -74,14 +73,14 @@ export async function verifyWebAuthnRegistration(
 		verification = await verifyRegistrationResponse({
 			response,
 			expectedChallenge: (encodedChallenge) => {
-				challenge = decodeBase64url(encodedChallenge);
+				challenge = encodedChallenge;
 				return isWebAuthnChallengeValid(challenge, userId, purpose);
 			},
 			expectedOrigin: WEBAUTHN_ORIGIN!,
 			expectedRPID: WEBAUTHN_RP_ID!,
 			requireUserPresence: true,
 			requireUserVerification: true,
-			supportedAlgorithmIDs: [...supportedAlgorithmIDs]
+			supportedAlgorithmIDs: [...WEBAUTHN_SUPPORTED_ALGORITHM_IDS]
 		});
 	} catch {
 		throw new WebAuthnVerificationError('Invalid passkey registration');
@@ -112,7 +111,7 @@ async function verifyWebAuthnAssertion(
 	challengeUserId: string | null,
 	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
 ): Promise<void> {
-	let challenge: Uint8Array | null = null;
+	let challenge: string | null = null;
 	let verification;
 	try {
 		if (decodeClientDataJSON(response.response.clientDataJSON).crossOrigin === true) {
@@ -121,7 +120,7 @@ async function verifyWebAuthnAssertion(
 		verification = await verifyAuthenticationResponse({
 			response,
 			expectedChallenge: (encodedChallenge) => {
-				challenge = decodeBase64url(encodedChallenge);
+				challenge = encodedChallenge;
 				return isWebAuthnChallengeValid(challenge, challengeUserId, purpose);
 			},
 			expectedOrigin: WEBAUTHN_ORIGIN!,

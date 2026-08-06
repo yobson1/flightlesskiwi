@@ -2,6 +2,7 @@
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import XIcon from '@lucide/svelte/icons/x';
+	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { Dialog } from 'bits-ui';
 	import { untrack } from 'svelte';
 	import { provideAuthTurnstile } from '$lib/auth-turnstile-context';
@@ -30,7 +31,6 @@
 	interface Props {
 		view: AuthModalView | null;
 		auth: ClientAuthState | null;
-		webAuthnRPName: string;
 		turnstileSiteKey: string | null;
 		viewData?: unknown;
 		required?: boolean;
@@ -42,7 +42,6 @@
 	let {
 		view,
 		auth,
-		webAuthnRPName,
 		turnstileSiteKey,
 		viewData,
 		required = false,
@@ -130,39 +129,26 @@
 		return typeof property === 'string' ? property : null;
 	}
 
-	function getPasskeyOptions(value: unknown): {
-		username: string;
-		credentialUserId: Uint8Array;
-		excludedCredentialIds: Uint8Array[];
-	} | null {
-		if (typeof value !== 'object' || value === null) return null;
-		const data = value as Record<string, unknown>;
+	function getPasskeyOptions(value: unknown): PublicKeyCredentialCreationOptionsJSON | null {
+		if (typeof value !== 'object' || value === null || !('options' in value)) return null;
+		const options = value.options;
 		if (
-			!(data.credentialUserId instanceof Uint8Array) ||
-			typeof data.user !== 'object' ||
-			data.user === null ||
-			!('username' in data.user) ||
-			typeof data.user.username !== 'string' ||
-			!Array.isArray(data.credentials)
+			typeof options !== 'object' ||
+			options === null ||
+			!('challenge' in options) ||
+			typeof options.challenge !== 'string' ||
+			!('rp' in options) ||
+			typeof options.rp !== 'object' ||
+			options.rp === null ||
+			!('user' in options) ||
+			typeof options.user !== 'object' ||
+			options.user === null ||
+			!('pubKeyCredParams' in options) ||
+			!Array.isArray(options.pubKeyCredParams)
 		) {
 			return null;
 		}
-		const excludedCredentialIds: Uint8Array[] = [];
-		for (const credential of data.credentials) {
-			if (
-				typeof credential === 'object' &&
-				credential !== null &&
-				'id' in credential &&
-				credential.id instanceof Uint8Array
-			) {
-				excludedCredentialIds.push(credential.id);
-			}
-		}
-		return {
-			username: data.user.username,
-			credentialUserId: data.credentialUserId,
-			excludedCredentialIds
-		};
+		return options as unknown as PublicKeyCredentialCreationOptionsJSON;
 	}
 </script>
 
@@ -244,13 +230,7 @@
 					{/if}
 				{:else if view === 'passkey-register'}
 					{#if passkeyOptions}
-						<PasskeySetupForm
-							rpName={webAuthnRPName}
-							username={passkeyOptions.username}
-							credentialUserId={passkeyOptions.credentialUserId}
-							excludedCredentialIds={passkeyOptions.excludedCredentialIds}
-							{onComplete}
-						/>
+						<PasskeySetupForm options={passkeyOptions} {onComplete} />
 					{:else}
 						<AuthCard>
 							<Card.Content class="flex items-center justify-center gap-2 py-12">

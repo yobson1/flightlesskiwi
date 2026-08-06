@@ -1,4 +1,3 @@
-import { WEBAUTHN_RP_NAME } from '$app/env/private';
 import { getUserEmailVerificationRequest } from '$lib/server/auth/email-verification';
 import { getTurnstileSiteKey } from '$lib/server/turnstile';
 import type { LayoutServerLoad } from './$types';
@@ -6,7 +5,7 @@ import type { LayoutServerLoad } from './$types';
 export const load: LayoutServerLoad = ({ locals }) => {
 	const turnstileSiteKey = getTurnstileSiteKey();
 	if (locals.user === null || locals.session === null) {
-		return { auth: null, webAuthnRPName: WEBAUTHN_RP_NAME!, turnstileSiteKey };
+		return { auth: null, turnstileSiteKey };
 	}
 
 	const verificationEmail = locals.user.emailVerified
@@ -14,7 +13,6 @@ export const load: LayoutServerLoad = ({ locals }) => {
 		: (getUserEmailVerificationRequest(locals.user.id)?.email ?? locals.user.email);
 
 	return {
-		webAuthnRPName: WEBAUTHN_RP_NAME!,
 		turnstileSiteKey,
 		auth: {
 			user: {

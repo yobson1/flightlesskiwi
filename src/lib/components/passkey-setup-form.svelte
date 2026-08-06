@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnRegistration, type WebAuthnRegistration } from '$lib/client/webauthn';
@@ -11,16 +12,13 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 
 	interface Props {
-		rpName: string;
-		username: string;
-		credentialUserId: Uint8Array;
-		excludedCredentialIds: Uint8Array[];
+		options: PublicKeyCredentialCreationOptionsJSON;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
 	import type { AuthModalView } from '$lib/types/auth';
 
-	let { rpName, username, credentialUserId, excludedCredentialIds, onComplete }: Props = $props();
+	let { options, onComplete }: Props = $props();
 
 	let registration = $state<WebAuthnRegistration | null>(null);
 	let name = $state('');
@@ -31,12 +29,7 @@
 		message = '';
 		pending = true;
 		try {
-			registration = await createWebAuthnRegistration({
-				rpName,
-				userId: credentialUserId,
-				username,
-				excludedCredentialIds
-			});
+			registration = await createWebAuthnRegistration(options);
 			name = registration.suggested_name;
 		} catch (cause) {
 			if (cause instanceof Error && cause.name === 'NotAllowedError') {

@@ -6,13 +6,13 @@ import { encodeHashedSecret } from '$lib/server/auth/utils';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
+export const WEBAUTHN_SUPPORTED_ALGORITHM_IDS = [-7, -257] as const;
 
-export function createWebAuthnChallenge(
+export function storeWebAuthnChallenge(
+	challenge: string,
 	userId: string | null,
 	purpose: WebAuthnChallengePurpose
-): Uint8Array {
-	const challenge = new Uint8Array(32);
-	crypto.getRandomValues(challenge);
+): void {
 	const id = encodeHashedSecret(challenge);
 	const now = new Date();
 	db.transaction((tx) => {
@@ -35,11 +35,10 @@ export function createWebAuthnChallenge(
 			})
 			.run();
 	});
-	return challenge;
 }
 
 export function consumeWebAuthnChallenge(
-	challenge: Uint8Array,
+	challenge: string,
 	userId: string | null,
 	purpose: WebAuthnChallengePurpose
 ): boolean {
@@ -58,7 +57,7 @@ export function consumeWebAuthnChallenge(
 }
 
 export function isWebAuthnChallengeValid(
-	challenge: Uint8Array,
+	challenge: string,
 	userId: string | null,
 	purpose: WebAuthnChallengePurpose
 ): boolean {

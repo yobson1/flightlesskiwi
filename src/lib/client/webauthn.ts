@@ -2,82 +2,52 @@ import {
 	startAuthentication,
 	startRegistration,
 	type AuthenticationResponseJSON,
+	type PublicKeyCredentialCreationOptionsJSON,
+	type PublicKeyCredentialRequestOptionsJSON,
 	type RegistrationResponseJSON
 } from '@simplewebauthn/browser';
-import { decodeBase64url, encodeBase64url } from '$lib/encoding';
+import { decodeBase64url } from '$lib/encoding';
 import {
 	fetchPasskeyAuthenticatorMetadata,
 	formatAAGUID
 } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
-export async function createWebAuthnChallenge(purpose: WebAuthnChallengePurpose): Promise<string> {
-	const response = await fetch('/api/webauthn/challenge', {
+async function getWebAuthnOptions(
+	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
+): Promise<unknown> {
+	const response = await fetch('/api/webauthn/options', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ purpose })
 	});
 	if (!response.ok) {
-		throw new Error('Failed to create WebAuthn challenge');
+		throw new Error('Failed to create WebAuthn options');
 	}
-	const data = (await response.json()) as unknown;
-	if (
-		typeof data !== 'object' ||
-		data === null ||
-		!('challenge' in data) ||
-		typeof data.challenge !== 'string'
-	) {
-		throw new Error('Invalid WebAuthn challenge response');
-	}
-	return data.challenge;
+	return response.json() as Promise<unknown>;
 }
 
 export async function createWebAuthnAssertion(
-	purpose: 'passkey-login' | 'passkey-2fa' | 'password-reset-2fa' | 'settings-reauth'
+	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
 ): Promise<WebAuthnAssertion> {
 	verifyWebAuthnSupport();
+	const options = await getWebAuthnOptions(purpose);
+	if (!isAuthenticationOptions(options)) {
+		throw new Error('Invalid WebAuthn authentication options');
+	}
 
 	return startAuthentication({
-		optionsJSON: {
-			challenge: await createWebAuthnChallenge(purpose),
-			userVerification: 'required',
-			timeout: 60_000
-		}
+		optionsJSON: options
 	});
 }
 
-export async function createWebAuthnRegistration(options: {
-	rpName: string;
-	userId: Uint8Array;
-	username: string;
-	excludedCredentialIds: Uint8Array[];
-}): Promise<WebAuthnRegistration> {
+export async function createWebAuthnRegistration(
+	options: PublicKeyCredentialCreationOptionsJSON
+): Promise<WebAuthnRegistration> {
 	verifyWebAuthnSupport();
 
 	const credential = await startRegistration({
-		optionsJSON: {
-			challenge: await createWebAuthnChallenge('passkey-register'),
-			rp: { name: options.rpName },
-			user: {
-				id: encodeBase64url(options.userId),
-				name: options.username,
-				displayName: options.username
-			},
-			pubKeyCredParams: [
-				{ type: 'public-key', alg: -7 },
-				{ type: 'public-key', alg: -257 }
-			],
-			authenticatorSelection: {
-				residentKey: 'required',
-				userVerification: 'required'
-			},
-			excludeCredentials: options.excludedCredentialIds.map((id) => ({
-				type: 'public-key',
-				id: encodeBase64url(id)
-			})),
-			attestation: 'none',
-			timeout: 60_000
-		}
+		optionsJSON: options
 	});
 
 	let suggestedName = '';
@@ -95,6 +65,19 @@ export async function createWebAuthnRegistration(options: {
 		credential,
 		suggested_name: suggestedName
 	};
+}
+
+function isAuthenticationOptions(value: unknown): value is PublicKeyCredentialRequestOptionsJSON {
+	return (
+		isRecord(value) &&
+		typeof value.challenge === 'string' &&
+		typeof value.rpId === 'string' &&
+		(value.allowCredentials === undefined || Array.isArray(value.allowCredentials))
+	);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
 }
 
 function verifyWebAuthnSupport(): void {

@@ -1,10 +1,17 @@
+import { WEBAUTHN_RP_ID, WEBAUTHN_RP_NAME } from '$app/env/private';
+import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { error as logError } from '$lib/logger';
 import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
-import { encodeBase64 } from '$lib/encoding';
+import { encodeBase64url } from '$lib/encoding';
 import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
 import { hashSecret } from '$lib/server/auth/utils';
-import { createPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
+import {
+	createPasskeyCredential,
+	getUserPasskeyCredentials,
+	storeWebAuthnChallenge,
+	WEBAUTHN_SUPPORTED_ALGORITHM_IDS
+} from '$lib/server/auth/webauthn';
 import {
 	verifyWebAuthnRegistration,
 	WebAuthnVerificationError
@@ -13,18 +20,30 @@ import type { RequestEvent } from './$types';
 
 const MAX_PASSKEYS = 10;
 
-export function POST(event: RequestEvent) {
+export async function POST(event: RequestEvent) {
 	const guarded = requireVerifiedSession(event, { recentlyReauthenticated: true });
 	if (guarded.response) return guarded.response;
 	const { user } = guarded.authenticated;
 	const credentials = getUserPasskeyCredentials(user.id);
 	if (credentials.length >= MAX_PASSKEYS) return authError(400, 'Too many passkeys');
 
-	return authSuccess('passkey-register', {
-		username: user.username,
-		credentialUserId: encodeBase64(hashSecret(user.id)),
-		excludedCredentialIds: credentials.map((credential) => encodeBase64(credential.id))
+	const options = await generateRegistrationOptions({
+		rpName: WEBAUTHN_RP_NAME!,
+		rpID: WEBAUTHN_RP_ID!,
+		userName: user.username,
+		userID: Uint8Array.from(hashSecret(user.id)),
+		attestationType: 'none',
+		excludeCredentials: credentials.map((credential) => ({
+			id: encodeBase64url(credential.id)
+		})),
+		authenticatorSelection: {
+			residentKey: 'required',
+			userVerification: 'required'
+		},
+		supportedAlgorithmIDs: [...WEBAUTHN_SUPPORTED_ALGORITHM_IDS]
 	});
+	storeWebAuthnChallenge(options.challenge, user.id, 'passkey-register');
+	return authSuccess('passkey-register', { options });
 }
 
 export async function PUT(event: RequestEvent) {

@@ -9,7 +9,6 @@
 	import { toast } from 'svelte-sonner';
 	import SimpleIconsGithub from '~icons/simple-icons/github';
 	import favicon from '$lib/assets/favicon.svg';
-	import { decodeBase64 } from '$lib/encoding';
 	import {
 		authModalDataEndpoint,
 		authModalDataMethod,
@@ -174,29 +173,7 @@
 		const response = await authRequest(endpoint, { method: authModalDataMethod(view) });
 		if (view === 'totp-setup') return response;
 		if (view === 'password-reset') return response;
-		return passkeyViewData(response);
-	}
-
-	function passkeyViewData(value: unknown): unknown {
-		if (typeof value !== 'object' || value === null) {
-			throw new Error('Invalid passkey registration response');
-		}
-		const values = value as Record<string, unknown>;
-		if (
-			typeof values.username !== 'string' ||
-			typeof values.credentialUserId !== 'string' ||
-			!Array.isArray(values.excludedCredentialIds) ||
-			!values.excludedCredentialIds.every((id) => typeof id === 'string')
-		) {
-			throw new Error('Invalid passkey registration response');
-		}
-		return {
-			user: { username: values.username },
-			credentialUserId: decodeBase64(values.credentialUserId),
-			credentials: values.excludedCredentialIds.map((id) => ({
-				id: decodeBase64(id as string)
-			}))
-		};
+		return response;
 	}
 
 	function needsViewData(view: AuthModalView): boolean {
@@ -305,7 +282,6 @@
 <AuthModal
 	view={authView}
 	auth={visibleAuth}
-	webAuthnRPName={data.webAuthnRPName}
 	turnstileSiteKey={data.turnstileSiteKey}
 	viewData={authViewData}
 	required={authRequired}
