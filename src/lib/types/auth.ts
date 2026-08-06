@@ -1,6 +1,8 @@
+import type { OAuthProvider } from '$lib/types/oauth';
+
 export const AUTH_MODAL_VIEWS = [
 	'login',
-	'login-totp',
+	'login-2fa',
 	'password-reset',
 	'signup',
 	'verify-email',
@@ -21,10 +23,12 @@ export interface ClientAuthState {
 		verificationEmail: string;
 		username: string;
 		emailVerified: boolean;
+		hasPassword: boolean;
 		registeredTOTP: boolean;
 		registeredPasskey: boolean;
 		registered2FA: boolean;
 		recoveryCodeConfigured: boolean;
+		oauthProviders: OAuthProvider[];
 	};
 	twoFactorVerified: boolean;
 }

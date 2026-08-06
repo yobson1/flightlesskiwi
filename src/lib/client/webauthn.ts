@@ -12,6 +12,7 @@ import {
 	formatAAGUID
 } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+import { isRecord } from '$lib/utils';
 
 async function getWebAuthnOptions(
 	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>
@@ -78,10 +79,6 @@ function isAuthenticationOptions(value: unknown): value is PublicKeyCredentialRe
 		typeof value.rpId === 'string' &&
 		(value.allowCredentials === undefined || Array.isArray(value.allowCredentials))
 	);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null;
 }
 
 function verifyWebAuthnSupport(): void {

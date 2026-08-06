@@ -2,7 +2,9 @@ import { and, eq, ne, sql } from 'drizzle-orm';
 import { MAX_EMAIL_LENGTH, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH } from '$lib/auth-constants';
 import { db } from '$lib/server/db';
 import {
+	emailVerificationRequest,
 	loginAttempt,
+	oauthAccount,
 	passkeyCredential,
 	session,
 	totpCredential,
@@ -10,6 +12,8 @@ import {
 } from '$lib/server/db/schema';
 import { hashPassword, hashRecoveryCode } from '$lib/server/auth/password';
 import { generateRandomRecoveryCode, generateSecureRandomString } from '$lib/server/auth/utils';
+import type { OAuthUserProfile } from '$lib/server/oauth';
+import type { OAuthProvider } from '$lib/types/oauth';
 
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
@@ -95,11 +99,83 @@ export async function createUser(
 		email: normalizeEmail(email),
 		username,
 		emailVerified: false,
+		hasPassword: true,
 		registeredTOTP: false,
 		registeredPasskey: false,
 		registered2FA: false,
-		recoveryCodeConfigured: false
+		recoveryCodeConfigured: false,
+		oauthProviders: []
 	};
+}
+
+export function getUserFromOAuthAccount(
+	provider: OAuthProvider,
+	providerUserId: string
+): AuthUser | null {
+	const account = db
+		.select({ userId: oauthAccount.userId })
+		.from(oauthAccount)
+		.where(
+			and(eq(oauthAccount.provider, provider), eq(oauthAccount.providerUserId, providerUserId))
+		)
+		.get();
+	return account ? getUserById(account.userId) : null;
+}
+
+export function createOrLinkOAuthUser(
+	provider: OAuthProvider,
+	profile: OAuthUserProfile
+): AuthUser {
+	const email = normalizeEmail(profile.email);
+	if (!profile.id || !profile.emailVerified || !verifyEmailInput(email)) {
+		throw new Error('OAuth provider did not return a verified email');
+	}
+
+	const userId = db.transaction((tx) => {
+		const linked = tx
+			.select({ userId: oauthAccount.userId })
+			.from(oauthAccount)
+			.where(and(eq(oauthAccount.provider, provider), eq(oauthAccount.providerUserId, profile.id)))
+			.get();
+		if (linked) return linked.userId;
+
+		const existingUser = tx
+			.select({ id: userTable.id })
+			.from(userTable)
+			.where(eq(userTable.email, email))
+			.get();
+		const id = existingUser?.id ?? generateSecureRandomString();
+		if (existingUser) {
+			tx.update(userTable).set({ emailVerified: true }).where(eq(userTable.id, id)).run();
+			tx.delete(emailVerificationRequest).where(eq(emailVerificationRequest.userId, id)).run();
+		} else {
+			tx.insert(userTable)
+				.values({
+					id,
+					email,
+					username: createOAuthUsername(profile.username, provider),
+					passwordHash: null,
+					recoveryCodeHash: null,
+					emailVerified: true,
+					createdAt: new Date()
+				})
+				.run();
+		}
+
+		tx.insert(oauthAccount)
+			.values({
+				provider,
+				providerUserId: profile.id,
+				userId: id,
+				createdAt: new Date()
+			})
+			.run();
+		return id;
+	});
+
+	const user = getUserById(userId);
+	if (user === null) throw new Error('OAuth user could not be loaded');
+	return user;
 }
 
 export function getUserById(userId: string): AuthUser | null {
@@ -116,6 +192,7 @@ function getUser(predicate: ReturnType<typeof eq>): AuthUser | null {
 			id: userTable.id,
 			email: userTable.email,
 			username: userTable.username,
+			passwordHash: userTable.passwordHash,
 			emailVerified: userTable.emailVerified,
 			recoveryCodeHash: userTable.recoveryCodeHash,
 			totpUserId: totpCredential.userId,
@@ -132,19 +209,27 @@ function getUser(predicate: ReturnType<typeof eq>): AuthUser | null {
 
 	const registeredTOTP = row.totpUserId !== null;
 	const registeredPasskey = row.passkeyId !== null;
+	const oauthProviders = db
+		.select({ provider: oauthAccount.provider })
+		.from(oauthAccount)
+		.where(eq(oauthAccount.userId, row.id))
+		.all()
+		.map((account) => account.provider);
 	return {
 		id: row.id,
 		email: row.email,
 		username: row.username,
 		emailVerified: row.emailVerified,
+		hasPassword: row.passwordHash !== null,
 		registeredTOTP,
 		registeredPasskey,
 		registered2FA: registeredTOTP || registeredPasskey,
-		recoveryCodeConfigured: row.recoveryCodeHash !== null
+		recoveryCodeConfigured: row.recoveryCodeHash !== null,
+		oauthProviders
 	};
 }
 
-export function getUserPasswordHash(userId: string): string {
+export function getUserPasswordHash(userId: string): string | null {
 	const row = db
 		.select({ passwordHash: userTable.passwordHash })
 		.from(userTable)
@@ -191,8 +276,26 @@ export interface AuthUser {
 	email: string;
 	username: string;
 	emailVerified: boolean;
+	hasPassword: boolean;
 	registeredTOTP: boolean;
 	registeredPasskey: boolean;
 	registered2FA: boolean;
 	recoveryCodeConfigured: boolean;
+	oauthProviders: OAuthProvider[];
+}
+
+function createOAuthUsername(suggestedUsername: string, provider: OAuthProvider): string {
+	let base = suggestedUsername
+		.normalize('NFKC')
+		.replace(/[^\p{L}\p{N}_ -]+/gu, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+	if (base.length < MIN_USERNAME_LENGTH) base = `${provider} user`;
+	base = base.slice(0, MAX_USERNAME_LENGTH).trim();
+
+	for (let suffix = 1; ; suffix++) {
+		const suffixText = suffix === 1 ? '' : ` ${suffix}`;
+		const candidate = `${base.slice(0, MAX_USERNAME_LENGTH - suffixText.length).trim()}${suffixText}`;
+		if (checkUsernameAvailability(candidate)) return candidate;
+	}
 }

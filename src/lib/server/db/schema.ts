@@ -23,12 +23,29 @@ export const user = sqliteTable(
 		id: text('id').primaryKey(),
 		email: text('email').notNull().unique(),
 		username: text('username').notNull().unique(),
-		passwordHash: text('password_hash').notNull(),
+		passwordHash: text('password_hash'),
 		emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
 		recoveryCodeHash: text('recovery_code_hash'),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 	},
 	(table) => [index('user_email_idx').on(table.email)]
+);
+
+export const oauthAccount = sqliteTable(
+	'oauth_account',
+	{
+		provider: text('provider', { enum: ['github', 'discord', 'twitch'] }).notNull(),
+		providerUserId: text('provider_user_id').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.provider, table.providerUserId] }),
+		unique('oauth_account_provider_user_id_unique').on(table.provider, table.userId),
+		index('oauth_account_user_id_idx').on(table.userId)
+	]
 );
 
 export const session = sqliteTable(
@@ -367,11 +384,19 @@ export const gameEngineRelations = relations(gameEngine, ({ many }) => ({
 export const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),
 	loginAttempts: many(loginAttempt),
+	oauthAccounts: many(oauthAccount),
 	totpCredential: one(totpCredential),
 	passkeyCredentials: many(passkeyCredential),
 	emailVerificationRequests: many(emailVerificationRequest),
 	passwordResetSessions: many(passwordResetSession),
 	benchmarks: many(benchmarkResult)
+}));
+
+export const oauthAccountRelations = relations(oauthAccount, ({ one }) => ({
+	user: one(user, {
+		fields: [oauthAccount.userId],
+		references: [user.id]
+	})
 }));
 
 export const benchmarkResultRelations = relations(benchmarkResult, ({ many, one }) => ({
@@ -431,6 +456,7 @@ export const STORES = {
 export type Session = typeof session.$inferSelect;
 export type LoginAttempt = typeof loginAttempt.$inferSelect;
 export type User = typeof user.$inferSelect;
+export type OAuthAccount = typeof oauthAccount.$inferSelect;
 export type PasskeyCredential = typeof passkeyCredential.$inferSelect;
 export type PasswordResetSession = typeof passwordResetSession.$inferSelect;
 export type EmailVerificationRequest = typeof emailVerificationRequest.$inferSelect;

@@ -281,9 +281,13 @@
 						<LockKeyholeIcon class="size-5" />
 					</div>
 					<div>
-						<Card.Title>Password</Card.Title>
+						<Card.Title>{data.user.hasPassword ? 'Password' : 'Set a password'}</Card.Title>
 						<Card.Description>
-							Use at least {MIN_PASSWORD_LENGTH} characters. Updating it signs out your other sessions.
+							{#if data.user.hasPassword}
+								Use at least {MIN_PASSWORD_LENGTH} characters. Updating it signs out your other sessions.
+							{:else}
+								Add an optional password so you can also sign in with your email.
+							{/if}
 						</Card.Description>
 					</div>
 				</div>
@@ -320,7 +324,9 @@
 							/>
 						</Field.Field>
 						<div class="md:col-span-2">
-							<Button type="submit">Update password</Button>
+							<Button type="submit">
+								{data.user.hasPassword ? 'Update password' : 'Set password'}
+							</Button>
 						</div>
 					</Field.Group>
 				</form>

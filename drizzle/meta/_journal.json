@@ -15,6 +15,13 @@
       "when": 1786044728837,
       "tag": "0001_reset_passkey_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786049752289,
+      "tag": "0002_cloudy_supernaut",
+      "breakpoints": true
     }
   ]
 }

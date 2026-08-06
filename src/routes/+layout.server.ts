@@ -1,11 +1,13 @@
 import { getUserEmailVerificationRequest } from '$lib/server/auth/email-verification';
 import { getTurnstileSiteKey } from '$lib/server/turnstile';
+import { getEnabledOAuthProviders } from '$lib/server/auth/oauth';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = ({ locals }) => {
 	const turnstileSiteKey = getTurnstileSiteKey();
+	const oauthProviders = getEnabledOAuthProviders();
 	if (locals.user === null || locals.session === null) {
-		return { auth: null, turnstileSiteKey };
+		return { auth: null, turnstileSiteKey, oauthProviders };
 	}
 
 	const verificationEmail = locals.user.emailVerified
@@ -14,16 +16,19 @@ export const load: LayoutServerLoad = ({ locals }) => {
 
 	return {
 		turnstileSiteKey,
+		oauthProviders,
 		auth: {
 			user: {
 				email: locals.user.email,
 				verificationEmail,
 				username: locals.user.username,
 				emailVerified: locals.user.emailVerified,
+				hasPassword: locals.user.hasPassword,
 				registeredTOTP: locals.user.registeredTOTP,
 				registeredPasskey: locals.user.registeredPasskey,
 				registered2FA: locals.user.registered2FA,
-				recoveryCodeConfigured: locals.user.recoveryCodeConfigured
+				recoveryCodeConfigured: locals.user.recoveryCodeConfigured,
+				oauthProviders: locals.user.oauthProviders
 			},
 			twoFactorVerified: locals.session.twoFactorVerified
 		}

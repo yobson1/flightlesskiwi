@@ -4,6 +4,7 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { encodeBase64url } from '$lib/encoding';
 import { getClientIP } from '$lib/server/auth/api';
 import { validatePasswordResetSessionRequest } from '$lib/server/auth/password-reset';
+import { validateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 import { getUserPasskeyCredentials, storeWebAuthnChallenge } from '$lib/server/auth/webauthn';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
@@ -53,17 +54,28 @@ export async function POST(event: RequestEvent) {
 			return new Response('Forbidden', { status: 403 });
 		}
 		userId = user.id;
+	} else if (purpose === 'passkey-2fa') {
+		if (event.locals.session !== null && event.locals.user !== null) {
+			if (
+				!event.locals.user.emailVerified ||
+				!event.locals.user.registeredPasskey ||
+				event.locals.session.twoFactorVerified
+			) {
+				return new Response('Forbidden', { status: 403 });
+			}
+			userId = event.locals.user.id;
+		} else {
+			const { attempt, user } = validateLoginAttemptRequest(event);
+			if (attempt === null || !user.registeredPasskey) {
+				return new Response('Forbidden', { status: 403 });
+			}
+			userId = user.id;
+		}
 	} else {
 		if (event.locals.session === null || event.locals.user === null) {
 			return new Response('Not authenticated', { status: 401 });
 		}
 		if (!event.locals.user.emailVerified) {
-			return new Response('Forbidden', { status: 403 });
-		}
-		if (
-			purpose === 'passkey-2fa' &&
-			(!event.locals.user.registeredPasskey || event.locals.session.twoFactorVerified)
-		) {
 			return new Response('Forbidden', { status: 403 });
 		}
 		if (

@@ -2,5 +2,11 @@ export const TEST_PRIVATE_ENV = {
 	CLIENT_IP_HEADER: 'X-Real-IP',
 	TRUSTED_PROXY_ADDRESS: '127.0.0.1',
 	WEBAUTHN_ORIGIN: 'https://example.com',
-	WEBAUTHN_RP_ID: 'example.com'
+	WEBAUTHN_RP_ID: 'example.com',
+	GITHUB_OAUTH_CLIENT_ID: undefined,
+	GITHUB_OAUTH_CLIENT_SECRET: undefined,
+	DISCORD_OAUTH_CLIENT_ID: undefined,
+	DISCORD_OAUTH_CLIENT_SECRET: undefined,
+	TWITCH_OAUTH_CLIENT_ID: undefined,
+	TWITCH_OAUTH_CLIENT_SECRET: undefined
 } as const;

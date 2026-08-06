@@ -6,6 +6,7 @@
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
+	import OAuthProviderButtons from '$lib/components/oauth-provider-buttons.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -95,7 +96,7 @@
 			</p>
 		{/if}
 
-		{#if !auth.user.registeredTOTP && !auth.user.registeredPasskey}
+		{#if !auth.user.registeredTOTP && !auth.user.registeredPasskey && auth.user.hasPassword}
 			<form onsubmit={submitPassword}>
 				<Field.Group>
 					<Field.Field>
@@ -163,5 +164,11 @@
 				Confirm with passkey
 			</Button>
 		{/if}
+
+		<OAuthProviderButtons
+			providers={auth.user.registered2FA ? [] : auth.user.oauthProviders}
+			verb="Continue"
+			flow="reauth"
+		/>
 	</Card.Content>
 </AuthCard>

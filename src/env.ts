@@ -78,6 +78,12 @@ export const variables = defineEnvVars({
 	WEBAUTHN_ORIGIN: {
 		schema: building ? v.optional(v.pipe(nonEmptyString, v.url())) : v.pipe(nonEmptyString, v.url())
 	},
+	GITHUB_OAUTH_CLIENT_ID: { schema: v.optional(nonEmptyString) },
+	GITHUB_OAUTH_CLIENT_SECRET: { schema: v.optional(nonEmptyString) },
+	DISCORD_OAUTH_CLIENT_ID: { schema: v.optional(nonEmptyString) },
+	DISCORD_OAUTH_CLIENT_SECRET: { schema: v.optional(nonEmptyString) },
+	TWITCH_OAUTH_CLIENT_ID: { schema: v.optional(nonEmptyString) },
+	TWITCH_OAUTH_CLIENT_SECRET: { schema: v.optional(nonEmptyString) },
 	SMTP_HOST: { schema: requiredAtRuntime },
 	SMTP_PORT: {
 		schema: v.optional(

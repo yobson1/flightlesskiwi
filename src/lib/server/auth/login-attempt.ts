@@ -33,7 +33,7 @@ export function createLoginAttempt(event: RequestEvent, userId: string): LoginAt
 
 	event.cookies.set(cookieName, `${id}.${secret}`, {
 		httpOnly: true,
-		path: '/api/auth/login',
+		path: '/api',
 		secure: !dev,
 		sameSite: 'lax',
 		expires: expiresAt
@@ -149,7 +149,7 @@ function invalidateLoginAttempt(attemptId: string): void {
 function deleteLoginAttemptCookie(event: RequestEvent): void {
 	event.cookies.delete(cookieName, {
 		httpOnly: true,
-		path: '/api/auth/login',
+		path: '/api',
 		secure: !dev,
 		sameSite: 'lax'
 	});

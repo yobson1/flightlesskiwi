@@ -13,7 +13,7 @@ export async function POST(event: RequestEvent) {
 	const guarded = requireVerifiedSession(event);
 	if (guarded.response) return guarded.response;
 	const { session, user } = guarded.authenticated;
-	if (user.registeredTOTP || user.registeredPasskey) {
+	if (user.registeredTOTP || user.registeredPasskey || !user.hasPassword) {
 		return authError(403, 'Password reauthentication is not available');
 	}
 	const formData = await event.request.formData();
@@ -24,7 +24,8 @@ export async function POST(event: RequestEvent) {
 	if (!reauthenticationBucket.consume(session.id, 1)) {
 		return authError(429, 'Too many requests');
 	}
-	if (!(await verifyPasswordHash(getUserPasswordHash(user.id), password))) {
+	const passwordHash = getUserPasswordHash(user.id);
+	if (passwordHash === null || !(await verifyPasswordHash(passwordHash, password))) {
 		return authError(400, 'Incorrect password');
 	}
 	reauthenticationBucket.reset(session.id);

@@ -27,11 +27,13 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cn } from '$lib/utils.js';
 	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
+	import type { OAuthProvider } from '$lib/types/oauth';
 
 	interface Props {
 		view: AuthModalView | null;
 		auth: ClientAuthState | null;
 		turnstileSiteKey: string | null;
+		oauthProviders: OAuthProvider[];
 		viewData?: unknown;
 		required?: boolean;
 		onViewChange?: (view: AuthModalView) => void | Promise<void>;
@@ -43,6 +45,7 @@
 		view,
 		auth,
 		turnstileSiteKey,
+		oauthProviders,
 		viewData,
 		required = false,
 		onViewChange,
@@ -64,7 +67,7 @@
 	const passkeyOptions = $derived(getPasskeyOptions(viewData));
 	const title = $derived.by(() => {
 		switch (view) {
-			case 'login-totp':
+			case 'login-2fa':
 				return 'Two-factor authentication';
 			case 'signup':
 				return 'Create your account';
@@ -127,6 +130,15 @@
 		if (typeof value !== 'object' || value === null || !(key in value)) return null;
 		const property = (value as Record<string, unknown>)[key];
 		return typeof property === 'string' ? property : null;
+	}
+
+	function getBooleanProperty(value: unknown, key: string): boolean {
+		return (
+			typeof value === 'object' &&
+			value !== null &&
+			key in value &&
+			(value as Record<string, unknown>)[key] === true
+		);
 	}
 
 	function getPasskeyOptions(value: unknown): PublicKeyCredentialCreationOptionsJSON | null {
@@ -194,12 +206,19 @@
 			{#key view}
 				{#if view === 'login'}
 					<LoginForm
+						{oauthProviders}
 						onSwitchToSignup={() => switchView('signup')}
 						onForgotPassword={() => switchView('password-reset')}
 						{onComplete}
 					/>
-				{:else if view === 'login-totp'}
-					<OTPForm kind="login-totp" onBack={() => switchView('login')} {onComplete} />
+				{:else if view === 'login-2fa'}
+					<OTPForm
+						kind="login-2fa"
+						totpAvailable={getBooleanProperty(viewData, 'registeredTOTP')}
+						passkeyAvailable={getBooleanProperty(viewData, 'registeredPasskey')}
+						onBack={() => switchView('login')}
+						{onComplete}
+					/>
 				{:else if view === 'password-reset'}
 					<PasswordResetForm
 						initialState={viewData}
@@ -207,7 +226,7 @@
 						{onComplete}
 					/>
 				{:else if view === 'signup'}
-					<SignupForm onSwitchToLogin={() => switchView('login')} {onComplete} />
+					<SignupForm {oauthProviders} onSwitchToLogin={() => switchView('login')} {onComplete} />
 				{:else if view === 'verify-email'}
 					<OTPForm kind="email" email={auth?.user.verificationEmail} {onComplete} />
 				{:else if view === 'setup'}

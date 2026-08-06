@@ -64,6 +64,7 @@
 	});
 
 	onMount(() => {
+		consumeOAuthError();
 		const fragmentView = parseAuthModalHash(window.location.hash);
 		if (fragmentView === null && authRequired && authView !== null) {
 			returnHash = window.location.hash;
@@ -74,6 +75,14 @@
 		window.addEventListener('hashchange', syncModalFromHash);
 		return () => window.removeEventListener('hashchange', syncModalFromHash);
 	});
+
+	function consumeOAuthError() {
+		const url = new SvelteURL(window.location.href);
+		if (!url.searchParams.has('oauth_error')) return;
+		toast.error('OAuth authentication could not be completed. Please try again.');
+		url.searchParams.delete('oauth_error');
+		replaceState(resolve(`${url.pathname}${url.search}${url.hash}` as '/'), page.state);
+	}
 
 	function requiredAuthModal(auth: ClientAuthState | null): AuthModalView | null {
 		if (auth !== null && !auth.user.emailVerified) return 'verify-email';
@@ -94,7 +103,7 @@
 	): AuthModalView | null {
 		const required = requiredAuthModal(auth);
 		if (required !== null) return required;
-		if (view === 'login-totp') return auth === null ? view : null;
+		if (view === 'login-2fa') return auth === null ? view : null;
 		if (view === 'login' || view === 'signup' || view === 'password-reset') {
 			return auth === null ? view : null;
 		}
@@ -283,6 +292,7 @@
 	view={authView}
 	auth={visibleAuth}
 	turnstileSiteKey={data.turnstileSiteKey}
+	oauthProviders={data.oauthProviders}
 	viewData={authViewData}
 	required={authRequired}
 	onViewChange={handleViewChange}

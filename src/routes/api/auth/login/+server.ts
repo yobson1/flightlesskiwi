@@ -1,12 +1,11 @@
-import { createSessionAndSetCookie } from '$lib/server/auth';
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
 import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
 import {
 	consumeLoginAttemptRequest,
-	createLoginAttempt,
 	invalidateLoginAttemptRequest,
 	validateLoginAttemptRequest
 } from '$lib/server/auth/login-attempt';
+import { completeLogin, completeLoginFirstFactor } from '$lib/server/auth/login';
 import { hashPassword, isPasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
@@ -15,7 +14,6 @@ import {
 	getUserFromEmail,
 	getUserPasswordHash,
 	normalizeEmail,
-	type AuthUser,
 	verifyEmailInput
 } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
@@ -53,20 +51,27 @@ export async function POST(event: RequestEvent) {
 		accountBucket.consume(`${clientIP}:${email}`, 1);
 		return authError(400, 'Invalid email or password');
 	}
-	if (!(await verifyPasswordHash(getUserPasswordHash(user.id), password))) {
+	const passwordHash = getUserPasswordHash(user.id);
+	if (passwordHash === null || !(await verifyPasswordHash(passwordHash, password))) {
+		if (passwordHash === null) await hashPassword(password);
 		accountBucket.consume(`${clientIP}:${email}`, 1);
 		return authError(400, 'Invalid email or password');
 	}
 	accountBucket.reset(`${clientIP}:${email}`);
 
-	if (user.registeredTOTP) {
-		createLoginAttempt(event, user.id);
-		return authSuccess('login-totp');
+	return authSuccess(completeLoginFirstFactor(event, user));
+}
+
+export function GET(event: RequestEvent) {
+	if (event.locals.session !== null) return authError(409, 'Already authenticated');
+	const { attempt, user } = validateLoginAttemptRequest(event);
+	if (attempt === null) {
+		return authError(401, 'Sign-in attempt expired. Sign in again.', { modal: 'login' });
 	}
-	if (user.registeredPasskey) {
-		return authError(403, 'This account requires passkey sign-in');
-	}
-	return completeLogin(event, user);
+	return authSuccess('login-2fa', {
+		registeredTOTP: user.registeredTOTP,
+		registeredPasskey: user.registeredPasskey
+	});
 }
 
 export async function PUT(event: RequestEvent) {
@@ -88,7 +93,7 @@ export async function PUT(event: RequestEvent) {
 
 	const { attempt, user } = validateLoginAttemptRequest(event);
 	if (attempt === null) {
-		return authError(401, 'Sign-in attempt expired. Enter your password again.', {
+		return authError(401, 'Sign-in attempt expired. Sign in again.', {
 			modal: 'login'
 		});
 	}
@@ -106,11 +111,11 @@ export async function PUT(event: RequestEvent) {
 		return authError(400, 'Invalid authenticator code');
 	}
 	if (!consumeLoginAttemptRequest(event, attempt.id)) {
-		return authError(401, 'Sign-in attempt expired. Enter your password again.', {
+		return authError(401, 'Sign-in attempt expired. Sign in again.', {
 			modal: 'login'
 		});
 	}
-	return completeLogin(event, user);
+	return authSuccess(completeLogin(event, user));
 }
 
 export async function PATCH(event: RequestEvent) {
@@ -132,7 +137,7 @@ export async function PATCH(event: RequestEvent) {
 
 	const { attempt, user } = validateLoginAttemptRequest(event);
 	if (attempt === null) {
-		return authError(401, 'Sign-in attempt expired. Enter your password again.', {
+		return authError(401, 'Sign-in attempt expired. Sign in again.', {
 			modal: 'login'
 		});
 	}
@@ -152,10 +157,5 @@ export async function PATCH(event: RequestEvent) {
 	if (recoveredUser === null) {
 		return authError(401, 'Account is no longer available.', { modal: 'login' });
 	}
-	return completeLogin(event, recoveredUser);
-}
-
-function completeLogin(event: RequestEvent, user: AuthUser): Response {
-	createSessionAndSetCookie(event, user.id, { twoFactorVerified: true });
-	return authSuccess(!user.emailVerified ? 'verify-email' : !user.registeredTOTP ? 'setup' : null);
+	return authSuccess(completeLogin(event, recoveredUser));
 }

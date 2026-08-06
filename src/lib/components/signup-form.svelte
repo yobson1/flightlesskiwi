@@ -10,19 +10,28 @@
 	import { authFormRequest, AuthAPIError } from '$lib/client/auth-api';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import AuthSidePanel from '$lib/components/auth-side-panel.svelte';
+	import OAuthProviderButtons from '$lib/components/oauth-provider-buttons.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { cn } from '$lib/utils.js';
 	import type { AuthModalView } from '$lib/types/auth';
+	import type { OAuthProvider } from '$lib/types/oauth';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
+		oauthProviders?: OAuthProvider[];
 		onSwitchToLogin?: () => void;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	let { class: className, onSwitchToLogin, onComplete, ...restProps }: Props = $props();
+	let {
+		class: className,
+		oauthProviders = [],
+		onSwitchToLogin,
+		onComplete,
+		...restProps
+	}: Props = $props();
 
 	const id = $props.id();
 	let message = $state('');
@@ -138,20 +147,7 @@
 					{/if}
 				</Button>
 			</Field.Field>
-			<Field.Separator class="*:data-[slot=field-separator-content]:bg-card">
-				OAuth providers coming soon
-			</Field.Separator>
-			<Field.Field class="grid grid-cols-3 gap-4">
-				<Button variant="outline" type="button" disabled aria-label="Apple sign-up coming soon">
-					<span aria-hidden="true" class="font-semibold">A</span>
-				</Button>
-				<Button variant="outline" type="button" disabled aria-label="Google sign-up coming soon">
-					<span aria-hidden="true" class="font-semibold">G</span>
-				</Button>
-				<Button variant="outline" type="button" disabled aria-label="Meta sign-up coming soon">
-					<span aria-hidden="true" class="font-semibold">M</span>
-				</Button>
-			</Field.Field>
+			<OAuthProviderButtons providers={oauthProviders} verb="Sign up" />
 			<Field.Description class="text-center">
 				Already have an account?
 				<button
