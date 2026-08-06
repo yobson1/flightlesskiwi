@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
+import { isSessionRecentlyReauthenticated } from '$lib/server/auth';
 import { getClientIP } from '$lib/server/auth/api';
 import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
 import {
@@ -8,7 +9,7 @@ import {
 	OAuthConfigurationError
 } from '$lib/server/auth/oauth';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { isOAuthProvider } from '$lib/types/oauth';
+import { createOAuthErrorRedirect, isOAuthProvider } from '$lib/types/oauth';
 import type { RequestEvent } from './$types';
 
 const authorizationBucket = new RefillingTokenBucket<string>('oauth-authorization-ip', 20, 60);
@@ -21,7 +22,8 @@ export async function GET(event: RequestEvent) {
 		return new Response('Too many requests', { status: 429 });
 	}
 
-	const flow = event.url.searchParams.get('flow') === 'reauth' ? 'reauth' : 'login';
+	const flowParameter = event.url.searchParams.get('flow');
+	const flow = flowParameter === 'reauth' || flowParameter === 'link' ? flowParameter : 'login';
 	let returnTo: string | null;
 	if (flow === 'reauth') {
 		if (event.locals.session === null || event.locals.user === null) {
@@ -34,6 +36,32 @@ export async function GET(event: RequestEvent) {
 			return new Response('Use a configured second factor to re-authenticate', { status: 403 });
 		}
 		returnTo = normalizeOAuthReturnTo(event.url.searchParams.get('return_to')) ?? '/settings';
+	} else if (flow === 'link') {
+		returnTo = normalizeOAuthReturnTo(event.url.searchParams.get('return_to')) ?? '/settings';
+		if (event.locals.session === null || event.locals.user === null) {
+			redirect(
+				303,
+				createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
+			);
+		}
+		if (
+			!event.locals.user.emailVerified ||
+			(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+		) {
+			redirect(303, createOAuthErrorRedirect(returnTo, 'factor', event.params.provider, event.url));
+		}
+		if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+			redirect(
+				303,
+				createOAuthErrorRedirect(returnTo, 'reauthentication', event.params.provider, event.url)
+			);
+		}
+		if (event.locals.user.oauthProviders.includes(event.params.provider)) {
+			redirect(
+				303,
+				createOAuthErrorRedirect(returnTo, 'connection-exists', event.params.provider, event.url)
+			);
+		}
 	} else {
 		if (event.locals.session !== null) redirect(303, '/');
 		invalidateLoginAttemptRequest(event);

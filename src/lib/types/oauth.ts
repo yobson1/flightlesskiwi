@@ -6,8 +6,11 @@ export const OAUTH_ERROR_CODES = [
 	'rejected',
 	'unverified-email',
 	'session',
+	'reauthentication',
 	'factor',
 	'identity',
+	'connection-in-use',
+	'connection-exists',
 	'provider',
 	'failed'
 ] as const;
@@ -41,6 +44,28 @@ export function canRemoveOAuthConnection(
 	return hasPassword || hasPasskey || connectionCount > 1;
 }
 
+export function createOAuthErrorRedirect(
+	path: string,
+	error: OAuthErrorCode,
+	provider: OAuthProvider | null,
+	baseURL: URL
+): string {
+	const url = new URL(path, baseURL);
+	url.searchParams.set('oauth_error', error);
+	if (provider !== null) url.searchParams.set('oauth_provider', provider);
+	return `${url.pathname}${url.search}${url.hash}`;
+}
+
+export function createOAuthConnectedRedirect(
+	path: string,
+	provider: OAuthProvider,
+	baseURL: URL
+): string {
+	const url = new URL(path, baseURL);
+	url.searchParams.set('oauth_connected', provider);
+	return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export function getOAuthErrorMessage(code: OAuthErrorCode, provider: OAuthProvider | null): string {
 	const providerName = provider === null ? 'OAuth provider' : getOAuthProviderName(provider);
 	switch (code) {
@@ -56,10 +81,16 @@ export function getOAuthErrorMessage(code: OAuthErrorCode, provider: OAuthProvid
 			return `${providerName} did not provide a verified email address.`;
 		case 'session':
 			return 'Your session expired. Sign in again before continuing.';
+		case 'reauthentication':
+			return 'Confirm your identity again before connecting an OAuth account.';
 		case 'factor':
 			return 'Use your authenticator or passkey to confirm this change.';
 		case 'identity':
 			return `That ${providerName} account is not linked to your account.`;
+		case 'connection-in-use':
+			return `That ${providerName} account is already connected to another flightlesskiwi account.`;
+		case 'connection-exists':
+			return `Your account already has a ${providerName} connection.`;
 		case 'provider':
 			return 'That OAuth provider is not supported.';
 		case 'failed':

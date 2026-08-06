@@ -1,29 +1,46 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
-import { rotateSessionAfterReauthentication } from '$lib/server/auth';
+import {
+	isSessionRecentlyReauthenticated,
+	rotateSessionAfterReauthentication
+} from '$lib/server/auth';
 import { completeLoginFirstFactor } from '$lib/server/auth/login';
 import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
 import { OAuthCallbackError, validateOAuthCallback } from '$lib/server/auth/oauth';
-import { createOrLinkOAuthUser, getUserFromOAuthAccount } from '$lib/server/auth/user';
+import {
+	createOrLinkOAuthUser,
+	getUserFromOAuthAccount,
+	linkUserOAuthAccount
+} from '$lib/server/auth/user';
 import { formatOAuthError } from '$lib/server/oauth';
-import { isOAuthProvider, type OAuthErrorCode, type OAuthProvider } from '$lib/types/oauth';
+import {
+	createOAuthConnectedRedirect,
+	createOAuthErrorRedirect,
+	isOAuthProvider,
+	type OAuthErrorCode
+} from '$lib/types/oauth';
 import type { RequestEvent } from './$types';
 
 export async function GET(event: RequestEvent) {
 	if (!isOAuthProvider(event.params.provider)) {
-		redirect(303, addOAuthError('/#login', 'provider', null, event.url));
+		redirect(303, createOAuthErrorRedirect('/#login', 'provider', null, event.url));
 	}
 
+	let errorDestination = '/#login';
 	try {
 		const callback = await validateOAuthCallback(event, event.params.provider);
+		errorDestination = getOAuthDestination(callback.flow, callback.returnTo);
 		if (callback.flow === 'reauth') {
 			if (event.locals.session === null || event.locals.user === null) {
-				redirect(303, addOAuthError('/#login', 'session', event.params.provider, event.url));
+				redirect(
+					303,
+					createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
+				);
 			}
 			if (event.locals.user.registeredTOTP || event.locals.user.registeredPasskey) {
 				redirect(
 					303,
-					addOAuthError(
+					createOAuthErrorRedirect(
 						callback.returnTo ?? '/settings',
 						'factor',
 						event.params.provider,
@@ -35,7 +52,7 @@ export async function GET(event: RequestEvent) {
 			if (linkedUser?.id !== event.locals.user.id) {
 				redirect(
 					303,
-					addOAuthError(
+					createOAuthErrorRedirect(
 						callback.returnTo ?? '/settings',
 						'identity',
 						event.params.provider,
@@ -45,6 +62,70 @@ export async function GET(event: RequestEvent) {
 			}
 			rotateSessionAfterReauthentication(event, event.locals.session);
 			redirect(303, callback.returnTo ?? '/settings');
+		}
+		if (callback.flow === 'link') {
+			const destination = callback.returnTo ?? '/settings';
+			if (event.locals.session === null || event.locals.user === null) {
+				redirect(
+					303,
+					createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
+				);
+			}
+			if (
+				!event.locals.user.emailVerified ||
+				(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
+			) {
+				redirect(
+					303,
+					createOAuthErrorRedirect(destination, 'factor', event.params.provider, event.url)
+				);
+			}
+			if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+				redirect(
+					303,
+					createOAuthErrorRedirect(
+						destination,
+						'reauthentication',
+						event.params.provider,
+						event.url
+					)
+				);
+			}
+
+			const result = linkUserOAuthAccount(
+				event.locals.user.id,
+				event.params.provider,
+				callback.profile.id
+			);
+			if (result === 'provider-in-use') {
+				redirect(
+					303,
+					createOAuthErrorRedirect(
+						destination,
+						'connection-in-use',
+						event.params.provider,
+						event.url
+					)
+				);
+			}
+			if (result === 'provider-connected') {
+				redirect(
+					303,
+					createOAuthErrorRedirect(
+						destination,
+						'connection-exists',
+						event.params.provider,
+						event.url
+					)
+				);
+			}
+			if (result === 'user-not-found') {
+				redirect(
+					303,
+					createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
+				);
+			}
+			redirect(303, createOAuthConnectedRedirect(destination, event.params.provider, event.url));
 		}
 		if (event.locals.session !== null) redirect(303, '/');
 
@@ -64,25 +145,25 @@ export async function GET(event: RequestEvent) {
 					oauthCause
 				);
 			}
-			const destination =
-				cause.flow === 'reauth' ? (cause.returnTo ?? '/settings') : (cause.returnTo ?? '/#login');
-			redirect(303, addOAuthError(destination, cause.code, event.params.provider, event.url));
+			const destination = getOAuthDestination(cause.flow, cause.returnTo);
+			redirect(
+				303,
+				createOAuthErrorRedirect(destination, cause.code, event.params.provider, event.url)
+			);
 		}
 		logError(`Failed to complete ${event.params.provider} OAuth`, cause);
-		redirect(303, addOAuthError('/#login', 'failed', event.params.provider, event.url));
+		redirect(
+			303,
+			createOAuthErrorRedirect(errorDestination, 'failed', event.params.provider, event.url)
+		);
 	}
 }
 
-function addOAuthError(
-	path: string,
-	error: OAuthErrorCode,
-	provider: OAuthProvider | null,
-	baseURL: URL
+function getOAuthDestination(
+	flow: import('$lib/server/auth/oauth').OAuthFlow,
+	returnTo: string | null
 ): string {
-	const url = new URL(path, baseURL);
-	url.searchParams.set('oauth_error', error);
-	if (provider !== null) url.searchParams.set('oauth_provider', provider);
-	return `${url.pathname}${url.search}${url.hash}`;
+	return flow === 'login' ? (returnTo ?? '/#login') : (returnTo ?? '/settings');
 }
 
 function shouldLogOAuthError(error: OAuthErrorCode): boolean {

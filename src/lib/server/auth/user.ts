@@ -178,6 +178,44 @@ export function createOrLinkOAuthUser(
 	return user;
 }
 
+export function linkUserOAuthAccount(
+	userId: string,
+	provider: OAuthProvider,
+	providerUserId: string
+): 'linked' | 'already-linked' | 'provider-in-use' | 'provider-connected' | 'user-not-found' {
+	return db.transaction((tx) => {
+		const user = tx
+			.select({ id: userTable.id })
+			.from(userTable)
+			.where(eq(userTable.id, userId))
+			.get();
+		if (user === undefined) return 'user-not-found';
+
+		const linkedIdentity = tx
+			.select({ userId: oauthAccount.userId })
+			.from(oauthAccount)
+			.where(
+				and(eq(oauthAccount.provider, provider), eq(oauthAccount.providerUserId, providerUserId))
+			)
+			.get();
+		if (linkedIdentity !== undefined) {
+			return linkedIdentity.userId === userId ? 'already-linked' : 'provider-in-use';
+		}
+
+		const existingProvider = tx
+			.select({ providerUserId: oauthAccount.providerUserId })
+			.from(oauthAccount)
+			.where(and(eq(oauthAccount.userId, userId), eq(oauthAccount.provider, provider)))
+			.get();
+		if (existingProvider !== undefined) return 'provider-connected';
+
+		tx.insert(oauthAccount)
+			.values({ provider, providerUserId, userId, createdAt: new Date() })
+			.run();
+		return 'linked';
+	});
+}
+
 export function deleteUserOAuthAccount(
 	userId: string,
 	provider: OAuthProvider

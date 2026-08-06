@@ -62,6 +62,10 @@
 			data.user.oauthProviders.length
 		)
 	);
+	const connectionProviders = $derived([
+		...data.user.oauthProviders,
+		...data.oauthProviders.filter((provider) => !data.user.oauthProviders.includes(provider))
+	]);
 
 	function settingsSubmit(
 		successMessage: string,
@@ -110,6 +114,19 @@
 
 	function requestPasskeySetup() {
 		void authModal.open('passkey-register');
+	}
+
+	function requestOAuthConnection(provider: OAuthProvider) {
+		const connect = () => {
+			window.location.assign(
+				`/auth/oauth/${provider}?flow=link&return_to=${encodeURIComponent('/settings')}`
+			);
+		};
+		if (recentlyReauthenticated) {
+			connect();
+			return;
+		}
+		requestReauthentication(connect);
 	}
 
 	function requestAccountDeletion() {
@@ -360,8 +377,9 @@
 
 		<Card.Root class="py-0">
 			<Card.Content class="p-0">
-				{#if data.user.oauthProviders.length > 0}
-					{#each data.user.oauthProviders as provider, index (provider)}
+				{#if connectionProviders.length > 0}
+					{#each connectionProviders as provider, index (provider)}
+						{@const connected = data.user.oauthProviders.includes(provider)}
 						<div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
 							<div class="flex min-w-0 items-start gap-3">
 								<div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -370,10 +388,14 @@
 								<div>
 									<div class="flex flex-wrap items-center gap-2">
 										<h3 class="font-semibold">{getOAuthProviderName(provider)}</h3>
-										<Badge variant="secondary">Connected</Badge>
+										<Badge variant={connected ? 'secondary' : 'outline'}>
+											{connected ? 'Connected' : 'Not connected'}
+										</Badge>
 									</div>
 									<p class="mt-1 text-sm text-muted-foreground">
-										{#if oauthConnectionRemovable}
+										{#if !connected}
+											Add {getOAuthProviderName(provider)} as a sign-in method.
+										{:else if oauthConnectionRemovable}
 											Use your {getOAuthProviderName(provider)} account as a sign-in method.
 										{:else}
 											Your only sign-in method. Set a password or add a passkey before removing it.
@@ -382,64 +404,71 @@
 								</div>
 							</div>
 
-							<form
-								id="disconnect-oauth-{provider}"
-								class="hidden"
-								method="POST"
-								action="/settings?/disconnect_oauth"
-								use:enhance={settingsSubmit('Connection removed', () => {
-									removeOAuthProvider = null;
-								})}
-							>
-								<input type="hidden" name="provider" value={provider} />
-							</form>
-							<AlertDialog.Root
-								open={removeOAuthProvider === provider}
-								onOpenChange={(open) => {
-									removeOAuthProvider = open ? provider : null;
-								}}
-							>
-								<AlertDialog.Trigger>
-									{#snippet child({ props })}
-										<Button
-											variant="outline"
-											{...props}
-											disabled={!oauthConnectionRemovable}
-											aria-label="Disconnect {getOAuthProviderName(provider)}"
-										>
-											<Trash2Icon />
-											Disconnect
-										</Button>
-									{/snippet}
-								</AlertDialog.Trigger>
-								<AlertDialog.Content>
-									<AlertDialog.Header>
-										<AlertDialog.Title>
-											Disconnect {getOAuthProviderName(provider)}?
-										</AlertDialog.Title>
-										<AlertDialog.Description>
-											You will no longer be able to sign in with this {getOAuthProviderName(
-												provider
-											)} account. You can reconnect it later by signing in with the provider again.
-										</AlertDialog.Description>
-									</AlertDialog.Header>
-									<AlertDialog.Footer>
-										<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-										<Button
-											variant="destructive"
-											onclick={() => submitForm(`disconnect-oauth-${provider}`)}
-										>
-											Disconnect
-										</Button>
-									</AlertDialog.Footer>
-								</AlertDialog.Content>
-							</AlertDialog.Root>
+							{#if connected}
+								<form
+									id="disconnect-oauth-{provider}"
+									class="hidden"
+									method="POST"
+									action="/settings?/disconnect_oauth"
+									use:enhance={settingsSubmit('Connection removed', () => {
+										removeOAuthProvider = null;
+									})}
+								>
+									<input type="hidden" name="provider" value={provider} />
+								</form>
+								<AlertDialog.Root
+									open={removeOAuthProvider === provider}
+									onOpenChange={(open) => {
+										removeOAuthProvider = open ? provider : null;
+									}}
+								>
+									<AlertDialog.Trigger>
+										{#snippet child({ props })}
+											<Button
+												variant="outline"
+												{...props}
+												disabled={!oauthConnectionRemovable}
+												aria-label="Disconnect {getOAuthProviderName(provider)}"
+											>
+												<Trash2Icon />
+												Disconnect
+											</Button>
+										{/snippet}
+									</AlertDialog.Trigger>
+									<AlertDialog.Content>
+										<AlertDialog.Header>
+											<AlertDialog.Title>
+												Disconnect {getOAuthProviderName(provider)}?
+											</AlertDialog.Title>
+											<AlertDialog.Description>
+												You will no longer be able to sign in with this {getOAuthProviderName(
+													provider
+												)} account. You can reconnect it later by signing in with the provider again.
+											</AlertDialog.Description>
+										</AlertDialog.Header>
+										<AlertDialog.Footer>
+											<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+											<Button
+												variant="destructive"
+												onclick={() => submitForm(`disconnect-oauth-${provider}`)}
+											>
+												Disconnect
+											</Button>
+										</AlertDialog.Footer>
+									</AlertDialog.Content>
+								</AlertDialog.Root>
+							{:else}
+								<Button variant="outline" onclick={() => requestOAuthConnection(provider)}>
+									<PlusIcon />
+									Connect
+								</Button>
+							{/if}
 						</div>
-						{#if index < data.user.oauthProviders.length - 1}<Separator />{/if}
+						{#if index < connectionProviders.length - 1}<Separator />{/if}
 					{/each}
 				{:else}
 					<div class="p-5">
-						<p class="text-sm text-muted-foreground">No OAuth accounts are connected.</p>
+						<p class="text-sm text-muted-foreground">No OAuth providers are available.</p>
 					</div>
 				{/if}
 			</Card.Content>

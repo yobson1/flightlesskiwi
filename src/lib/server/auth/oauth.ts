@@ -169,7 +169,7 @@ function consumeOAuthState(event: RequestEvent, provider: OAuthProvider): OAuthS
 			typeof state.state !== 'string' ||
 			typeof state.codeVerifier !== 'string' ||
 			(state.nonce !== undefined && typeof state.nonce !== 'string') ||
-			(state.flow !== 'login' && state.flow !== 'reauth') ||
+			(state.flow !== 'login' && state.flow !== 'reauth' && state.flow !== 'link') ||
 			(state.returnTo !== null && typeof state.returnTo !== 'string') ||
 			typeof state.expiresAt !== 'number' ||
 			state.expiresAt <= Date.now()
@@ -240,4 +240,4 @@ export interface OAuthCallback {
 	returnTo: string | null;
 }
 
-export type OAuthFlow = 'login' | 'reauth';
+export type OAuthFlow = 'login' | 'reauth' | 'link';

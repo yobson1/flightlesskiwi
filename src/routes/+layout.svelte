@@ -26,7 +26,12 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import Wordmark from '$lib/components/wordmark.svelte';
 	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
-	import { getOAuthErrorMessage, isOAuthErrorCode, isOAuthProvider } from '$lib/types/oauth';
+	import {
+		getOAuthErrorMessage,
+		getOAuthProviderName,
+		isOAuthErrorCode,
+		isOAuthProvider
+	} from '$lib/types/oauth';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutProps } from './$types';
 
@@ -45,6 +50,7 @@
 	const currentYear = new Date().getFullYear();
 	const turnstileEnabled = untrack(() => data.turnstileSiteKey !== null);
 	const oauthErrorMessage = untrack(() => readOAuthErrorMessage(page.url));
+	const oauthConnectedMessage = untrack(() => readOAuthConnectedMessage(page.url));
 
 	configureAuthTurnstile(turnstileEnabled);
 	setupNavigationCursor();
@@ -67,25 +73,30 @@
 
 	onMount(() => {
 		const fragmentView = parseAuthModalHash(window.location.hash);
-		if (oauthErrorMessage !== null) toast.error(oauthErrorMessage);
+		if (oauthErrorMessage !== null) {
+			toast.error(oauthErrorMessage);
+		} else if (oauthConnectedMessage !== null) {
+			toast.success(oauthConnectedMessage);
+		}
 		if (fragmentView === null && authRequired && authView !== null) {
 			returnHash = window.location.hash;
 			setModalFragment(authView);
 		} else {
 			syncModalFromHash();
 		}
-		const consumeOAuthErrorTimer = window.setTimeout(consumeOAuthError, 0);
+		const consumeOAuthFeedbackTimer = window.setTimeout(consumeOAuthFeedback, 0);
 		window.addEventListener('hashchange', syncModalFromHash);
 		return () => {
-			window.clearTimeout(consumeOAuthErrorTimer);
+			window.clearTimeout(consumeOAuthFeedbackTimer);
 			window.removeEventListener('hashchange', syncModalFromHash);
 		};
 	});
 
-	function consumeOAuthError() {
+	function consumeOAuthFeedback() {
 		const url = new SvelteURL(window.location.href);
-		if (!url.searchParams.has('oauth_error')) return;
+		if (!url.searchParams.has('oauth_error') && !url.searchParams.has('oauth_connected')) return;
 		url.searchParams.delete('oauth_error');
+		url.searchParams.delete('oauth_connected');
 		url.searchParams.delete('oauth_provider');
 		replaceState(resolve(`${url.pathname}${url.search}${url.hash}` as '/'), page.state);
 	}
@@ -97,6 +108,13 @@
 		const provider =
 			providerValue !== null && isOAuthProvider(providerValue) ? providerValue : null;
 		return getOAuthErrorMessage(code, provider);
+	}
+
+	function readOAuthConnectedMessage(url: URL): string | null {
+		const provider = url.searchParams.get('oauth_connected');
+		return provider !== null && isOAuthProvider(provider)
+			? `${getOAuthProviderName(provider)} connected as a sign-in method.`
+			: null;
 	}
 
 	function requiredAuthModal(auth: ClientAuthState | null): AuthModalView | null {

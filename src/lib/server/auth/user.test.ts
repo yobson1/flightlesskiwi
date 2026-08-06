@@ -11,7 +11,8 @@ const {
 	createOrLinkOAuthUser,
 	deleteUserOAuthAccount,
 	getUserFromOAuthAccount,
-	getUserPasswordHash
+	getUserPasswordHash,
+	linkUserOAuthAccount
 } = await import('./user');
 
 beforeEach(() => {
@@ -113,6 +114,33 @@ describe('OAuth users', () => {
 
 		expect(deleteUserOAuthAccount('oauth-only', 'twitch')).toBe('last-sign-in-method');
 		expect(testDb.select().from(schema.oauthAccount).all()).toHaveLength(1);
+	});
+
+	test('links a provider directly to the authenticated user without matching email', () => {
+		insertUser('target-user', 'local@example.com', 'password-hash', true, 'Target User');
+
+		expect(linkUserOAuthAccount('target-user', 'github', 'github-user')).toBe('linked');
+		expect(getUserFromOAuthAccount('github', 'github-user')?.id).toBe('target-user');
+	});
+
+	test('does not move a provider identity linked to another user', () => {
+		insertUser('first-user', 'first@example.com', 'password-hash', true, 'First User');
+		insertUser('second-user', 'second@example.com', 'password-hash', true, 'Second User');
+		insertOAuthAccount('first-user', 'discord', 'discord-user');
+
+		expect(linkUserOAuthAccount('second-user', 'discord', 'discord-user')).toBe('provider-in-use');
+		expect(getUserFromOAuthAccount('discord', 'discord-user')?.id).toBe('first-user');
+	});
+
+	test('does not replace an existing connection for the same provider', () => {
+		insertUser('connected-user', 'connected@example.com', 'password-hash', true, 'Connected');
+		insertOAuthAccount('connected-user', 'twitch', 'first-twitch-user');
+
+		expect(linkUserOAuthAccount('connected-user', 'twitch', 'second-twitch-user')).toBe(
+			'provider-connected'
+		);
+		expect(getUserFromOAuthAccount('twitch', 'first-twitch-user')?.id).toBe('connected-user');
+		expect(getUserFromOAuthAccount('twitch', 'second-twitch-user')).toBeNull();
 	});
 
 	test('removes an OAuth connection when a password remains', () => {
