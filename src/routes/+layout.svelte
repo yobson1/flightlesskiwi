@@ -271,7 +271,7 @@
 <ModeWatcher />
 <Toaster richColors position="top-right" />
 
-<div class="flex min-h-screen flex-col">
+<div class="flex min-h-dvh flex-col">
 	<header class="flex w-full justify-center bg-background/90 backdrop-blur">
 		<nav class="mx-2 flex w-full max-w-7xl min-w-80 items-center justify-between py-2">
 			<a href="/">
