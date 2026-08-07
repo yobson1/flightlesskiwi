@@ -592,8 +592,9 @@
 								<AlertDialog.Header>
 									<AlertDialog.Title>Remove authenticator?</AlertDialog.Title>
 									<AlertDialog.Description>
-										Authenticator codes will stop working immediately. Make sure you still have a
-										passkey or another way to access the account.
+										Authenticator codes and your existing recovery code will stop working
+										immediately. Make sure you still have a passkey or another way to access the
+										account.
 									</AlertDialog.Description>
 								</AlertDialog.Header>
 								<AlertDialog.Footer>

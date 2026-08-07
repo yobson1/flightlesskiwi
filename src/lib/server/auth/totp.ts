@@ -4,7 +4,7 @@ import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import { TOTP_CODE_LENGTH } from '$lib/auth-constants';
 import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import { db } from '$lib/server/db';
-import { totpCredential } from '$lib/server/db/schema';
+import { totpCredential, user as userTable } from '$lib/server/db/schema';
 import { decrypt, encrypt } from '$lib/server/auth/encryption';
 import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 import { verifyTOTPKey } from '$lib/server/auth/totp-code';
@@ -77,8 +77,11 @@ export function updateUserTOTPKey(userId: string, key: Uint8Array, lastUsedCount
 		.run();
 }
 
-export function deleteUserTOTPKey(userId: string): void {
-	db.delete(totpCredential).where(eq(totpCredential.userId, userId)).run();
+export function deleteUserTOTP(userId: string): void {
+	db.transaction((tx) => {
+		tx.delete(totpCredential).where(eq(totpCredential.userId, userId)).run();
+		tx.update(userTable).set({ recoveryCodeHash: null }).where(eq(userTable.id, userId)).run();
+	});
 }
 
 export function setTOTPSetupCookie(event: RequestEvent, userId: string, key: Uint8Array): void {

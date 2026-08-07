@@ -38,7 +38,7 @@ import {
 } from '$lib/server/auth/password-reset';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
 import { deletePendingRecoveryCodeCookie } from '$lib/server/auth/recovery-code';
-import { deleteUserTOTPKey, deleteTOTPSetupCookie, totpUpdateBucket } from '$lib/server/auth/totp';
+import { deleteUserTOTP, deleteTOTPSetupCookie, totpUpdateBucket } from '$lib/server/auth/totp';
 import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
@@ -269,7 +269,8 @@ async function disconnectTOTP(event: RequestEvent) {
 	if (!totpUpdateBucket.consume(event.locals.user.id, 1)) {
 		return fail(429);
 	}
-	deleteUserTOTPKey(event.locals.user.id);
+	deleteUserTOTP(event.locals.user.id);
+	deletePendingRecoveryCodeCookie(event);
 	return {};
 }
 

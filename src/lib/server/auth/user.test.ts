@@ -1,10 +1,12 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import * as schema from '$lib/server/db/schema';
 import { createTestDatabase } from '$lib/server/test-db';
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
 
+mock.module('$app/env', () => ({ dev: true }));
 mock.module('$lib/server/db', () => ({ db: testDb }));
 mock.module('$lib/server/auth/encryption', () => ({
 	encrypt: (value: Uint8Array) => Buffer.from(value),
@@ -21,6 +23,7 @@ const {
 	getUserPasswordHash,
 	linkUserOAuthAccount
 } = await import('./user');
+const { deleteUserTOTP } = await import('./totp');
 
 beforeEach(() => {
 	testDb.delete(schema.oauthAccount).run();
@@ -237,6 +240,26 @@ describe('OAuth users', () => {
 			status: 'deleted',
 			tokens: oauthTokens('access-token', 'refresh-token')
 		});
+	});
+});
+
+describe('TOTP removal', () => {
+	test('also removes the recovery code', () => {
+		insertUser('totp-user', 'totp@example.com', 'password-hash', true, 'TOTP User');
+		testDb
+			.update(schema.user)
+			.set({ recoveryCodeHash: 'recovery-code-hash' })
+			.where(eq(schema.user.id, 'totp-user'))
+			.run();
+		testDb
+			.insert(schema.totpCredential)
+			.values({ userId: 'totp-user', encryptedKey: Buffer.from('totp-key') })
+			.run();
+
+		deleteUserTOTP('totp-user');
+
+		expect(testDb.select().from(schema.totpCredential).all()).toHaveLength(0);
+		expect(testDb.select().from(schema.user).get()?.recoveryCodeHash).toBeNull();
 	});
 });
 
