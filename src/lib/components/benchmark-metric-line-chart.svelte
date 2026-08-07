@@ -175,6 +175,7 @@
 				nameGap: 42,
 				nameLocation: 'middle',
 				nameRotate: 90,
+				scale: true,
 				type: 'value'
 			}
 		};

@@ -112,7 +112,7 @@ export function getBenchmarkEChartZoomablePlotOption(
 	return {
 		dataZoom: [
 			{
-				filterMode: 'none',
+				filterMode: 'filter',
 				moveOnMouseMove: true,
 				moveOnMouseWheel: false,
 				type: 'inside',
@@ -127,6 +127,7 @@ export function getBenchmarkEChartZoomablePlotOption(
 					lineStyle: { color: theme.mutedForeground, opacity: 0.55 }
 				},
 				fillerColor: theme.border,
+				filterMode: 'filter',
 				handleStyle: {
 					borderColor: theme.mutedForeground,
 					color: theme.background
