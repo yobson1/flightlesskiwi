@@ -1,10 +1,18 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { passwordResetSession as sessionTable } from '$lib/server/db/schema';
+import {
+	loginAttempt,
+	passkeyCredential,
+	passwordResetSession as sessionTable,
+	session as authSession,
+	totpCredential,
+	user as userTable
+} from '$lib/server/db/schema';
 import { EMAIL_CODE_TTL_MS } from '$lib/server/auth/email';
 import { hashAuthCode } from '$lib/server/auth/encryption';
+import { hashPassword } from '$lib/server/auth/password';
 import { getUserById, type AuthUser } from '$lib/server/auth/user';
 import {
 	constantTimeEqual,
@@ -98,6 +106,60 @@ export function setPasswordResetSessionAs2FAVerified(sessionId: string): void {
 		.set({ twoFactorVerified: true })
 		.where(eq(sessionTable.id, sessionId))
 		.run();
+}
+
+export async function completePasswordReset(sessionId: string, password: string): Promise<boolean> {
+	const passwordHash = await hashPassword(password);
+	const now = new Date();
+
+	return db.transaction((tx) => {
+		const reset = tx
+			.select({
+				id: sessionTable.id,
+				userId: sessionTable.userId,
+				email: sessionTable.email,
+				expiresAt: sessionTable.expiresAt,
+				emailVerified: sessionTable.emailVerified,
+				twoFactorVerified: sessionTable.twoFactorVerified
+			})
+			.from(sessionTable)
+			.where(eq(sessionTable.id, sessionId))
+			.get();
+		if (!reset || reset.expiresAt <= now || !reset.emailVerified) return false;
+
+		const user = tx
+			.select({ email: userTable.email, emailVerified: userTable.emailVerified })
+			.from(userTable)
+			.where(eq(userTable.id, reset.userId))
+			.get();
+		if (!user || !user.emailVerified || user.email !== reset.email) return false;
+
+		const registered2FA =
+			tx
+				.select({ userId: totpCredential.userId })
+				.from(totpCredential)
+				.where(eq(totpCredential.userId, reset.userId))
+				.get() !== undefined ||
+			tx
+				.select({ id: passkeyCredential.id })
+				.from(passkeyCredential)
+				.where(eq(passkeyCredential.userId, reset.userId))
+				.get() !== undefined;
+		if (registered2FA && !reset.twoFactorVerified) return false;
+
+		const consumed = tx
+			.delete(sessionTable)
+			.where(and(eq(sessionTable.id, reset.id), eq(sessionTable.userId, reset.userId)))
+			.returning({ id: sessionTable.id })
+			.get();
+		if (!consumed) return false;
+
+		tx.update(userTable).set({ passwordHash }).where(eq(userTable.id, reset.userId)).run();
+		tx.delete(authSession).where(eq(authSession.userId, reset.userId)).run();
+		tx.delete(loginAttempt).where(eq(loginAttempt.userId, reset.userId)).run();
+		tx.delete(sessionTable).where(eq(sessionTable.userId, reset.userId)).run();
+		return true;
+	});
 }
 
 export function invalidateUserPasswordResetSessions(userId: string): void {

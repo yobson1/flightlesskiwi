@@ -17,6 +17,7 @@ import {
 } from '$lib/server/auth/email';
 import { verifyPasswordStrength } from '$lib/server/auth/password';
 import {
+	completePasswordReset,
 	createPasswordResetSession,
 	deletePasswordResetSessionTokenCookie,
 	getPasswordResetState,
@@ -34,7 +35,6 @@ import {
 	getUserFromEmail,
 	normalizeEmail,
 	setUserAsEmailVerifiedIfEmailMatches,
-	updateUserPassword,
 	verifyEmailInput,
 	type AuthUser
 } from '$lib/server/auth/user';
@@ -233,8 +233,10 @@ async function updatePassword(event: RequestEvent, formData: FormData): Promise<
 		);
 	}
 
-	await updateUserPassword(user.id, password);
-	invalidateUserPasswordResetSessions(user.id);
+	if (!(await completePasswordReset(session.id, password))) {
+		deletePasswordResetSessionTokenCookie(event);
+		return authError(401, 'Password reset expired. Start again.', { modal: 'password-reset' });
+	}
 	createSessionAndSetCookie(event, user.id);
 	deletePasswordResetSessionTokenCookie(event);
 	return authSuccess(null, { message: 'Your password has been updated.' });
