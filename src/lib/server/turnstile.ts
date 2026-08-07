@@ -1,4 +1,6 @@
-import { TURNSTILE_SECRET, TURNSTILE_SITE_KEY } from '$app/env/private';
+import { ORIGIN, TURNSTILE_SECRET, TURNSTILE_SITE_KEY } from '$app/env/private';
+import { TURNSTILE_ACTION } from '$lib/turnstile';
+import { isRecord } from '$lib/utils';
 
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
@@ -29,8 +31,14 @@ export async function verifyTurnstileToken(
 			})
 		});
 		if (!response.ok) throw new Error(`siteverify ${response.status}`);
-		const result = (await response.json()) as { success?: unknown };
-		return result.success === true;
+		const result = (await response.json()) as unknown;
+		const expectedHostname = new URL(ORIGIN!).hostname;
+		return (
+			isRecord(result) &&
+			result.success === true &&
+			result.action === TURNSTILE_ACTION &&
+			result.hostname === expectedHostname
+		);
 	} catch {
 		return false;
 	}

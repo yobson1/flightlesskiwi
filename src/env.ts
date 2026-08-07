@@ -5,6 +5,8 @@ import { decodeBase64 } from '$lib/encoding';
 
 const nonEmptyString = v.pipe(v.string(), v.nonEmpty());
 const requiredAtRuntime = building ? v.optional(nonEmptyString) : nonEmptyString;
+const url = v.pipe(nonEmptyString, v.url());
+const requiredUrlAtRuntime = building ? v.optional(url) : url;
 const httpHeaderName = v.pipe(
 	nonEmptyString,
 	v.regex(/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/, 'Must be a valid HTTP header name')
@@ -32,6 +34,10 @@ const timeZone = v.pipe(
 );
 
 export const variables = defineEnvVars({
+	ORIGIN: {
+		schema: requiredUrlAtRuntime,
+		description: 'Public origin used by SvelteKit and security checks'
+	},
 	DATABASE_URL: { schema: requiredAtRuntime },
 	BENCHMARK_UPLOAD_DIR: {
 		schema: v.optional(nonEmptyString, 'uploads/benchmarks')
@@ -76,7 +82,7 @@ export const variables = defineEnvVars({
 	WEBAUTHN_RP_ID: { schema: requiredAtRuntime },
 	WEBAUTHN_RP_NAME: { schema: requiredAtRuntime },
 	WEBAUTHN_ORIGIN: {
-		schema: building ? v.optional(v.pipe(nonEmptyString, v.url())) : v.pipe(nonEmptyString, v.url())
+		schema: requiredUrlAtRuntime
 	},
 	GITHUB_OAUTH_CLIENT_ID: { schema: v.optional(nonEmptyString) },
 	GITHUB_OAUTH_CLIENT_SECRET: { schema: v.optional(nonEmptyString) },

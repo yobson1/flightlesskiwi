@@ -1,5 +1,29 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
+import {
+	configureAuthTurnstile,
+	setAuthTurnstileReset,
+	setAuthTurnstileToken,
+	takeAuthTurnstileToken
+} from './client/auth-turnstile';
 import { isTurnstileProtectedAuthRequest } from './turnstile';
+
+afterEach(() => {
+	configureAuthTurnstile(false);
+	setAuthTurnstileReset(null);
+});
+
+describe('Turnstile auth token state', () => {
+	test('discards a cached token when the widget clears it', async () => {
+		configureAuthTurnstile(true);
+		setAuthTurnstileToken('expired-token');
+		setAuthTurnstileToken('');
+
+		const token = takeAuthTurnstileToken();
+		setAuthTurnstileToken('fresh-token');
+
+		expect(await token).toBe('fresh-token');
+	});
+});
 
 describe('Turnstile auth request selection', () => {
 	test('protects submitted auth and reauthentication actions', () => {

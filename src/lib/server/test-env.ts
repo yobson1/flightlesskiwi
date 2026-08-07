@@ -1,4 +1,5 @@
 export const TEST_PRIVATE_ENV = {
+	ORIGIN: 'https://app.example',
 	CLIENT_IP_HEADER: 'X-Real-IP',
 	TRUSTED_PROXY_ADDRESS: '127.0.0.1',
 	WEBAUTHN_ORIGIN: 'https://example.com',

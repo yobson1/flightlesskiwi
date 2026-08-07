@@ -24,7 +24,11 @@ export function setAuthTurnstileReset(callback: (() => void) | null): void {
 }
 
 export function setAuthTurnstileToken(value: string): void {
-	if (!enabled || !value) return;
+	if (!enabled) return;
+	if (!value) {
+		token = '';
+		return;
+	}
 	const waiter = waiters.shift();
 	if (waiter) {
 		cleanupWaiter(waiter);
