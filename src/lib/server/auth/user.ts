@@ -311,17 +311,12 @@ function encryptOAuthTokens(tokens: OAuthTokenSet): EncryptedOAuthTokens {
 	};
 }
 
-function decryptOAuthTokens(tokens: StoredEncryptedOAuthTokens): OAuthTokenSet | null {
-	if (tokens.encryptedAccessToken === null) return null;
-	try {
-		return {
-			accessToken: decryptToString(tokens.encryptedAccessToken),
-			refreshToken:
-				tokens.encryptedRefreshToken === null ? null : decryptToString(tokens.encryptedRefreshToken)
-		};
-	} catch {
-		return null;
-	}
+function decryptOAuthTokens(tokens: StoredEncryptedOAuthTokens): OAuthTokenSet {
+	return {
+		accessToken: decryptToString(tokens.encryptedAccessToken),
+		refreshToken:
+			tokens.encryptedRefreshToken === null ? null : decryptToString(tokens.encryptedRefreshToken)
+	};
 }
 
 interface EncryptedOAuthTokens {
@@ -330,17 +325,17 @@ interface EncryptedOAuthTokens {
 }
 
 interface StoredEncryptedOAuthTokens {
-	encryptedAccessToken: Buffer | null;
+	encryptedAccessToken: Buffer;
 	encryptedRefreshToken: Buffer | null;
 }
 
 export interface OAuthAuthorization {
 	provider: OAuthProvider;
-	tokens: OAuthTokenSet | null;
+	tokens: OAuthTokenSet;
 }
 
 export type DeleteUserOAuthAccountResult =
-	| { status: 'deleted'; tokens: OAuthTokenSet | null }
+	| { status: 'deleted'; tokens: OAuthTokenSet }
 	| { status: 'not-found' }
 	| { status: 'last-sign-in-method' };
 

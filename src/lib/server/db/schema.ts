@@ -36,7 +36,7 @@ export const oauthAccount = sqliteTable(
 	{
 		provider: text('provider', { enum: ['github', 'discord', 'twitch'] }).notNull(),
 		providerUserId: text('provider_user_id').notNull(),
-		encryptedAccessToken: blob('encrypted_access_token', { mode: 'buffer' }),
+		encryptedAccessToken: blob('encrypted_access_token', { mode: 'buffer' }).notNull(),
 		encryptedRefreshToken: blob('encrypted_refresh_token', { mode: 'buffer' }),
 		userId: text('user_id')
 			.notNull()

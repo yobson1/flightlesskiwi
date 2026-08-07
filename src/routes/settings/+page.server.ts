@@ -261,13 +261,6 @@ async function disconnectOAuth(event: RequestEvent) {
 	}
 
 	const providerName = getOAuthProviderName(provider);
-	if (result.tokens === null) {
-		return {
-			connection: {
-				message: `Disconnected ${providerName} locally. Remove flightlesskiwi from your ${providerName} authorized apps to finish revoking access.`
-			}
-		};
-	}
 	try {
 		await revokeOAuthTokens(provider, result.tokens);
 	} catch (cause) {
@@ -353,12 +346,6 @@ async function deleteAccount(event: RequestEvent) {
 	}
 	await Promise.all(
 		oauthAuthorizations.map(async ({ provider, tokens }) => {
-			if (tokens === null) {
-				warn(
-					`Unable to revoke ${provider} OAuth authorization for deleted user ${deletedUser.id}: no usable stored token`
-				);
-				return;
-			}
 			try {
 				await revokeOAuthTokens(provider, tokens);
 			} catch (cause) {

@@ -312,6 +312,12 @@ function insertOAuthAccount(
 ): void {
 	testDb
 		.insert(schema.oauthAccount)
-		.values({ userId, provider, providerUserId, createdAt: new Date() })
+		.values({
+			userId,
+			provider,
+			providerUserId,
+			encryptedAccessToken: Buffer.from(`${provider}-token`),
+			createdAt: new Date()
+		})
 		.run();
 }
