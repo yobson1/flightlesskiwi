@@ -19,6 +19,7 @@ mock.module('$lib/server/auth/encryption', () => ({
 const {
 	createOrLinkOAuthUser,
 	deleteUserOAuthAccount,
+	getUserOAuthAuthorizations,
 	getUserFromOAuthAccount,
 	getUserPasswordHash,
 	linkUserOAuthAccount
@@ -241,6 +242,26 @@ describe('OAuth users', () => {
 			tokens: oauthTokens('access-token', 'refresh-token')
 		});
 	});
+
+	test('returns every connected provider token before account deletion', () => {
+		insertUser('delete-user', 'delete@example.com', null, true, 'Delete User');
+		expect(
+			linkUserOAuthAccount('delete-user', 'github', 'github-user', oauthTokens('github-token'))
+		).toBe('linked');
+		expect(
+			linkUserOAuthAccount(
+				'delete-user',
+				'discord',
+				'discord-user',
+				oauthTokens('discord-token', 'discord-refresh-token')
+			)
+		).toBe('linked');
+
+		expect(getUserOAuthAuthorizations('delete-user').sort(byProvider)).toEqual([
+			{ provider: 'discord', tokens: oauthTokens('discord-token', 'discord-refresh-token') },
+			{ provider: 'github', tokens: oauthTokens('github-token') }
+		]);
+	});
 });
 
 describe('TOTP removal', () => {
@@ -278,6 +299,10 @@ function insertUser(
 
 function oauthTokens(accessToken: string, refreshToken: string | null = null) {
 	return { accessToken, refreshToken };
+}
+
+function byProvider(left: { provider: string }, right: { provider: string }): number {
+	return left.provider.localeCompare(right.provider);
 }
 
 function insertOAuthAccount(

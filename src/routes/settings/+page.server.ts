@@ -43,6 +43,7 @@ import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
 	deleteUserOAuthAccount,
+	getUserOAuthAuthorizations,
 	isUserUniqueConstraintError,
 	normalizeEmail,
 	resetUserRecoveryCode,
@@ -415,6 +416,7 @@ async function deleteAccount(event: RequestEvent) {
 		.where(eq(benchmarkResult.userId, event.locals.user.id))
 		.all()
 		.map(({ id }) => id);
+	const oauthAuthorizations = getUserOAuthAuthorizations(event.locals.user.id);
 	const deletedUser = db.transaction((tx) => {
 		queueBenchmarksForSearch(benchmarkIds, tx);
 		return tx
@@ -426,6 +428,24 @@ async function deleteAccount(event: RequestEvent) {
 	if (!deletedUser) {
 		return fail(404, { account: { message: 'Account not found' } });
 	}
+	await Promise.all(
+		oauthAuthorizations.map(async ({ provider, tokens }) => {
+			if (tokens === null) {
+				warn(
+					`Unable to revoke ${provider} OAuth authorization for deleted user ${deletedUser.id}: no usable stored token`
+				);
+				return;
+			}
+			try {
+				await revokeOAuthTokens(provider, tokens);
+			} catch (cause) {
+				warn(
+					`Failed to revoke ${provider} OAuth authorization for deleted user ${deletedUser.id}`,
+					cause
+				);
+			}
+		})
+	);
 	try {
 		await deleteBenchmarkFiles(benchmarkFileIds);
 	} catch (cause) {

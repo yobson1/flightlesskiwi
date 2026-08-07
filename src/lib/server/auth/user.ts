@@ -267,26 +267,29 @@ export function deleteUserOAuthAccount(
 			return { status: 'last-sign-in-method' };
 		}
 
-		let tokens: OAuthTokenSet | null = null;
-		if (account.encryptedAccessToken !== null) {
-			try {
-				tokens = {
-					accessToken: decryptToString(account.encryptedAccessToken),
-					refreshToken:
-						account.encryptedRefreshToken === null
-							? null
-							: decryptToString(account.encryptedRefreshToken)
-				};
-			} catch {
-				// The local connection can still be removed if its stored token cannot be decrypted.
-			}
-		}
+		const tokens = decryptOAuthTokens(account);
 
 		tx.delete(oauthAccount)
 			.where(and(eq(oauthAccount.userId, userId), eq(oauthAccount.provider, provider)))
 			.run();
 		return { status: 'deleted', tokens };
 	});
+}
+
+export function getUserOAuthAuthorizations(userId: string): OAuthAuthorization[] {
+	return db
+		.select({
+			provider: oauthAccount.provider,
+			encryptedAccessToken: oauthAccount.encryptedAccessToken,
+			encryptedRefreshToken: oauthAccount.encryptedRefreshToken
+		})
+		.from(oauthAccount)
+		.where(eq(oauthAccount.userId, userId))
+		.all()
+		.map((account) => ({
+			provider: account.provider,
+			tokens: decryptOAuthTokens(account)
+		}));
 }
 
 export function updateUserOAuthAccountTokens(
@@ -317,9 +320,32 @@ function encryptOAuthTokens(tokens: OAuthTokenSet): EncryptedOAuthTokens {
 	};
 }
 
+function decryptOAuthTokens(tokens: StoredEncryptedOAuthTokens): OAuthTokenSet | null {
+	if (tokens.encryptedAccessToken === null) return null;
+	try {
+		return {
+			accessToken: decryptToString(tokens.encryptedAccessToken),
+			refreshToken:
+				tokens.encryptedRefreshToken === null ? null : decryptToString(tokens.encryptedRefreshToken)
+		};
+	} catch {
+		return null;
+	}
+}
+
 interface EncryptedOAuthTokens {
 	encryptedAccessToken: Buffer;
 	encryptedRefreshToken: Buffer | null;
+}
+
+interface StoredEncryptedOAuthTokens {
+	encryptedAccessToken: Buffer | null;
+	encryptedRefreshToken: Buffer | null;
+}
+
+export interface OAuthAuthorization {
+	provider: OAuthProvider;
+	tokens: OAuthTokenSet | null;
 }
 
 export type DeleteUserOAuthAccountResult =
