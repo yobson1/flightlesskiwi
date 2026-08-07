@@ -202,8 +202,6 @@
 		const endpoint = authModalDataEndpoint(view);
 		if (endpoint === null) return null;
 		const response = await authRequest(endpoint, { method: authModalDataMethod(view) });
-		if (view === 'totp-setup') return response;
-		if (view === 'password-reset') return response;
 		return response;
 	}
 

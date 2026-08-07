@@ -96,15 +96,9 @@ export const actions: Actions = {
 };
 
 async function updateUsername(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401, { username: { message: 'Not authenticated' } });
-	}
-	if (!event.locals.user.emailVerified) {
-		return fail(403, { username: { message: 'Forbidden' } });
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired('username');
-	}
+	const guarded = requireSensitiveSettingsAction(event, { field: 'username' });
+	if ('failure' in guarded) return guarded.failure;
+	const { user } = guarded;
 	const formData = await event.request.formData();
 	const username = formData.get('username');
 	if (typeof username !== 'string') {
@@ -117,11 +111,11 @@ async function updateUsername(event: RequestEvent) {
 			}
 		});
 	}
-	if (!checkUsernameAvailability(username, event.locals.user.id)) {
+	if (!checkUsernameAvailability(username, user.id)) {
 		return fail(400, { username: { message: 'Username is already used' } });
 	}
 	try {
-		if (!updateUserUsername(event.locals.user.id, username)) {
+		if (!updateUserUsername(user.id, username)) {
 			return fail(404, { username: { message: 'Account not found' } });
 		}
 	} catch (cause) {
@@ -135,16 +129,10 @@ async function updateUsername(event: RequestEvent) {
 }
 
 async function updatePassword(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401, { password: { message: 'Not authenticated' } });
-	}
-	if (!event.locals.user.emailVerified) {
-		return fail(403, { password: { message: 'Forbidden' } });
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired('password');
-	}
-	if (!passwordUpdateBucket.check(event.locals.session.id, 1)) {
+	const guarded = requireSensitiveSettingsAction(event, { field: 'password' });
+	if ('failure' in guarded) return guarded.failure;
+	const { session, user } = guarded;
+	if (!passwordUpdateBucket.check(session.id, 1)) {
 		return fail(429, { password: { message: 'Too many requests' } });
 	}
 	const formData = await event.request.formData();
@@ -163,27 +151,21 @@ async function updatePassword(event: RequestEvent) {
 			}
 		});
 	}
-	if (!passwordUpdateBucket.consume(event.locals.session.id, 1)) {
+	if (!passwordUpdateBucket.consume(session.id, 1)) {
 		return fail(429, { password: { message: 'Too many requests' } });
 	}
-	passwordUpdateBucket.reset(event.locals.session.id);
-	await updateUserPassword(event.locals.user.id, newPassword);
-	invalidateUserPasswordResetSessions(event.locals.user.id);
+	passwordUpdateBucket.reset(session.id);
+	await updateUserPassword(user.id, newPassword);
+	invalidateUserPasswordResetSessions(user.id);
 
-	createSessionAndSetCookie(event, event.locals.user.id);
+	createSessionAndSetCookie(event, user.id);
 	return { password: { message: 'Updated password' } };
 }
 
 async function updateEmail(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401, { email: { message: 'Not authenticated' } });
-	}
-	if (!event.locals.user.emailVerified) {
-		return fail(403, { email: { message: 'Forbidden' } });
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired('email');
-	}
+	const guarded = requireSensitiveSettingsAction(event, { field: 'email' });
+	if ('failure' in guarded) return guarded.failure;
+	const { user } = guarded;
 	const formData = await event.request.formData();
 	const rawEmail = formData.get('email');
 	if (typeof rawEmail !== 'string') {
@@ -193,9 +175,9 @@ async function updateEmail(event: RequestEvent) {
 	if (!verifyEmailInput(email)) {
 		return fail(400, { email: { message: 'Invalid email' } });
 	}
-	const pendingRequest = getUserEmailVerificationRequest(event.locals.user.id);
+	const pendingRequest = getUserEmailVerificationRequest(user.id);
 	if (pendingRequest !== null && pendingRequest.expiresAt.getTime() > Date.now()) {
-		setUserEmailAsUnverified(event.locals.user.id);
+		setUserEmailAsUnverified(user.id);
 		setEmailVerificationRequestCookie(event, pendingRequest);
 		return {
 			email: {
@@ -213,9 +195,9 @@ async function updateEmail(event: RequestEvent) {
 			}
 		});
 	}
-	const creation = createEmailChangeVerificationRequest(event.locals.user.id, email);
+	const creation = createEmailChangeVerificationRequest(user.id, email);
 	if (!creation.created) {
-		setUserEmailAsUnverified(event.locals.user.id);
+		setUserEmailAsUnverified(user.id);
 		setEmailVerificationRequestCookie(event, creation.request);
 		return {
 			email: {
@@ -244,40 +226,28 @@ async function updateEmail(event: RequestEvent) {
 }
 
 async function disconnectTOTP(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401);
-	}
-	if (!event.locals.user.emailVerified) {
-		return fail(403);
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired();
-	}
-	if (!totpUpdateBucket.consume(event.locals.user.id, 1)) {
+	const guarded = requireSensitiveSettingsAction(event);
+	if ('failure' in guarded) return guarded.failure;
+	const { user } = guarded;
+	if (!totpUpdateBucket.consume(user.id, 1)) {
 		return fail(429);
 	}
-	deleteUserTOTP(event.locals.user.id);
+	deleteUserTOTP(user.id);
 	deletePendingRecoveryCodeCookie(event);
 	return {};
 }
 
 async function disconnectOAuth(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401, { connection: { message: 'Not authenticated' } });
-	}
-	if (!event.locals.user.emailVerified) {
-		return fail(403, { connection: { message: 'Forbidden' } });
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired('connection');
-	}
+	const guarded = requireSensitiveSettingsAction(event, { field: 'connection' });
+	if ('failure' in guarded) return guarded.failure;
+	const { user } = guarded;
 	const formData = await event.request.formData();
 	const provider = formData.get('provider');
 	if (typeof provider !== 'string' || !isOAuthProvider(provider)) {
 		return fail(400, { connection: { message: 'Invalid OAuth provider' } });
 	}
 
-	const result = deleteUserOAuthAccount(event.locals.user.id, provider);
+	const result = deleteUserOAuthAccount(user.id, provider);
 	if (result.status === 'not-found') {
 		return fail(404, { connection: { message: 'Connection not found' } });
 	}
@@ -319,22 +289,16 @@ async function disconnectOAuth(event: RequestEvent) {
 }
 
 async function deletePasskey(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401);
-	}
-	if (!event.locals.user.emailVerified) {
-		return fail(403);
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired();
-	}
+	const guarded = requireSensitiveSettingsAction(event);
+	if ('failure' in guarded) return guarded.failure;
+	const { user } = guarded;
 	const formData = await event.request.formData();
 	const encodedCredentialId = formData.get('credential_id');
 	if (typeof encodedCredentialId !== 'string') {
 		return fail(400);
 	}
 	try {
-		if (!deleteUserPasskeyCredential(event.locals.user.id, decodeBase64(encodedCredentialId))) {
+		if (!deleteUserPasskeyCredential(user.id, decodeBase64(encodedCredentialId))) {
 			return fail(400);
 		}
 	} catch {
@@ -344,37 +308,20 @@ async function deletePasskey(event: RequestEvent) {
 }
 
 async function regenerateRecoveryCode(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401);
-	}
-	if (
-		!event.locals.user.emailVerified ||
-		!event.locals.user.registered2FA ||
-		!event.locals.user.registeredTOTP
-	) {
-		return fail(403);
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired();
-	}
+	const guarded = requireSensitiveSettingsAction(event, { requiresTOTP: true });
+	if ('failure' in guarded) return guarded.failure;
 	return {
-		recoveryCode: await resetUserRecoveryCode(event.locals.user.id)
+		recoveryCode: await resetUserRecoveryCode(guarded.user.id)
 	};
 }
 
 async function deleteAccount(event: RequestEvent) {
-	if (event.locals.session === null || event.locals.user === null) {
-		return fail(401, { account: { message: 'Not authenticated' } });
-	}
-	if (!event.locals.user.emailVerified) {
-		return fail(403, { account: { message: 'Forbidden' } });
-	}
-	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-		return reauthenticationRequired('account');
-	}
+	const guarded = requireSensitiveSettingsAction(event, { field: 'account' });
+	if ('failure' in guarded) return guarded.failure;
+	const { user } = guarded;
 	const formData = await event.request.formData();
 	const username = formData.get('username');
-	if (typeof username !== 'string' || username !== event.locals.user.username) {
+	if (typeof username !== 'string' || username !== user.username) {
 		return fail(400, {
 			account: { message: 'Enter your username exactly as shown to delete your account' }
 		});
@@ -383,21 +330,21 @@ async function deleteAccount(event: RequestEvent) {
 		.select({ id: benchmarkFile.id })
 		.from(benchmarkFile)
 		.innerJoin(benchmarkResult, eq(benchmarkFile.benchmarkId, benchmarkResult.id))
-		.where(eq(benchmarkResult.userId, event.locals.user.id))
+		.where(eq(benchmarkResult.userId, user.id))
 		.all()
 		.map(({ id }) => id);
 	const benchmarkIds = db
 		.select({ id: benchmarkResult.id })
 		.from(benchmarkResult)
-		.where(eq(benchmarkResult.userId, event.locals.user.id))
+		.where(eq(benchmarkResult.userId, user.id))
 		.all()
 		.map(({ id }) => id);
-	const oauthAuthorizations = getUserOAuthAuthorizations(event.locals.user.id);
+	const oauthAuthorizations = getUserOAuthAuthorizations(user.id);
 	const deletedUser = db.transaction((tx) => {
 		queueBenchmarksForSearch(benchmarkIds, tx);
 		return tx
 			.delete(userTable)
-			.where(eq(userTable.id, event.locals.user!.id))
+			.where(eq(userTable.id, user.id))
 			.returning({ id: userTable.id })
 			.get();
 	});
@@ -425,7 +372,7 @@ async function deleteAccount(event: RequestEvent) {
 	try {
 		await deleteBenchmarkFiles(benchmarkFileIds);
 	} catch (cause) {
-		logError(`Failed to clean up benchmark files for deleted user ${event.locals.user.id}`, cause);
+		logError(`Failed to clean up benchmark files for deleted user ${user.id}`, cause);
 	}
 	try {
 		await flushBenchmarkSearchQueue();
@@ -441,9 +388,30 @@ async function deleteAccount(event: RequestEvent) {
 	return {};
 }
 
-function reauthenticationRequired(
-	field?: 'username' | 'password' | 'email' | 'connection' | 'account'
+type SettingsActionField = 'username' | 'password' | 'email' | 'connection' | 'account';
+
+function requireSensitiveSettingsAction(
+	event: RequestEvent,
+	options: { field?: SettingsActionField; requiresTOTP?: boolean } = {}
 ) {
+	const { session, user } = event.locals;
+	if (session === null || user === null) {
+		return { failure: settingsActionFailure(401, 'Not authenticated', options.field) };
+	}
+	if (!user.emailVerified || (options.requiresTOTP && !user.registeredTOTP)) {
+		return { failure: settingsActionFailure(403, 'Forbidden', options.field) };
+	}
+	if (!isSessionRecentlyReauthenticated(session)) {
+		return { failure: reauthenticationRequired(options.field) };
+	}
+	return { session, user };
+}
+
+function settingsActionFailure(status: 401 | 403, message: string, field?: SettingsActionField) {
+	return field === undefined ? fail(status) : fail(status, { [field]: { message } });
+}
+
+function reauthenticationRequired(field?: SettingsActionField) {
 	const message = 'Confirm your identity to continue';
 	return fail(428, {
 		reauthenticationRequired: true,

@@ -16,7 +16,8 @@ mock.module('$lib/server/auth/encryption', () => ({
 	hashAuthCode: (value: string) => Buffer.from(value)
 }));
 
-const { rotateSessionFor2FAEnrollment, validateSessionToken } = await import('./auth');
+const { rotateSessionAfterReauthentication, rotateSessionFor2FAEnrollment, validateSessionToken } =
+	await import('./auth');
 const { hashSecret } = await import('./auth/utils');
 
 beforeEach(() => {
@@ -42,7 +43,7 @@ afterAll(() => {
 	testDatabase.close();
 });
 
-describe('persistent session 2FA model', () => {
+describe('persistent sessions', () => {
 	test('accepts a persistent session without separate 2FA state', () => {
 		insertSession('session-id', 'session-secret');
 
@@ -51,30 +52,54 @@ describe('persistent session 2FA model', () => {
 		expect(result.user?.id).toBe('two-factor-user');
 	});
 
+	test('rotates after reauthentication without invalidating other sessions', () => {
+		insertSession('current-session', 'current-secret');
+		insertSession('other-session', 'other-secret');
+		const currentSession = validateSessionToken('current-session.current-secret').session!;
+		const cookie = createCookieEvent('current-session.current-secret');
+
+		rotateSessionAfterReauthentication(cookie.event, currentSession);
+
+		expect(testDb.select({ id: schema.session.id }).from(schema.session).all()).toEqual([
+			{ id: 'current-session' },
+			{ id: 'other-session' }
+		]);
+		expect(validateSessionToken('current-session.current-secret').session).toBeNull();
+		expect(validateSessionToken(cookie.rotatedToken()).session?.id).toBe('current-session');
+		expect(validateSessionToken('other-session.other-secret').session?.id).toBe('other-session');
+	});
+
 	test('rotates the enrolling session and invalidates every other session', () => {
 		testDb.delete(schema.totpCredential).run();
 		insertSession('current-session', 'current-secret');
 		insertSession('other-session', 'other-secret');
 		const currentSession = validateSessionToken('current-session.current-secret').session!;
-		let rotatedToken = '';
-		const event = {
-			cookies: {
-				get: () => 'current-session.current-secret',
-				set: (_name: string, value: string) => {
-					rotatedToken = value;
-				}
-			}
-		} as unknown as RequestEvent;
+		const cookie = createCookieEvent('current-session.current-secret');
 
-		rotateSessionFor2FAEnrollment(event, currentSession);
+		rotateSessionFor2FAEnrollment(cookie.event, currentSession);
 
 		expect(testDb.select({ id: schema.session.id }).from(schema.session).all()).toEqual([
 			{ id: 'current-session' }
 		]);
 		expect(validateSessionToken('current-session.current-secret').session).toBeNull();
-		expect(validateSessionToken(rotatedToken).session?.id).toBe('current-session');
+		expect(validateSessionToken(cookie.rotatedToken()).session?.id).toBe('current-session');
 	});
 });
+
+function createCookieEvent(currentToken: string) {
+	let rotatedToken = '';
+	return {
+		event: {
+			cookies: {
+				get: () => currentToken,
+				set: (_name: string, value: string) => {
+					rotatedToken = value;
+				}
+			}
+		} as unknown as RequestEvent,
+		rotatedToken: () => rotatedToken
+	};
+}
 
 function insertSession(id: string, secret: string): void {
 	const now = new Date();

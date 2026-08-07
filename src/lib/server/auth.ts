@@ -124,51 +124,20 @@ export function rotateSessionAfterReauthentication(
 	event: RequestEvent,
 	currentSession: Session
 ): Session {
-	const currentToken = event.cookies.get(sessionCookieName);
-	const currentTokenParts = currentToken ? parseTwoPartToken(currentToken) : null;
-	if (currentTokenParts === null || currentTokenParts.id !== currentSession.id) {
-		throw new Error('Current session token is unavailable');
-	}
-
-	const now = new Date();
-	const newSecret = generateSecureRandomString();
-	const rotated = db
-		.update(sessionTable)
-		.set({
-			secretHash: hashSecret(newSecret),
-			lastVerifiedAt: now,
-			lastReauthenticatedAt: now
-		})
-		.where(
-			and(
-				eq(sessionTable.id, currentSession.id),
-				eq(sessionTable.userId, currentSession.userId),
-				eq(sessionTable.secretHash, hashSecret(currentTokenParts.secret))
-			)
-		)
-		.returning({ id: sessionTable.id })
-		.get();
-	if (!rotated) {
-		throw new Error('Current session could not be rotated');
-	}
-
-	const absoluteExpiresAt = new Date(currentSession.createdAt.getTime() + ABSOLUTE_TIMEOUT_MS);
-	const expiresAt = new Date(
-		Math.min(now.getTime() + INACTIVITY_TIMEOUT_MS, absoluteExpiresAt.getTime())
-	);
-	setSessionTokenCookie(event, `${currentSession.id}.${newSecret}`, expiresAt);
-
-	return {
-		...currentSession,
-		lastVerifiedAt: now,
-		lastReauthenticatedAt: now,
-		expiresAt
-	};
+	return rotateSession(event, currentSession, { invalidateOtherSessions: false });
 }
 
 export function rotateSessionFor2FAEnrollment(
 	event: RequestEvent,
 	currentSession: Session
+): Session {
+	return rotateSession(event, currentSession, { invalidateOtherSessions: true });
+}
+
+function rotateSession(
+	event: RequestEvent,
+	currentSession: Session,
+	options: { invalidateOtherSessions: boolean }
 ): Session {
 	const currentToken = event.cookies.get(sessionCookieName);
 	const currentTokenParts = currentToken ? parseTwoPartToken(currentToken) : null;
@@ -202,11 +171,16 @@ export function rotateSessionFor2FAEnrollment(
 			throw new Error('Current session could not be rotated');
 		}
 
-		tx.delete(sessionTable)
-			.where(
-				and(eq(sessionTable.userId, currentSession.userId), ne(sessionTable.id, currentSession.id))
-			)
-			.run();
+		if (options.invalidateOtherSessions) {
+			tx.delete(sessionTable)
+				.where(
+					and(
+						eq(sessionTable.userId, currentSession.userId),
+						ne(sessionTable.id, currentSession.id)
+					)
+				)
+				.run();
+		}
 	});
 
 	const absoluteExpiresAt = new Date(currentSession.createdAt.getTime() + ABSOLUTE_TIMEOUT_MS);

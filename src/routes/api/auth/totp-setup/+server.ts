@@ -44,5 +44,5 @@ export async function PUT(event: RequestEvent) {
 	if (!user.registered2FA) rotateSessionFor2FAEnrollment(event, session);
 	updateUserTOTPKey(user.id, key, counter);
 	deleteTOTPSetupCookie(event);
-	return authSuccess(user.registeredTOTP ? null : 'recovery-code');
+	return authSuccess('recovery-code');
 }

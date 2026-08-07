@@ -3,6 +3,7 @@ import { encodeBase64 } from '$lib/encoding';
 import { isRecord } from '$lib/utils';
 
 type TokenResponse = Awaited<ReturnType<typeof client.authorizationCodeGrant>>;
+const GITHUB_API_VERSION = '2026-03-10';
 const TWITCH_TOKEN_ENDPOINT = 'https://id.twitch.tv/oauth2/token';
 const TWITCH_REVOCATION_ENDPOINT = 'https://id.twitch.tv/oauth2/revoke';
 
@@ -147,7 +148,7 @@ export class GitHub extends OAuth2Provider {
 					new TextEncoder().encode(`${this.clientId}:${this.clientSecret}`)
 				)}`,
 				'content-type': 'application/json',
-				'X-GitHub-Api-Version': '2026-03-10'
+				'X-GitHub-Api-Version': GITHUB_API_VERSION
 			},
 			body: JSON.stringify({ access_token: tokens.accessToken })
 		});
@@ -163,7 +164,7 @@ export class GitHub extends OAuth2Provider {
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
 		const headers = new Headers({
 			accept: 'application/vnd.github+json',
-			'X-GitHub-Api-Version': '2022-11-28'
+			'X-GitHub-Api-Version': GITHUB_API_VERSION
 		});
 		const [profile, emails] = await Promise.all([
 			this.fetchJSON(tokens, 'https://api.github.com/user', headers),

@@ -65,15 +65,6 @@ export function updateUserUsername(userId: string, username: string): boolean {
 	return row !== undefined;
 }
 
-export function deleteUser(userId: string): boolean {
-	const row = db
-		.delete(userTable)
-		.where(eq(userTable.id, userId))
-		.returning({ id: userTable.id })
-		.get();
-	return row !== undefined;
-}
-
 export async function createUser(
 	email: string,
 	username: string,

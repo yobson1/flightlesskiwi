@@ -35,6 +35,42 @@ describe('OAuth provider clients', () => {
 		expect(url.searchParams.get('code_challenge')).not.toBe(codeVerifier);
 	});
 
+	test('uses the current GitHub API version for profile and email requests', async () => {
+		const requests: Request[] = [];
+		spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
+			const request = new Request(input, init);
+			requests.push(request);
+			if (request.url === 'https://github.com/login/oauth/access_token') {
+				return Response.json({ access_token: 'access-token', token_type: 'bearer' });
+			}
+			if (request.url === 'https://api.github.com/user') {
+				return Response.json({ id: 1, login: 'octocat' });
+			}
+			return Response.json([{ email: 'octocat@example.com', primary: true, verified: true }]);
+		}) as typeof fetch);
+		const redirectURI = 'https://example.com/auth/oauth/github/callback';
+		const github = new GitHub('github-client', 'github-secret', redirectURI);
+		const tokens = await github.validateAuthorizationCode(
+			new URL(`${redirectURI}?code=authorization-code&state=expected-state`),
+			'expected-state',
+			generateCodeVerifier()
+		);
+
+		expect(await github.getUser(tokens)).toEqual({
+			id: '1',
+			email: 'octocat@example.com',
+			emailVerified: true,
+			username: 'octocat'
+		});
+		const apiRequests = requests.filter((request) =>
+			request.url.startsWith('https://api.github.com/')
+		);
+		expect(apiRequests).toHaveLength(2);
+		expect(
+			apiRequests.every((request) => request.headers.get('X-GitHub-Api-Version') === '2026-03-10')
+		).toBe(true);
+	});
+
 	test('delegates the callback exchange and PKCE verification to openid-client', async () => {
 		let tokenRequest: Request | null = null;
 		const fetchMock = spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
@@ -261,6 +297,7 @@ describe('OAuth provider clients', () => {
 		expect(request.url).toBe('https://api.github.com/applications/github-client/grant');
 		expect(request.method).toBe('DELETE');
 		expect(request.headers.get('authorization')).toStartWith('Basic ');
+		expect(request.headers.get('X-GitHub-Api-Version')).toBe('2026-03-10');
 		expect(await request.json()).toEqual({ access_token: 'github-access-token' });
 	});
 
