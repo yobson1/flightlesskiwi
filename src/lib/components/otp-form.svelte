@@ -25,7 +25,7 @@
 	import type { AuthModalView } from '$lib/types/auth';
 
 	interface Props extends ComponentProps<typeof Card.Root> {
-		kind?: 'email' | 'totp' | 'login-2fa' | 'password-reset';
+		kind?: 'email' | 'login-2fa' | 'password-reset';
 		email?: string;
 		totpAvailable?: boolean;
 		passkeyAvailable?: boolean;
@@ -96,9 +96,7 @@
 					? '/api/auth/email-verification'
 					: kind === 'login-2fa'
 						? '/api/auth/login'
-						: kind === 'password-reset'
-							? '/api/auth/password-reset'
-							: '/api/auth/totp-verification';
+						: '/api/auth/password-reset';
 			const method =
 				kind === 'password-reset'
 					? 'POST'

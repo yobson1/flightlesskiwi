@@ -119,12 +119,7 @@
 
 	function requiredAuthModal(auth: ClientAuthState | null): AuthModalView | null {
 		if (auth !== null && !auth.user.emailVerified) return 'verify-email';
-		if (
-			auth !== null &&
-			auth.user.registeredTOTP &&
-			auth.twoFactorVerified &&
-			!auth.user.recoveryCodeConfigured
-		) {
+		if (auth !== null && auth.user.registeredTOTP && !auth.user.recoveryCodeConfigured) {
 			return 'recovery-code';
 		}
 		return null;
@@ -143,12 +138,6 @@
 		if (auth === null) return 'login';
 		if (view === 'verify-email') return null;
 		if (view === 'recovery-code') return null;
-		if (view === 'totp' && !auth.user.registeredTOTP) {
-			return auth.user.registeredPasskey ? 'passkey' : 'setup';
-		}
-		if (view === 'passkey' && !auth.user.registeredPasskey) {
-			return auth.user.registeredTOTP ? 'totp' : 'setup';
-		}
 		return view;
 	}
 

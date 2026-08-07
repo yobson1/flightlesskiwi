@@ -3,7 +3,7 @@ import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { error as logError } from '$lib/logger';
 import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
 import { encodeBase64url } from '$lib/encoding';
-import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
+import { rotateSessionFor2FAEnrollment } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
 import { hashSecret } from '$lib/server/auth/utils';
 import {
@@ -73,6 +73,7 @@ export async function PUT(event: RequestEvent) {
 	}
 	try {
 		const verified = await verifyWebAuthnRegistration(credential, user.id, 'passkey-register');
+		if (!user.registered2FA) rotateSessionFor2FAEnrollment(event, session);
 		createPasskeyCredential({ ...verified, userId: user.id, name: name.trim() });
 	} catch (cause) {
 		if (cause instanceof WebAuthnVerificationError || String(cause).includes('UNIQUE')) {
@@ -81,6 +82,5 @@ export async function PUT(event: RequestEvent) {
 		logError('Unexpected passkey registration failure', cause);
 		return authError(500, 'Unable to register passkey');
 	}
-	if (!user.registered2FA) rotateSessionAfter2FAEnrollment(event, session);
 	return authSuccess(user.registeredTOTP ? null : 'setup');
 }

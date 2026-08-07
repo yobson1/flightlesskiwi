@@ -55,22 +55,11 @@ export async function POST(event: RequestEvent) {
 		}
 		userId = user.id;
 	} else if (purpose === 'passkey-2fa') {
-		if (event.locals.session !== null && event.locals.user !== null) {
-			if (
-				!event.locals.user.emailVerified ||
-				!event.locals.user.registeredPasskey ||
-				event.locals.session.twoFactorVerified
-			) {
-				return new Response('Forbidden', { status: 403 });
-			}
-			userId = event.locals.user.id;
-		} else {
-			const { attempt, user } = validateLoginAttemptRequest(event);
-			if (attempt === null || !user.registeredPasskey) {
-				return new Response('Forbidden', { status: 403 });
-			}
-			userId = user.id;
+		const { attempt, user } = validateLoginAttemptRequest(event);
+		if (attempt === null || !user.registeredPasskey) {
+			return new Response('Forbidden', { status: 403 });
 		}
+		userId = user.id;
 	} else {
 		if (event.locals.session === null || event.locals.user === null) {
 			return new Response('Not authenticated', { status: 401 });
@@ -78,10 +67,7 @@ export async function POST(event: RequestEvent) {
 		if (!event.locals.user.emailVerified) {
 			return new Response('Forbidden', { status: 403 });
 		}
-		if (
-			purpose === 'settings-reauth' &&
-			(!event.locals.user.registeredPasskey || !event.locals.session.twoFactorVerified)
-		) {
+		if (purpose === 'settings-reauth' && !event.locals.user.registeredPasskey) {
 			return new Response('Forbidden', { status: 403 });
 		}
 		userId = event.locals.user.id;

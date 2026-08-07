@@ -88,13 +88,6 @@ export function requireVerifiedSession(
 			response: authError(403, 'Verify your email to continue', { modal: 'verify-email' })
 		};
 	}
-	if (user.registered2FA && !session.twoFactorVerified) {
-		return {
-			response: authError(403, 'Complete two-factor authentication to continue', {
-				modal: get2FAModal(user)
-			})
-		};
-	}
 	if (options.recentlyReauthenticated && !isSessionRecentlyReauthenticated(session)) {
 		return {
 			response: authError(428, 'Confirm your identity to continue', {
@@ -106,15 +99,8 @@ export function requireVerifiedSession(
 }
 
 function requiredModalForRequest(event: RequestEvent): AuthModalView {
-	const { session, user } = event.locals;
-	if (session === null || user === null) return 'login';
+	const { user } = event.locals;
+	if (user === null) return 'login';
 	if (!user.emailVerified) return 'verify-email';
-	if (user.registered2FA && !session.twoFactorVerified) return get2FAModal(user);
 	return 'login';
-}
-
-export function get2FAModal(user: AuthUser): AuthModalView {
-	if (user.registeredTOTP) return 'totp';
-	if (user.registeredPasskey) return 'passkey';
-	return 'setup';
 }

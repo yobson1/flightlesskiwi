@@ -235,7 +235,7 @@ async function updatePassword(event: RequestEvent, formData: FormData): Promise<
 
 	await updateUserPassword(user.id, password);
 	invalidateUserPasswordResetSessions(user.id);
-	createSessionAndSetCookie(event, user.id, { twoFactorVerified: true });
+	createSessionAndSetCookie(event, user.id);
 	deletePasswordResetSessionTokenCookie(event);
 	return authSuccess(null, { message: 'Your password has been updated.' });
 }

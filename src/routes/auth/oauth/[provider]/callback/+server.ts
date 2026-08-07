@@ -90,10 +90,7 @@ export async function GET(event: RequestEvent) {
 					createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
 				);
 			}
-			if (
-				!event.locals.user.emailVerified ||
-				(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-			) {
+			if (!event.locals.user.emailVerified) {
 				redirect(
 					303,
 					createOAuthErrorRedirect(destination, 'factor', event.params.provider, event.url)

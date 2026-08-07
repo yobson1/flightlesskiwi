@@ -1,5 +1,5 @@
 import { WEBAUTHN_RP_NAME } from '$app/env/private';
-import { rotateSessionAfter2FAEnrollment } from '$lib/server/auth';
+import { rotateSessionFor2FAEnrollment } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
 import {
 	deleteTOTPSetupCookie,
@@ -41,8 +41,8 @@ export async function PUT(event: RequestEvent) {
 	const counter = verifyTOTPKey(key, code);
 	if (counter === null) return authError(400, 'Invalid code');
 	totpUpdateBucket.reset(user.id);
+	if (!user.registered2FA) rotateSessionFor2FAEnrollment(event, session);
 	updateUserTOTPKey(user.id, key, counter);
-	if (!user.registered2FA) rotateSessionAfter2FAEnrollment(event, session);
 	deleteTOTPSetupCookie(event);
 	return authSuccess(user.registeredTOTP ? null : 'recovery-code');
 }

@@ -1,6 +1,6 @@
 import { error as logError } from '$lib/logger';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '$lib/auth-constants';
-import { createSessionAndSetCookie, type SessionFlags } from '$lib/server/auth';
+import { createSessionAndSetCookie } from '$lib/server/auth';
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
 import {
 	checkCodeEmailSendRateLimit,
@@ -80,8 +80,7 @@ export async function POST(event: RequestEvent) {
 
 	const verificationRequest = createEmailVerificationRequest(user.id, user.email);
 	setEmailVerificationRequestCookie(event, verificationRequest);
-	const flags: SessionFlags = { twoFactorVerified: false };
-	createSessionAndSetCookie(event, user.id, flags);
+	createSessionAndSetCookie(event, user.id);
 	try {
 		const retryAfterSeconds = await sendVerificationEmail(
 			verificationRequest.email,

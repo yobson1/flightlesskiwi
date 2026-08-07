@@ -17,6 +17,8 @@ describe('auth modal fragments', () => {
 	test('ignores unrelated or malformed fragments', () => {
 		expect(parseAuthModalHash('')).toBeNull();
 		expect(parseAuthModalHash('#benchmark-result')).toBeNull();
+		expect(parseAuthModalHash('#totp')).toBeNull();
+		expect(parseAuthModalHash('#passkey')).toBeNull();
 		expect(parseAuthModalHash('#%E0%A4%A')).toBeNull();
 	});
 

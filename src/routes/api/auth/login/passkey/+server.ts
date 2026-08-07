@@ -27,7 +27,7 @@ export async function POST(event: RequestEvent) {
 		return authError(400, 'Invalid credential');
 	}
 	invalidateLoginAttemptRequest(event);
-	createSessionAndSetCookie(event, user.id, { twoFactorVerified: true });
+	createSessionAndSetCookie(event, user.id);
 	return authSuccess(user.emailVerified ? null : 'verify-email');
 }
 

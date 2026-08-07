@@ -1,18 +1,15 @@
 <script lang="ts">
-	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import XIcon from '@lucide/svelte/icons/x';
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { Dialog } from 'bits-ui';
 	import { untrack } from 'svelte';
 	import { provideAuthTurnstile } from '$lib/auth-turnstile-context';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import {
 		failAuthTurnstile,
 		setAuthTurnstileReset,
 		setAuthTurnstileToken
 	} from '$lib/client/auth-turnstile';
-	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import LoginForm from '$lib/components/login-form.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
@@ -54,9 +51,6 @@
 		onClose,
 		onComplete
 	}: Props = $props();
-	let passkeyPending = $state(false);
-	let passkeyMessage = $state('');
-
 	provideAuthTurnstile({
 		siteKey: untrack(() => turnstileSiteKey),
 		onToken: setAuthTurnstileToken,
@@ -85,10 +79,6 @@
 				return 'Create a passkey';
 			case 'recovery-code':
 				return 'Save your recovery code';
-			case 'totp':
-				return 'Two-factor authentication';
-			case 'passkey':
-				return 'Use your passkey';
 			case 'reauth':
 				return 'Confirm it’s you';
 			default:
@@ -97,35 +87,11 @@
 	});
 
 	function switchView(nextView: AuthModalView) {
-		passkeyMessage = '';
 		void onViewChange?.(nextView);
 	}
 
 	async function close() {
 		await onClose?.();
-	}
-
-	async function verifyWithPasskey() {
-		passkeyMessage = '';
-		passkeyPending = true;
-		try {
-			const assertion = await createWebAuthnAssertion('passkey-2fa');
-			const result = await authRequest('/api/auth/passkey-verification', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(assertion)
-			});
-			await onComplete?.(result.next);
-		} catch (cause) {
-			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);
-			if (isWebAuthnCancellation(cause)) {
-				passkeyMessage = 'Passkey verification was cancelled.';
-			} else {
-				passkeyMessage = cause instanceof Error ? cause.message : 'Unable to verify your passkey';
-			}
-		} finally {
-			passkeyPending = false;
-		}
 	}
 
 	function getStringProperty(value: unknown, key: string): string | null {
@@ -268,49 +234,6 @@
 					{/if}
 				{:else if view === 'recovery-code'}
 					<RecoveryCode onDone={(next) => onComplete?.(next)} />
-				{:else if view === 'totp'}
-					<OTPForm kind="totp" {onComplete} />
-				{:else if view === 'passkey'}
-					<AuthCard>
-						<Card.Header class="items-center text-center">
-							<div class="mb-2 flex size-11 items-center justify-center rounded-full bg-muted">
-								<FingerprintIcon class="size-5" />
-							</div>
-							<Card.Title>Use your passkey</Card.Title>
-							<Card.Description>
-								Verify it&apos;s you with your device&apos;s passkey prompt.
-							</Card.Description>
-						</Card.Header>
-						<Card.Content class="space-y-4">
-							{#if passkeyMessage}
-								<p
-									class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-									role="alert"
-								>
-									{passkeyMessage}
-								</p>
-							{/if}
-							<Button
-								size="lg"
-								class="w-full"
-								disabled={passkeyPending}
-								onclick={verifyWithPasskey}
-							>
-								{#if passkeyPending}
-									<LoaderCircleIcon class="animate-spin" />
-									Waiting for passkey…
-								{:else}
-									<FingerprintIcon />
-									Continue with passkey
-								{/if}
-							</Button>
-							{#if auth?.user.registeredTOTP}
-								<Button variant="ghost" class="w-full" onclick={() => switchView('totp')}>
-									Use an authenticator code instead
-								</Button>
-							{/if}
-						</Card.Content>
-					</AuthCard>
 				{:else if view === 'reauth' && auth !== null}
 					<ReauthenticationForm {auth} onComplete={(next) => onComplete?.(next)} />
 				{/if}

@@ -23,7 +23,7 @@ function generateSessionToken(): string {
 	return `${generateSecureRandomString()}.${generateSecureRandomString()}`;
 }
 
-function createSession(token: string, userId: string, flags: SessionFlags): Session {
+function createSession(token: string, userId: string): Session {
 	const tokenParts = parseTwoPartToken(token);
 	if (tokenParts === null) {
 		throw new Error('Invalid session token');
@@ -36,8 +36,7 @@ function createSession(token: string, userId: string, flags: SessionFlags): Sess
 		createdAt: now,
 		lastVerifiedAt: now,
 		lastReauthenticatedAt: now,
-		expiresAt: new Date(now.getTime() + INACTIVITY_TIMEOUT_MS),
-		twoFactorVerified: flags.twoFactorVerified
+		expiresAt: new Date(now.getTime() + INACTIVITY_TIMEOUT_MS)
 	};
 
 	db.insert(sessionTable)
@@ -47,21 +46,16 @@ function createSession(token: string, userId: string, flags: SessionFlags): Sess
 			secretHash: hashSecret(tokenParts.secret),
 			createdAt: now,
 			lastVerifiedAt: now,
-			lastReauthenticatedAt: now,
-			twoFactorVerified: flags.twoFactorVerified
+			lastReauthenticatedAt: now
 		})
 		.run();
 
 	return session;
 }
 
-export function createSessionAndSetCookie(
-	event: RequestEvent,
-	userId: string,
-	flags: SessionFlags
-): Session {
+export function createSessionAndSetCookie(event: RequestEvent, userId: string): Session {
 	const token = generateSessionToken();
-	const session = createSession(token, userId, flags);
+	const session = createSession(token, userId);
 	setSessionTokenCookie(event, token, session.expiresAt);
 	return session;
 }
@@ -90,11 +84,6 @@ export function validateSessionToken(token: string): SessionValidationResult {
 		invalidateSession(row.id);
 		return { session: null, user: null };
 	}
-	if (user.registered2FA && !row.twoFactorVerified) {
-		invalidateSession(row.id);
-		return { session: null, user: null };
-	}
-
 	let lastVerifiedAt = row.lastVerifiedAt;
 	if (now.getTime() - row.lastVerifiedAt.getTime() >= ACTIVITY_CHECK_INTERVAL_MS) {
 		db.update(sessionTable)
@@ -114,8 +103,7 @@ export function validateSessionToken(token: string): SessionValidationResult {
 			createdAt: row.createdAt,
 			lastVerifiedAt,
 			lastReauthenticatedAt: row.lastReauthenticatedAt,
-			expiresAt,
-			twoFactorVerified: row.twoFactorVerified
+			expiresAt
 		},
 		user
 	};
@@ -123,13 +111,6 @@ export function validateSessionToken(token: string): SessionValidationResult {
 
 export function invalidateSession(sessionId: string): void {
 	db.delete(sessionTable).where(eq(sessionTable.id, sessionId)).run();
-}
-
-export function setSessionAs2FAVerified(sessionId: string): void {
-	db.update(sessionTable)
-		.set({ twoFactorVerified: true, lastReauthenticatedAt: new Date() })
-		.where(eq(sessionTable.id, sessionId))
-		.run();
 }
 
 export function isSessionRecentlyReauthenticated(session: Session): boolean {
@@ -185,7 +166,7 @@ export function rotateSessionAfterReauthentication(
 	};
 }
 
-export function rotateSessionAfter2FAEnrollment(
+export function rotateSessionFor2FAEnrollment(
 	event: RequestEvent,
 	currentSession: Session
 ): Session {
@@ -206,8 +187,7 @@ export function rotateSessionAfter2FAEnrollment(
 			.set({
 				secretHash: newSecretHash,
 				lastVerifiedAt: now,
-				lastReauthenticatedAt: now,
-				twoFactorVerified: true
+				lastReauthenticatedAt: now
 			})
 			.where(
 				and(
@@ -239,8 +219,7 @@ export function rotateSessionAfter2FAEnrollment(
 		...currentSession,
 		lastVerifiedAt: now,
 		lastReauthenticatedAt: now,
-		expiresAt,
-		twoFactorVerified: true
+		expiresAt
 	};
 }
 
@@ -263,11 +242,7 @@ export function deleteSessionTokenCookie(event: RequestEvent): void {
 	});
 }
 
-export interface SessionFlags {
-	twoFactorVerified: boolean;
-}
-
-export interface Session extends SessionFlags {
+export interface Session {
 	id: string;
 	userId: string;
 	createdAt: Date;

@@ -10,8 +10,6 @@ export const AUTH_MODAL_VIEWS = [
 	'totp-setup',
 	'passkey-register',
 	'recovery-code',
-	'totp',
-	'passkey',
 	'reauth'
 ] as const;
 
@@ -30,7 +28,6 @@ export interface ClientAuthState {
 		recoveryCodeConfigured: boolean;
 		oauthProviders: OAuthProvider[];
 	};
-	twoFactorVerified: boolean;
 }
 
 export interface AuthAPIResponse {

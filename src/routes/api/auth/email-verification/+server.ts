@@ -24,10 +24,7 @@ const verifyBucket = new ExpiringTokenBucket<string>('email-verification-code', 
 export async function POST(event: RequestEvent) {
 	const guarded = requireAuthenticated(event);
 	if (guarded.response) return guarded.response;
-	const { session, user } = guarded.authenticated;
-	if (user.registered2FA && !session.twoFactorVerified) {
-		return authError(403, 'Complete two-factor authentication first');
-	}
+	const { user } = guarded.authenticated;
 	if (user.emailVerified) return authError(409, 'Email is already verified');
 
 	const current = getUserEmailVerificationRequestFromRequest(event);
@@ -59,10 +56,7 @@ export async function POST(event: RequestEvent) {
 export async function PUT(event: RequestEvent) {
 	const guarded = requireAuthenticated(event);
 	if (guarded.response) return guarded.response;
-	const { session, user } = guarded.authenticated;
-	if (user.registered2FA && !session.twoFactorVerified) {
-		return authError(403, 'Complete two-factor authentication first');
-	}
+	const { user } = guarded.authenticated;
 	const request = getUserEmailVerificationRequestFromRequest(event);
 	if (request === null) return authError(401, 'Verification request expired');
 	if (!verifyBucket.check(user.id, 1)) return authError(429, 'Too many requests');
@@ -97,10 +91,7 @@ export async function PUT(event: RequestEvent) {
 export async function PATCH(event: RequestEvent) {
 	const guarded = requireAuthenticated(event);
 	if (guarded.response) return guarded.response;
-	const { session, user } = guarded.authenticated;
-	if (user.registered2FA && !session.twoFactorVerified) {
-		return authError(403, 'Complete two-factor authentication first');
-	}
+	const { user } = guarded.authenticated;
 	const current = getUserEmailVerificationRequestFromRequest(event);
 	const email = current?.email ?? user.email;
 	if (!checkCodeEmailSendRateLimit(email)) {

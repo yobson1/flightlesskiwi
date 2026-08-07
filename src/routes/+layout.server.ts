@@ -29,8 +29,7 @@ export const load: LayoutServerLoad = ({ locals }) => {
 				registered2FA: locals.user.registered2FA,
 				recoveryCodeConfigured: locals.user.recoveryCodeConfigured,
 				oauthProviders: locals.user.oauthProviders
-			},
-			twoFactorVerified: locals.session.twoFactorVerified
+			}
 		}
 	};
 };

@@ -99,10 +99,7 @@ async function updateUsername(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { username: { message: 'Not authenticated' } });
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.user.emailVerified) {
 		return fail(403, { username: { message: 'Forbidden' } });
 	}
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
@@ -141,10 +138,7 @@ async function updatePassword(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { password: { message: 'Not authenticated' } });
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.user.emailVerified) {
 		return fail(403, { password: { message: 'Forbidden' } });
 	}
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
@@ -176,9 +170,7 @@ async function updatePassword(event: RequestEvent) {
 	await updateUserPassword(event.locals.user.id, newPassword);
 	invalidateUserPasswordResetSessions(event.locals.user.id);
 
-	createSessionAndSetCookie(event, event.locals.user.id, {
-		twoFactorVerified: event.locals.session.twoFactorVerified
-	});
+	createSessionAndSetCookie(event, event.locals.user.id);
 	return { password: { message: 'Updated password' } };
 }
 
@@ -186,10 +178,7 @@ async function updateEmail(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { email: { message: 'Not authenticated' } });
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.user.emailVerified) {
 		return fail(403, { email: { message: 'Forbidden' } });
 	}
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
@@ -258,10 +247,7 @@ async function disconnectTOTP(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.user.emailVerified) {
 		return fail(403);
 	}
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
@@ -279,10 +265,7 @@ async function disconnectOAuth(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { connection: { message: 'Not authenticated' } });
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.user.emailVerified) {
 		return fail(403, { connection: { message: 'Forbidden' } });
 	}
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
@@ -339,10 +322,7 @@ async function deletePasskey(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401);
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.user.emailVerified) {
 		return fail(403);
 	}
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {
@@ -370,8 +350,7 @@ async function regenerateRecoveryCode(event: RequestEvent) {
 	if (
 		!event.locals.user.emailVerified ||
 		!event.locals.user.registered2FA ||
-		!event.locals.user.registeredTOTP ||
-		!event.locals.session.twoFactorVerified
+		!event.locals.user.registeredTOTP
 	) {
 		return fail(403);
 	}
@@ -387,10 +366,7 @@ async function deleteAccount(event: RequestEvent) {
 	if (event.locals.session === null || event.locals.user === null) {
 		return fail(401, { account: { message: 'Not authenticated' } });
 	}
-	if (
-		!event.locals.user.emailVerified ||
-		(event.locals.user.registered2FA && !event.locals.session.twoFactorVerified)
-	) {
+	if (!event.locals.user.emailVerified) {
 		return fail(403, { account: { message: 'Forbidden' } });
 	}
 	if (!isSessionRecentlyReauthenticated(event.locals.session)) {

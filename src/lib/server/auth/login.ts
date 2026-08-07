@@ -16,6 +16,6 @@ export function completeLoginFirstFactor(
 }
 
 export function completeLogin(event: RequestEvent, user: AuthUser): AuthModalView | null {
-	createSessionAndSetCookie(event, user.id, { twoFactorVerified: true });
+	createSessionAndSetCookie(event, user.id);
 	return !user.emailVerified ? 'verify-email' : !user.registeredTOTP ? 'setup' : null;
 }

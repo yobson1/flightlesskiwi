@@ -60,8 +60,7 @@ export const session = sqliteTable(
 		secretHash: blob('secret_hash', { mode: 'buffer' }).notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 		lastVerifiedAt: integer('last_verified_at', { mode: 'timestamp_ms' }).notNull(),
-		lastReauthenticatedAt: integer('last_reauthenticated_at', { mode: 'timestamp_ms' }),
-		twoFactorVerified: integer('two_factor_verified', { mode: 'boolean' }).notNull().default(false)
+		lastReauthenticatedAt: integer('last_reauthenticated_at', { mode: 'timestamp_ms' })
 	},
 	(table) => [index('session_user_id_idx').on(table.userId)]
 );
