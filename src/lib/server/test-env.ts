@@ -10,6 +10,8 @@ export const TEST_PRIVATE_ENV = {
 	SMTP_USER: '',
 	SMTP_PASSWORD: '',
 	SMTP_FROM: 'test@example.com',
+	TURNSTILE_SITE_KEY: 'site-key',
+	TURNSTILE_SECRET: 'secret-key',
 	GITHUB_OAUTH_CLIENT_ID: undefined,
 	GITHUB_OAUTH_CLIENT_SECRET: undefined,
 	DISCORD_OAUTH_CLIENT_ID: undefined,

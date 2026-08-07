@@ -45,4 +45,31 @@ describe('Turnstile server validation', () => {
 			).toBe(false);
 		}
 	});
+
+	test('fails closed for missing tokens and unavailable or malformed verification responses', async () => {
+		let requests = 0;
+		const unavailable = (async () => {
+			requests++;
+			throw new Error('unavailable');
+		}) as unknown as typeof fetch;
+
+		expect(await verifyTurnstileToken(null, '192.0.2.1', unavailable)).toBe(false);
+		expect(requests).toBe(0);
+		expect(await verifyTurnstileToken('token', '192.0.2.1', unavailable)).toBe(false);
+		expect(requests).toBe(1);
+		expect(
+			await verifyTurnstileToken(
+				'token',
+				'192.0.2.1',
+				(async () => new Response('not json')) as unknown as typeof fetch
+			)
+		).toBe(false);
+		expect(
+			await verifyTurnstileToken(
+				'token',
+				'192.0.2.1',
+				(async () => new Response(null, { status: 503 })) as unknown as typeof fetch
+			)
+		).toBe(false);
+	});
 });

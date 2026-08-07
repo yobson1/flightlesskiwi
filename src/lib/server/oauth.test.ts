@@ -6,6 +6,7 @@ import {
 	generateCodeVerifier,
 	getAuthorizationResponseError,
 	GitHub,
+	OAuth2Tokens,
 	Twitch
 } from './oauth';
 
@@ -46,7 +47,11 @@ describe('OAuth provider clients', () => {
 			if (request.url === 'https://api.github.com/user') {
 				return Response.json({ id: 1, login: 'octocat' });
 			}
-			return Response.json([{ email: 'octocat@example.com', primary: true, verified: true }]);
+			return Response.json([
+				{ email: 'unverified-primary@example.com', primary: true, verified: false },
+				{ email: 'verified-secondary@example.com', primary: false, verified: true },
+				{ email: 'octocat@example.com', primary: true, verified: true }
+			]);
 		}) as typeof fetch);
 		const redirectURI = 'https://example.com/auth/oauth/github/callback';
 		const github = new GitHub('github-client', 'github-secret', redirectURI);
@@ -69,6 +74,27 @@ describe('OAuth provider clients', () => {
 		expect(
 			apiRequests.every((request) => request.headers.get('X-GitHub-Api-Version') === '2026-03-10')
 		).toBe(true);
+	});
+
+	test('rejects a GitHub profile without a verified primary email', async () => {
+		spyOn(globalThis, 'fetch').mockImplementation((async (input) => {
+			const request = new Request(input);
+			return request.url === 'https://api.github.com/user'
+				? Response.json({ id: 1, login: 'octocat' })
+				: Response.json([
+						{ email: 'primary@example.com', primary: true, verified: false },
+						{ email: 'secondary@example.com', primary: false, verified: true }
+					]);
+		}) as typeof fetch);
+		const github = new GitHub(
+			'github-client',
+			'github-secret',
+			'https://example.com/auth/oauth/github/callback'
+		);
+
+		await expect(github.getUser(providerTokens())).rejects.toThrow(
+			'GitHub account does not have a verified primary email'
+		);
 	});
 
 	test('delegates the callback exchange and PKCE verification to openid-client', async () => {
@@ -158,6 +184,43 @@ describe('OAuth provider clients', () => {
 		expect(url.searchParams.get('scope')).toBe('identify email');
 	});
 
+	test('parses Discord profiles only when the provider email is verified', async () => {
+		const fetchMock = spyOn(globalThis, 'fetch');
+		fetchMock.mockResolvedValueOnce(
+			Response.json({
+				id: 'discord-user',
+				username: 'discord-name',
+				global_name: 'Display Name',
+				email: 'discord@example.com',
+				verified: true
+			})
+		);
+		const discord = new Discord(
+			'discord-client',
+			'discord-secret',
+			'https://example.com/auth/oauth/discord/callback'
+		);
+
+		expect(await discord.getUser(providerTokens())).toEqual({
+			id: 'discord-user',
+			email: 'discord@example.com',
+			emailVerified: true,
+			username: 'Display Name'
+		});
+
+		fetchMock.mockResolvedValueOnce(
+			Response.json({
+				id: 'discord-user',
+				username: 'discord-name',
+				email: 'discord@example.com',
+				verified: false
+			})
+		);
+		await expect(discord.getUser(providerTokens())).rejects.toThrow(
+			'Discord account does not have a verified email'
+		);
+	});
+
 	test('revokes Discord authorization through the standard token revocation operation', async () => {
 		let revocationRequest: Request | null = null;
 		spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
@@ -209,6 +272,40 @@ describe('OAuth provider clients', () => {
 				preferred_username: null
 			}
 		});
+	});
+
+	test('parses only verified Twitch OIDC identity claims', async () => {
+		const twitch = new Twitch(
+			'twitch-client',
+			'twitch-secret',
+			'https://example.com/auth/oauth/twitch/callback'
+		);
+
+		expect(
+			await twitch.getUser(
+				providerTokens({
+					sub: 'twitch-user',
+					preferred_username: 'twitch-name',
+					email: 'twitch@example.com',
+					email_verified: true
+				})
+			)
+		).toEqual({
+			id: 'twitch-user',
+			email: 'twitch@example.com',
+			emailVerified: true,
+			username: 'twitch-name'
+		});
+		await expect(
+			twitch.getUser(
+				providerTokens({
+					sub: 'twitch-user',
+					preferred_username: 'twitch-name',
+					email: 'twitch@example.com',
+					email_verified: false
+				})
+			)
+		).rejects.toThrow('Twitch account does not have a verified email');
 	});
 
 	test('revokes Twitch authorization through the standard token revocation operation', async () => {
@@ -353,3 +450,10 @@ describe('OAuth provider clients', () => {
 		expect(details).not.toContain('must-not-be-logged');
 	});
 });
+
+function providerTokens(claims?: Record<string, unknown>): OAuth2Tokens {
+	return new OAuth2Tokens({
+		access_token: 'access-token',
+		claims: () => claims
+	} as never);
+}

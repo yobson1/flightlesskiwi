@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import {
 	configureAuthTurnstile,
+	resetAuthTurnstile,
 	setAuthTurnstileReset,
 	setAuthTurnstileToken,
 	takeAuthTurnstileToken
@@ -21,6 +22,20 @@ describe('Turnstile auth token state', () => {
 		const token = takeAuthTurnstileToken();
 		setAuthTurnstileToken('fresh-token');
 
+		expect(await token).toBe('fresh-token');
+	});
+
+	test('clears cached tokens and resets the widget before accepting another token', async () => {
+		configureAuthTurnstile(true);
+		let resetCount = 0;
+		setAuthTurnstileReset(() => resetCount++);
+		setAuthTurnstileToken('stale-token');
+
+		resetAuthTurnstile();
+		const token = takeAuthTurnstileToken();
+		setAuthTurnstileToken('fresh-token');
+
+		expect(resetCount).toBe(1);
 		expect(await token).toBe('fresh-token');
 	});
 });
