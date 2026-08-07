@@ -7,7 +7,7 @@ import {
 } from '$lib/server/auth/login-attempt';
 import { completeLogin, completeLoginFirstFactor } from '$lib/server/auth/login';
 import { hashPassword, isPasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
+import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import {
 	getUserById,
@@ -19,7 +19,9 @@ import {
 import type { RequestEvent } from './$types';
 
 const ipBucket = new ExpiringTokenBucket<string>('login-ip', 20, 10 * 60);
-const accountBucket = new ExpiringTokenBucket<string>('login-account', 5, 15 * 60);
+// Account failures must be shared across source IPs. Refilling one attempt at a time avoids
+// leaving an idle account locked for a full fixed window after a burst of failed attempts.
+const accountBucket = new RefillingTokenBucket<string>('login-account', 5, 3 * 60);
 
 export async function POST(event: RequestEvent) {
 	if (event.locals.session !== null) {
@@ -41,23 +43,23 @@ export async function POST(event: RequestEvent) {
 	if (!verifyEmailInput(email) || !isPasswordInput(password)) {
 		return authError(400, 'Invalid email or password');
 	}
-	if (!ipBucket.consume(clientIP, 1) || !accountBucket.check(`${clientIP}:${email}`, 1)) {
+	if (!ipBucket.consume(clientIP, 1) || !accountBucket.check(email, 1)) {
 		return authError(429, 'Too many requests');
 	}
 
 	const user = getUserFromEmail(email);
 	if (user === null) {
 		await hashPassword(password);
-		accountBucket.consume(`${clientIP}:${email}`, 1);
+		accountBucket.consume(email, 1);
 		return authError(400, 'Invalid email or password');
 	}
 	const passwordHash = getUserPasswordHash(user.id);
 	if (passwordHash === null || !(await verifyPasswordHash(passwordHash, password))) {
 		if (passwordHash === null) await hashPassword(password);
-		accountBucket.consume(`${clientIP}:${email}`, 1);
+		accountBucket.consume(email, 1);
 		return authError(400, 'Invalid email or password');
 	}
-	accountBucket.reset(`${clientIP}:${email}`);
+	accountBucket.reset(email);
 
 	return authSuccess(completeLoginFirstFactor(event, user));
 }
