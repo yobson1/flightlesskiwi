@@ -58,11 +58,7 @@
 	let deleteAccountOpen = $state(false);
 	let deleteAccountConfirmation = $state('');
 	const oauthConnectionRemovable = $derived(
-		canRemoveOAuthConnection(
-			data.user.hasPassword,
-			data.user.registeredPasskey,
-			data.user.oauthProviders.length
-		)
+		canRemoveOAuthConnection(data.user.hasPassword, data.user.oauthProviders.length)
 	);
 	const connectionProviders = $derived([
 		...data.user.oauthProviders,
@@ -430,7 +426,8 @@
 										{:else if oauthConnectionRemovable}
 											Use your {getOAuthProviderName(provider)} account as a sign-in method.
 										{:else}
-											Your only sign-in method. Set a password or add a passkey before removing it.
+											Your only permanent sign-in method. Set a password or connect another OAuth
+											account before removing it.
 										{/if}
 									</p>
 								</div>

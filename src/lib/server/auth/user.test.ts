@@ -204,7 +204,7 @@ describe('OAuth users', () => {
 		expect(testDb.select().from(schema.oauthAccount).get()?.provider).toBe('discord');
 	});
 
-	test('removes an OAuth connection when a passkey remains', () => {
+	test('does not remove the last OAuth connection when only a passkey remains', () => {
 		insertUser('passkey-user', 'passkey@example.com', null, true, 'Passkey User');
 		insertOAuthAccount('passkey-user', 'twitch', 'twitch-user');
 		testDb
@@ -218,8 +218,8 @@ describe('OAuth users', () => {
 			})
 			.run();
 
-		expect(deleteUserOAuthAccount('passkey-user', 'twitch').status).toBe('deleted');
-		expect(testDb.select().from(schema.oauthAccount).all()).toHaveLength(0);
+		expect(deleteUserOAuthAccount('passkey-user', 'twitch').status).toBe('last-sign-in-method');
+		expect(testDb.select().from(schema.oauthAccount).all()).toHaveLength(1);
 	});
 
 	test('returns decrypted provider tokens for upstream revocation when disconnecting', () => {

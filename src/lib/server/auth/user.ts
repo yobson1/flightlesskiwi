@@ -258,23 +258,12 @@ export function deleteUserOAuthAccount(
 			.where(eq(userTable.id, userId))
 			.get();
 		if (user === undefined) return { status: 'not-found' };
-		const passkey = tx
-			.select({ id: passkeyCredential.id })
-			.from(passkeyCredential)
-			.where(eq(passkeyCredential.userId, userId))
-			.get();
 		const oauthAccounts = tx
 			.select({ provider: oauthAccount.provider })
 			.from(oauthAccount)
 			.where(eq(oauthAccount.userId, userId))
 			.all();
-		if (
-			!canRemoveOAuthConnection(
-				user.passwordHash !== null,
-				passkey !== undefined,
-				oauthAccounts.length
-			)
-		) {
+		if (!canRemoveOAuthConnection(user.passwordHash !== null, oauthAccounts.length)) {
 			return { status: 'last-sign-in-method' };
 		}
 

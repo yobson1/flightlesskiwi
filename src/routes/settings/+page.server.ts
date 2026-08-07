@@ -299,7 +299,8 @@ async function disconnectOAuth(event: RequestEvent) {
 	if (result.status === 'last-sign-in-method') {
 		return fail(400, {
 			connection: {
-				message: 'Set a password or add a passkey before removing your only sign-in method'
+				message:
+					'Set a password or connect another OAuth account before removing your only permanent sign-in method'
 			}
 		});
 	}

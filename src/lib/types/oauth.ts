@@ -44,12 +44,8 @@ export function getOAuthProviderAuthorizationSettingsURL(provider: OAuthProvider
 	return OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS[provider] ?? null;
 }
 
-export function canRemoveOAuthConnection(
-	hasPassword: boolean,
-	hasPasskey: boolean,
-	connectionCount: number
-): boolean {
-	return hasPassword || hasPasskey || connectionCount > 1;
+export function canRemoveOAuthConnection(hasPassword: boolean, connectionCount: number): boolean {
+	return hasPassword || connectionCount > 1;
 }
 
 export function createOAuthErrorRedirect(
