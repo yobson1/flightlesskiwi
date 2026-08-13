@@ -13,8 +13,8 @@ This project uses [Bun](https://bun.sh/):
 
 > [!NOTE]
 > Development currently uses Bun canary for the timezone-aware cron APIs coming in
-> Bun 1.4. Once Bun 1.4 is released, switch the project, Docker image and release workflow back to
-> stable and remove the temporary `@ts-expect-error` comments for those APIs.
+> Bun 1.4. Once Bun 1.4 is released, switch the project tooling, Docker build stage and release
+> workflow back to stable and remove the temporary `@ts-expect-error` comments for those APIs.
 
 ```sh
 bun install
@@ -87,9 +87,10 @@ The example uses the latest GHCR image by default. Set `FLIGHTLESSKIWI_IMAGE` to
 another image tag, or run `docker compose up -d --build` to build the image from the
 local checkout. `APP_PORT` and `MEILI_PORT` control the host ports.
 
-The one-off `migrate` service applies the versioned migrations bundled into the
-image before the app starts. SQLite, uploaded benchmark files, and Meilisearch data
-use separate named volumes.
+The application applies its embedded database migrations before starting the server.
+The runtime image contains only the standalone executable and its required system
+libraries—Bun and `node_modules` are not included. SQLite, uploaded benchmark files,
+and Meilisearch data use separate named volumes.
 
 For TLS in production, put the application behind a reverse proxy such as
 [nginx](https://nginx.org/en/), and set `ORIGIN`, `WEBAUTHN_ORIGIN`, and

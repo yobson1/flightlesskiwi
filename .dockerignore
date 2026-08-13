@@ -2,6 +2,7 @@
 .github
 .svelte-kit
 build
+flightlesskiwi
 node_modules
 
 .env

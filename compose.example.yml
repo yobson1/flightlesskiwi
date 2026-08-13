@@ -23,18 +23,6 @@ services:
     depends_on:
       meilisearch:
         condition: service_started
-      migrate:
-        condition: service_completed_successfully
-
-  migrate:
-    image: ${FLIGHTLESSKIWI_IMAGE:-ghcr.io/yobson1/flightlesskiwi:latest}
-    build:
-      context: .
-    command: ['bun', 'run', 'db:migrate:deploy']
-    environment:
-      DATABASE_URL: /data/flightlesskiwi.db
-    volumes:
-      - app-data:/data
 
   meilisearch:
     image: docker.io/getmeili/meilisearch:v1.51

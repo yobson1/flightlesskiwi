@@ -1,4 +1,4 @@
-FROM docker.io/oven/bun:canary-slim AS build
+FROM docker.io/oven/bun:canary-alpine AS build
 
 WORKDIR /app
 
@@ -6,16 +6,13 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --ignore-scripts
 
 COPY . .
-RUN bun run build
+RUN bun run build:binary \
+	&& mkdir -p /runtime/data /runtime/uploads/benchmarks \
+	&& chown -R 65532:65532 /runtime
 
-FROM docker.io/oven/bun:canary-slim AS production-dependencies
+FROM docker.io/library/alpine:latest AS runtime
 
-WORKDIR /app
-
-COPY package.json bun.lock ./
-RUN bun install --production --frozen-lockfile --ignore-scripts
-
-FROM docker.io/oven/bun:canary-slim AS runtime
+RUN apk add --no-cache ca-certificates libgcc libstdc++ tzdata
 
 ENV NODE_ENV=production \
 	HOST=0.0.0.0 \
@@ -23,18 +20,13 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
-COPY --from=production-dependencies /app/node_modules ./node_modules
-COPY --from=build --chown=bun:bun /app/build ./build
-COPY --chown=bun:bun drizzle ./drizzle
-COPY --chown=bun:bun scripts/migrate.ts ./scripts/migrate.ts
+COPY --from=build --chown=65532:65532 /app/flightlesskiwi /app/flightlesskiwi
+COPY --from=build --chown=65532:65532 /runtime/data /data
+COPY --from=build --chown=65532:65532 /runtime/uploads /uploads
 
-RUN mkdir -p /data /uploads/benchmarks \
-	&& chown -R bun:bun /app /data /uploads
-
-USER bun
+USER 65532:65532
 
 VOLUME ["/data", "/uploads"]
 EXPOSE 3000
 
-CMD ["bun", "run", "build/index.js"]
+ENTRYPOINT ["/app/flightlesskiwi"]
