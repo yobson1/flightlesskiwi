@@ -43,7 +43,7 @@ const igdbGameSchema = v.object({
 	external_games: v.optional(
 		v.array(
 			v.object({
-				url: v.string(),
+				url: v.optional(v.string()),
 				external_game_source: v.number()
 			})
 		)
