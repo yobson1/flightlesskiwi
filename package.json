@@ -48,7 +48,7 @@
 		"drizzle-kit": "^0.31.10",
 		"oxfmt": "^0.63.0",
 		"oxlint": "^1.78.0",
-		"svelte-check": "^4.7.5",
+		"svelte-check": "^4.7.6",
 		"typescript": "^6.0.3"
 	},
 	"dependencies": {
