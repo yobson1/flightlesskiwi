@@ -6,8 +6,17 @@ This is a Bun-powered SvelteKit application for users to upload, view and share 
 
 ## Lint Guidance
 
-- Treat the anti-slop warn rules as a guide/code review step and not a strict rule.
+- Treat anti-slop warnings as review prompts, not automatic refactoring instructions. Confirm that a suggested change improves this project before applying it.
 
 ## Implementation Preferences
 
 - Use Valibot when appropriate to define and verify data schemas.
+
+## Validation and Type Safety
+
+- Treat `unknown` as a boundary type. Parse it immediately with Valibot before passing it into application logic.
+- Prefer exported Valibot schemas or `parseX(value): X | null` functions over handwritten `isX` type guards.
+- Do not manually validate object shapes with chains of `typeof`, property-in-object checks, or type assertions.
+- Infer types from Valibot schemas where practical so runtime validation and TypeScript types cannot drift apart.
+- Runtime checks such as `typeof`, `instanceof`, `Number.isFinite`, feature detection, and semantic predicates are legitimate when they are not being used as substitutes for boundary schema validation.
+- Do not force business predicates into Valibot. Use descriptive names such as `hasX`, `matchesX`, or `shouldX` for semantic decisions.
