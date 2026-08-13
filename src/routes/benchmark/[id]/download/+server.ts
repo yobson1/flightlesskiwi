@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import { Readable } from 'node:stream';
 import { createGzip } from 'node:zlib';
 import { eq } from 'drizzle-orm';
 import { pack } from 'tar-stream';
@@ -69,8 +68,20 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 	archive.finalize();
 	const archiveName = `benchmark-${benchmark.id}.tar.gz`;
+	const archiveIterator = compressedArchive[Symbol.asyncIterator]();
+	const body = new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			const chunk = await archiveIterator.next();
+			if (chunk.done) controller.close();
+			else controller.enqueue(chunk.value);
+		},
+		async cancel() {
+			await archiveIterator.return?.();
+			compressedArchive.destroy();
+		}
+	});
 
-	return new Response(Readable.toWeb(compressedArchive) as unknown as ReadableStream<Uint8Array>, {
+	return new Response(body, {
 		headers: {
 			...commonHeaders,
 			'content-type': 'application/gzip',

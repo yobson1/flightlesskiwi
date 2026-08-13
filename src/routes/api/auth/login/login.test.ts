@@ -12,6 +12,15 @@ import type { RequestEvent } from '@sveltejs/kit';
 import * as schema from '$lib/server/db/schema';
 import type { AuthUser } from '$lib/server/auth/user';
 import { createTestDatabase } from '$lib/server/test-db';
+import type { AuthAPIResponse, AuthModalView } from '$lib/types/auth';
+
+interface MockAuthErrorOptions {
+	modal?: AuthModalView;
+	reauthenticationRequired?: boolean;
+	retryAfterSeconds?: number;
+}
+
+type MockAuthSuccessData = Omit<AuthAPIResponse, 'next'>;
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
@@ -26,9 +35,10 @@ let clientIPCounter = 10;
 mock.module('$app/env', () => ({ dev: true }));
 mock.module('$lib/server/db', () => ({ db: testDb }));
 mock.module('$lib/server/auth/api', () => ({
-	authError: (status: number, message: string, options: object = {}) =>
+	authError: (status: number, message: string, options: MockAuthErrorOptions = {}) =>
 		Response.json({ message, ...options }, { status }),
-	authSuccess: (next: string | null, data: object = {}) => Response.json({ ...data, next }),
+	authSuccess: (next: AuthModalView | null, data: MockAuthSuccessData = {}) =>
+		Response.json({ ...data, next }),
 	getClientIP: (event: RequestEvent) => event.getClientAddress(),
 	verifyPasskeyRequest: async (_request: Request, userId: string | null, purpose: string) => {
 		passkeyVerificationRequest = { userId, purpose };

@@ -13,9 +13,17 @@ import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import { decryptToString, encryptString } from '$lib/server/auth/encryption';
 import * as oauth from '$lib/server/oauth';
 import { OAUTH_PROVIDERS, type OAuthErrorCode, type OAuthProvider } from '$lib/types/oauth';
-import { isNonArrayObject } from '$lib/utils';
+import * as v from 'valibot';
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const oauthStateSchema = v.object({
+	state: v.string(),
+	codeVerifier: v.string(),
+	nonce: v.optional(v.string()),
+	flow: v.picklist(['login', 'reauth', 'link']),
+	returnTo: v.nullable(v.string()),
+	expiresAt: v.number()
+});
 
 const providerScopes: Record<OAuthProvider, string[]> = {
 	github: ['user:email'],
@@ -172,25 +180,11 @@ function consumeOAuthState(event: RequestEvent, provider: OAuthProvider): OAuthS
 	if (!value) return null;
 
 	try {
-		const state = JSON.parse(decryptToString(decodeBase64url(value))) as unknown;
-		if (
-			!isNonArrayObject(state) ||
-			!('state' in state) ||
-			!('codeVerifier' in state) ||
-			!('flow' in state) ||
-			!('returnTo' in state) ||
-			!('expiresAt' in state) ||
-			typeof state.state !== 'string' ||
-			typeof state.codeVerifier !== 'string' ||
-			('nonce' in state && state.nonce !== undefined && typeof state.nonce !== 'string') ||
-			(state.flow !== 'login' && state.flow !== 'reauth' && state.flow !== 'link') ||
-			(state.returnTo !== null && typeof state.returnTo !== 'string') ||
-			typeof state.expiresAt !== 'number' ||
-			state.expiresAt <= Date.now()
-		) {
-			return null;
-		}
-		return state as unknown as OAuthState;
+		const result = v.safeParse(
+			oauthStateSchema,
+			JSON.parse(decryptToString(decodeBase64url(value)))
+		);
+		return result.success && result.output.expiresAt > Date.now() ? result.output : null;
 	} catch {
 		return null;
 	}

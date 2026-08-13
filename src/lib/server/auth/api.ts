@@ -7,7 +7,7 @@ import {
 	verifyWebAuthnAssertionRequest,
 	WebAuthnAssertionRequestError
 } from '$lib/server/auth/webauthn-verify';
-import type { AuthModalView } from '$lib/types/auth';
+import type { AuthAPIResponse, AuthModalView } from '$lib/types/auth';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 
 export { getClientIP } from '$lib/server/auth/client-ip';
@@ -23,7 +23,9 @@ export type AuthGuardResult =
 	| { authenticated: AuthenticatedRequest; response?: never }
 	| { authenticated?: never; response: Response };
 
-export function authSuccess(next: AuthModalView | null, data: object = {}): Response {
+type AuthSuccessData = Omit<AuthAPIResponse, 'next'>;
+
+export function authSuccess(next: AuthModalView | null, data: AuthSuccessData = {}): Response {
 	return json({ ...data, next }, { headers: noStoreHeaders });
 }
 
