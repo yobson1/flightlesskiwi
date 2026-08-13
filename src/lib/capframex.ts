@@ -6,13 +6,73 @@ import {
 	type BenchmarkRun,
 	type BenchmarkSystemInfo
 } from '$lib/benchmark-run-model';
+import { isNonArrayObject } from '$lib/utils';
+import * as v from 'valibot';
 
 const MAXIMUM_DATA_POINTS = 100_000;
 
-interface CapFrameXDocument {
-	Info: Record<string, unknown>;
-	Runs: unknown[];
-}
+const optionalString = v.optional(v.nullable(v.string()));
+const capFrameXInfoSchema = v.object({
+	AppVersion: v.string(),
+	Processor: optionalString,
+	GPU: optionalString,
+	ProcessName: optionalString,
+	OS: optionalString,
+	SystemRam: optionalString,
+	Motherboard: optionalString,
+	GPUDriverVersion: optionalString,
+	DriverPackage: optionalString,
+	BaseDriverVersion: optionalString
+});
+const capFrameXDocumentSchema = v.object({
+	Info: capFrameXInfoSchema,
+	Runs: v.array(v.unknown())
+});
+const numericSamplesSchema = v.pipe(
+	v.array(v.unknown()),
+	v.transform((values) =>
+		values
+			.slice(0, MAXIMUM_DATA_POINTS)
+			.map((value) => (typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN))
+	)
+);
+const optionalNumericSamples = v.fallback(v.optional(numericSamplesSchema, []), []);
+const captureDataSchema = v.object({
+	TimeInSeconds: optionalNumericSamples,
+	MsBetweenPresents: optionalNumericSamples
+});
+const sensorSchema = v.object({
+	Name: v.string(),
+	Type: v.string(),
+	StableIdentifier: optionalString,
+	Values: numericSamplesSchema
+});
+const legacySensorDataSchema = v.object({
+	MeasureTime: optionalNumericSamples,
+	CpuUsage: optionalNumericSamples,
+	CpuMaxClock: optionalNumericSamples,
+	CpuPower: optionalNumericSamples,
+	CpuTemp: optionalNumericSamples,
+	GpuUsage: optionalNumericSamples,
+	GpuClock: optionalNumericSamples,
+	GpuPower: optionalNumericSamples,
+	GpuTemp: optionalNumericSamples,
+	RamUsage: optionalNumericSamples,
+	VRamUsageGB: optionalNumericSamples,
+	VRamUsage: optionalNumericSamples
+});
+const capFrameXRunSchema = v.object({
+	CaptureData: v.optional(v.unknown()),
+	SensorData2: v.optional(v.unknown()),
+	SensorData: v.optional(v.unknown())
+});
+
+type CapFrameXDocument = v.InferOutput<typeof capFrameXDocumentSchema>;
+type CapFrameXInfo = v.InferOutput<typeof capFrameXInfoSchema>;
+type CaptureData = v.InferOutput<typeof captureDataSchema>;
+type Sensor = v.InferOutput<typeof sensorSchema>;
+type SensorData2 = Record<string, Sensor>;
+type LegacySensorData = v.InferOutput<typeof legacySensorDataSchema>;
 
 interface SensorMapping {
 	key: BenchmarkMetricKey;
@@ -41,21 +101,21 @@ export function parseCapFrameXBenchmarkRun(json: string): BenchmarkRun | null {
 	};
 }
 
-function buildSystemInfo(info: Record<string, unknown>): BenchmarkSystemInfo {
-	const ramDescription = stringValue(info.SystemRam);
+function buildSystemInfo(info: CapFrameXInfo): BenchmarkSystemInfo {
+	const ramDescription = normalizedString(info.SystemRam);
 	return {
-		os: stringValue(info.OS),
-		cpu: stringValue(info.Processor),
-		gpu: stringValue(info.GPU),
+		os: normalizedString(info.OS),
+		cpu: normalizedString(info.Processor),
+		gpu: normalizedString(info.GPU),
 		ramBytes: parseMemoryDescription(ramDescription),
 		ramDescription,
 		kernel: '',
 		driver:
-			stringValue(info.GPUDriverVersion) ||
-			stringValue(info.DriverPackage) ||
-			stringValue(info.BaseDriverVersion),
+			normalizedString(info.GPUDriverVersion) ||
+			normalizedString(info.DriverPackage) ||
+			normalizedString(info.BaseDriverVersion),
 		cpuScheduler: '',
-		motherboard: stringValue(info.Motherboard)
+		motherboard: normalizedString(info.Motherboard)
 	};
 }
 
@@ -66,13 +126,16 @@ export function parseCapFrameXBenchmarkData(json: string): BenchmarkData | null 
 }
 
 function parseBenchmarkData(document: CapFrameXDocument): BenchmarkData | null {
-	const run = recordValue(document.Runs[0]);
-	if (!run) return null;
-	const captureData = recordValue(run.CaptureData);
+	const result = v.safeParse(capFrameXRunSchema, document.Runs[0]);
+	if (!result.success) return null;
+	const run = result.output;
+	const captureResult = v.safeParse(captureDataSchema, run.CaptureData);
+	const captureData = captureResult.success ? captureResult.output : null;
 	const captureMetrics = captureData ? parseCaptureMetrics(captureData) : [];
 	const captureDuration = maximumMetricTime(captureMetrics);
-	const sensorData2 = recordValue(run.SensorData2);
-	const legacySensorData = recordValue(run.SensorData);
+	const sensorData2 = parseSensorData2Value(run.SensorData2);
+	const legacySensorResult = v.safeParse(legacySensorDataSchema, run.SensorData);
+	const legacySensorData = legacySensorResult.success ? legacySensorResult.output : null;
 	const sensorMetrics = sensorData2
 		? parseSensorData2(sensorData2, captureDuration)
 		: legacySensorData
@@ -83,13 +146,24 @@ function parseBenchmarkData(document: CapFrameXDocument): BenchmarkData | null {
 	return metrics.length > 0 ? { metrics } : null;
 }
 
+function parseSensorData2Value(value: unknown): SensorData2 | null {
+	if (!isNonArrayObject(value)) return null;
+
+	const sensors: SensorData2 = {};
+	for (const [key, sensor] of Object.entries(value)) {
+		const result = v.safeParse(sensorSchema, sensor);
+		if (result.success) sensors[key] = result.output;
+	}
+	return sensors;
+}
+
 export function getCapFrameXRunCount(json: string): number | null {
 	const document = parseCapFrameXDocument(json);
 	return document?.Runs.length ?? null;
 }
 
-function parseCaptureMetrics(captureData: Record<string, unknown>): BenchmarkMetric[] {
-	const rawTimes = numberArray(captureData.TimeInSeconds);
+function parseCaptureMetrics(captureData: CaptureData): BenchmarkMetric[] {
+	const rawTimes = limitedValues(captureData.TimeInSeconds);
 	const sampleIndexes = validTimeIndexes(rawTimes);
 	if (sampleIndexes.length === 0) return [];
 
@@ -98,43 +172,41 @@ function parseCaptureMetrics(captureData: Record<string, unknown>): BenchmarkMet
 	const metrics: BenchmarkMetric[] = [];
 	const addMetric = (
 		key: BenchmarkMetricKey,
-		property: string,
+		rawValues: number[] | undefined,
 		transform: (value: number) => number | null = (value) => value
 	) => {
-		const rawValues = unknownArray(captureData[property]);
+		const valuesSource = limitedValues(rawValues);
 		const values = sampleIndexes.map((index) => {
-			const value = finiteNumber(rawValues[index]);
-			return value === null ? null : transform(value);
+			const value = valuesSource[index];
+			return value === undefined || !Number.isFinite(value) ? null : transform(value);
 		});
 		if (values.some((value) => value !== null)) {
 			metrics.push(createBenchmarkMetric(key, [...timeSeconds], values));
 		}
 	};
 
-	addMetric('fps', 'MsBetweenPresents', (value) => (value > 0 ? 1_000 / value : null));
-	addMetric('frametime', 'MsBetweenPresents');
+	addMetric('fps', captureData.MsBetweenPresents, (value) => (value > 0 ? 1_000 / value : null));
+	addMetric('frametime', captureData.MsBetweenPresents);
 
 	return metrics;
 }
 
 function parseSensorData2(
-	sensorData: Record<string, unknown>,
+	sensorData: SensorData2,
 	captureDuration: number | null
 ): BenchmarkMetric[] {
 	const measureTime = findSensor(sensorData, 'MeasureTime');
-	const rawTimes = numberArray(measureTime?.Values);
+	const rawTimes = limitedValues(measureTime?.Values);
 	if (rawTimes.length === 0) return [];
 
-	const selected = new Map<BenchmarkMetricKey, { mapping: SensorMapping; values: unknown[] }>();
+	const selected = new Map<BenchmarkMetricKey, { mapping: SensorMapping; values: number[] }>();
 	for (const sensor of Object.values(sensorData)) {
-		const value = recordValue(sensor);
-		if (!value) continue;
-		const mapping = mapSensor(stringValue(value.Name), stringValue(value.Type));
+		const mapping = mapSensor(sensor.Name, sensor.Type);
 		if (!mapping) continue;
 
 		const existing = selected.get(mapping.key);
 		if (!existing || mapping.priority > existing.mapping.priority) {
-			selected.set(mapping.key, { mapping, values: unknownArray(value.Values) });
+			selected.set(mapping.key, { mapping, values: limitedValues(sensor.Values) });
 		}
 	}
 
@@ -142,33 +214,33 @@ function parseSensorData2(
 }
 
 function parseLegacySensorData(
-	sensorData: Record<string, unknown>,
+	sensorData: LegacySensorData,
 	captureDuration: number | null
 ): BenchmarkMetric[] {
-	const rawTimes = numberArray(sensorData.MeasureTime);
+	const rawTimes = limitedValues(sensorData.MeasureTime);
 	if (rawTimes.length === 0) return [];
 
-	const selected = new Map<BenchmarkMetricKey, { mapping: SensorMapping; values: unknown[] }>();
-	const add = (key: BenchmarkMetricKey, property: string, scale?: number) => {
-		const values = unknownArray(sensorData[property]);
-		if (values.length > 0) {
-			selected.set(key, { mapping: { key, priority: 1, scale }, values });
+	const selected = new Map<BenchmarkMetricKey, { mapping: SensorMapping; values: number[] }>();
+	const add = (key: BenchmarkMetricKey, values: number[] | undefined, scale?: number) => {
+		const limited = limitedValues(values);
+		if (limited.length > 0) {
+			selected.set(key, { mapping: { key, priority: 1, scale }, values: limited });
 		}
 	};
 
-	add('cpu_load', 'CpuUsage');
-	add('cpu_mhz', 'CpuMaxClock');
-	add('cpu_power', 'CpuPower');
-	add('cpu_temp', 'CpuTemp');
-	add('gpu_load', 'GpuUsage');
-	add('gpu_core_clock', 'GpuClock');
-	add('gpu_power', 'GpuPower');
-	add('gpu_temp', 'GpuTemp');
-	add('process_rss', 'RamUsage');
-	if (unknownArray(sensorData.VRamUsageGB).length > 0) {
-		add('gpu_vram_used', 'VRamUsageGB');
+	add('cpu_load', sensorData.CpuUsage);
+	add('cpu_mhz', sensorData.CpuMaxClock);
+	add('cpu_power', sensorData.CpuPower);
+	add('cpu_temp', sensorData.CpuTemp);
+	add('gpu_load', sensorData.GpuUsage);
+	add('gpu_core_clock', sensorData.GpuClock);
+	add('gpu_power', sensorData.GpuPower);
+	add('gpu_temp', sensorData.GpuTemp);
+	add('process_rss', sensorData.RamUsage);
+	if (limitedValues(sensorData.VRamUsageGB).length > 0) {
+		add('gpu_vram_used', sensorData.VRamUsageGB);
 	} else {
-		add('gpu_vram_used', 'VRamUsage', 1 / 1_024);
+		add('gpu_vram_used', sensorData.VRamUsage, 1 / 1_024);
 	}
 
 	return buildSensorMetrics(rawTimes, selected, captureDuration);
@@ -176,7 +248,7 @@ function parseLegacySensorData(
 
 function buildSensorMetrics(
 	rawTimes: number[],
-	selected: Map<BenchmarkMetricKey, { mapping: SensorMapping; values: unknown[] }>,
+	selected: Map<BenchmarkMetricKey, { mapping: SensorMapping; values: number[] }>,
 	captureDuration: number | null
 ): BenchmarkMetric[] {
 	const sampleIndexes = validTimeIndexes(rawTimes, captureDuration);
@@ -184,8 +256,8 @@ function buildSensorMetrics(
 
 	return [...selected.values()].flatMap(({ mapping, values: rawValues }) => {
 		const values = sampleIndexes.map((index) => {
-			const value = finiteNumber(rawValues[index]);
-			return value === null ? null : value * (mapping.scale ?? 1);
+			const value = rawValues[index];
+			return value === undefined || !Number.isFinite(value) ? null : value * (mapping.scale ?? 1);
 		});
 		if (!values.some((value) => value !== null)) return [];
 
@@ -296,17 +368,10 @@ function validTimeIndexes(rawTimes: number[], maximumTime?: number | null): numb
 	return indexes;
 }
 
-function findSensor(
-	sensorData: Record<string, unknown>,
-	name: string
-): Record<string, unknown> | null {
-	const direct = recordValue(sensorData[name]);
+function findSensor(sensorData: SensorData2, name: string): Sensor | null {
+	const direct = sensorData[name];
 	if (direct) return direct;
-	return (
-		Object.values(sensorData)
-			.map(recordValue)
-			.find((sensor) => sensor && stringValue(sensor.Name) === name) ?? null
-	);
+	return Object.values(sensorData).find((sensor) => sensor.Name === name) ?? null;
 }
 
 function maximumMetricTime(metrics: BenchmarkMetric[]): number | null {
@@ -322,19 +387,14 @@ function maximumMetricTime(metrics: BenchmarkMetric[]): number | null {
 
 function parseCapFrameXDocument(json: string): CapFrameXDocument | null {
 	try {
-		const value = JSON.parse(json.replace(/^\uFEFF/, ''));
-		const document = recordValue(value);
-		const info = recordValue(document?.Info);
-		const runs = document?.Runs;
-		return info && Array.isArray(runs) && looksLikeCapFrameXInfo(info)
-			? { Info: info, Runs: runs }
-			: null;
+		const result = v.safeParse(capFrameXDocumentSchema, JSON.parse(json.replace(/^\uFEFF/, '')));
+		return result.success && looksLikeCapFrameXInfo(result.output.Info) ? result.output : null;
 	} catch {
 		return null;
 	}
 }
 
-function parseCapFrameXInfoPrefix(json: string): Record<string, unknown> | null {
+function parseCapFrameXInfoPrefix(json: string): CapFrameXInfo | null {
 	const propertyMatch = /"Info"\s*:/.exec(json);
 	if (!propertyMatch) return null;
 	const start = json.indexOf('{', propertyMatch.index + propertyMatch[0].length);
@@ -355,7 +415,8 @@ function parseCapFrameXInfoPrefix(json: string): Record<string, unknown> | null 
 		else if (character === '{') depth++;
 		else if (character === '}' && --depth === 0) {
 			try {
-				return recordValue(JSON.parse(json.slice(start, index + 1)));
+				const result = v.safeParse(capFrameXInfoSchema, JSON.parse(json.slice(start, index + 1)));
+				return result.success ? result.output : null;
 			} catch {
 				return null;
 			}
@@ -364,12 +425,14 @@ function parseCapFrameXInfoPrefix(json: string): Record<string, unknown> | null 
 	return null;
 }
 
-function looksLikeCapFrameXInfo(info: Record<string, unknown>): boolean {
+function looksLikeCapFrameXInfo(info: CapFrameXInfo): boolean {
 	return (
-		typeof info.AppVersion === 'string' &&
-		(typeof info.Processor === 'string' ||
-			typeof info.GPU === 'string' ||
-			typeof info.ProcessName === 'string')
+		info.AppVersion.length > 0 &&
+		(info.Processor !== null && info.Processor !== undefined
+			? true
+			: info.GPU !== null && info.GPU !== undefined
+				? true
+				: info.ProcessName !== null && info.ProcessName !== undefined)
 	);
 }
 
@@ -393,24 +456,10 @@ function normalizeSensorLabel(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function numberArray(value: unknown): number[] {
-	return unknownArray(value).map((item) => finiteNumber(item) ?? Number.NaN);
+function limitedValues(values: number[] | undefined): number[] {
+	return values?.slice(0, MAXIMUM_DATA_POINTS) ?? [];
 }
 
-function unknownArray(value: unknown): unknown[] {
-	return Array.isArray(value) ? value.slice(0, MAXIMUM_DATA_POINTS) : [];
-}
-
-function finiteNumber(value: unknown): number | null {
-	return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function stringValue(value: unknown): string {
-	return typeof value === 'string' ? value.trim() : '';
-}
-
-function recordValue(value: unknown): Record<string, unknown> | null {
-	return typeof value === 'object' && value !== null && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: null;
+function normalizedString(value: string | null | undefined): string {
+	return value?.trim() ?? '';
 }

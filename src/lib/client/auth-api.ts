@@ -1,6 +1,12 @@
-import type { AuthAPIErrorResponse, AuthAPIResponse, AuthModalView } from '$lib/types/auth';
+import {
+	authAPIErrorResponseSchema,
+	authAPIResponseSchema,
+	type AuthAPIResponse,
+	type AuthModalView
+} from '$lib/types/auth';
 import { resetAuthTurnstile, takeAuthTurnstileToken } from '$lib/client/auth-turnstile';
 import { isTurnstileProtectedAuthRequest, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
+import * as v from 'valibot';
 
 export class AuthAPIError extends Error {
 	readonly modal: AuthModalView | null;
@@ -42,7 +48,8 @@ export async function authRequest(
 	}
 	const data = await readResponse(response);
 	if (!response.ok) {
-		const error = isErrorResponse(data) ? data : null;
+		const errorResult = v.safeParse(authAPIErrorResponseSchema, data);
+		const error = errorResult.success ? errorResult.output : null;
 		throw new AuthAPIError(
 			error?.message || response.statusText || 'Authentication request failed',
 			{
@@ -52,10 +59,11 @@ export async function authRequest(
 			}
 		);
 	}
-	if (!isSuccessResponse(data)) {
+	const result = v.safeParse(authAPIResponseSchema, data);
+	if (!result.success) {
 		throw new AuthAPIError('Invalid authentication response', {});
 	}
-	return data;
+	return result.output;
 }
 
 export async function authFormRequest(
@@ -79,29 +87,11 @@ async function readResponse(response: Response): Promise<unknown> {
 	return message ? { message } : null;
 }
 
-function isSuccessResponse(value: unknown): value is AuthAPIResponse {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'next' in value &&
-		(value.next === null || typeof value.next === 'string')
-	);
-}
-
-function isErrorResponse(value: unknown): value is AuthAPIErrorResponse {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'message' in value &&
-		typeof value.message === 'string'
-	);
-}
-
-export function computeResendAvailableAt(value: unknown, defaultIntervalSeconds: number): number {
+export function computeResendAvailableAt(
+	value: { retryAfterSeconds?: number },
+	defaultIntervalSeconds: number
+): number {
 	const retryAfterSeconds =
-		typeof value === 'object' &&
-		value !== null &&
-		'retryAfterSeconds' in value &&
 		typeof value.retryAfterSeconds === 'number' &&
 		Number.isFinite(value.retryAfterSeconds) &&
 		value.retryAfterSeconds >= 0

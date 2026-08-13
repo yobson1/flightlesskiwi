@@ -7,7 +7,11 @@ import {
 	parseCapFrameXSystemInfo
 } from './capframex';
 
-function capFrameXJson(overrides: Record<string, unknown> = {}) {
+interface CapFrameXFixtureOverrides {
+	Runs?: object[];
+}
+
+function capFrameXJson(overrides: CapFrameXFixtureOverrides = {}) {
 	return JSON.stringify({
 		Info: {
 			AppVersion: '1.8.6.2',

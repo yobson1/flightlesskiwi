@@ -2,8 +2,7 @@ import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from '$app/env/private';
 import {
 	verifyAuthenticationResponse,
 	verifyRegistrationResponse,
-	type AuthenticationResponseJSON,
-	type RegistrationResponseJSON
+	type AuthenticationResponseJSON
 } from '@simplewebauthn/server';
 import { decodeClientDataJSON } from '@simplewebauthn/server/helpers';
 import { decodeBase64url, encodeBase64url } from '$lib/encoding';
@@ -16,8 +15,8 @@ import {
 	WEBAUTHN_SUPPORTED_ALGORITHM_IDS,
 	type WebAuthnUserCredential
 } from '$lib/server/auth/webauthn';
-import { isRecord } from '$lib/utils';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+import { parseAuthenticationResponse, parseRegistrationResponse } from '$lib/webauthn-json';
 
 export async function verifyWebAuthnAssertionRequest(
 	request: Request,
@@ -164,34 +163,5 @@ async function parseAssertionRequest(request: Request): Promise<AuthenticationRe
 	} catch {
 		return null;
 	}
-	return isAuthenticationResponse(data) ? data : null;
-}
-
-function isAuthenticationResponse(value: unknown): value is AuthenticationResponseJSON {
-	if (!isRecord(value) || !isRecord(value.response)) return false;
-	return (
-		typeof value.id === 'string' &&
-		typeof value.rawId === 'string' &&
-		value.type === 'public-key' &&
-		isRecord(value.clientExtensionResults) &&
-		typeof value.response.authenticatorData === 'string' &&
-		typeof value.response.clientDataJSON === 'string' &&
-		typeof value.response.signature === 'string' &&
-		(value.response.userHandle === undefined || typeof value.response.userHandle === 'string')
-	);
-}
-
-function parseRegistrationResponse(value: unknown): RegistrationResponseJSON | null {
-	if (!isRecord(value) || !isRecord(value.response)) return null;
-	if (
-		typeof value.id !== 'string' ||
-		typeof value.rawId !== 'string' ||
-		value.type !== 'public-key' ||
-		!isRecord(value.clientExtensionResults) ||
-		typeof value.response.attestationObject !== 'string' ||
-		typeof value.response.clientDataJSON !== 'string'
-	) {
-		return null;
-	}
-	return value as unknown as RegistrationResponseJSON;
+	return parseAuthenticationResponse(data);
 }

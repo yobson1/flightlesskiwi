@@ -23,6 +23,7 @@ const client = new Meilisearch({
 type DocumentId = string | number;
 type SearchQueueDatabase = Pick<typeof db, 'insert'>;
 type VersionedDocument<Document> = Document & { schemaVersion: number };
+type ReconciliationDocument = Record<string, DocumentId> & { schemaVersion: number };
 
 interface MeilisearchIndexOptions<Document extends RecordAny, Id extends DocumentId> {
 	name: string;
@@ -130,7 +131,7 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 		let offset = 0;
 
 		while (true) {
-			const response = await index.getDocuments<Record<string, unknown>>({
+			const response = await index.getDocuments<ReconciliationDocument>({
 				fields: [primaryKey, 'schemaVersion'],
 				limit: INDEX_BATCH_SIZE,
 				offset

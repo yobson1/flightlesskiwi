@@ -6,6 +6,7 @@ import {
 	type BenchmarkSource,
 	type BenchmarkSystemInfo
 } from '$lib/benchmark-run-model';
+import * as v from 'valibot';
 
 // Increment this whenever parser changes alter the normalized BenchmarkRun output.
 export const BENCHMARK_PARSER_VERSION = 1;
@@ -23,6 +24,34 @@ interface ParsedBenchmarkMetric {
 	timeAxis: number;
 	values: Array<number | null>;
 }
+
+const benchmarkSystemInfoSchema = v.object({
+	os: v.string(),
+	cpu: v.string(),
+	gpu: v.string(),
+	ramBytes: v.nullable(v.number()),
+	ramDescription: v.string(),
+	kernel: v.string(),
+	driver: v.string(),
+	cpuScheduler: v.string(),
+	motherboard: v.string()
+});
+const parsedBenchmarkRunSchema = v.object({
+	version: v.number(),
+	source: v.picklist(['mangohud', 'capframex']),
+	systemInfo: benchmarkSystemInfoSchema,
+	timeAxes: v.array(v.array(v.number())),
+	metrics: v.array(
+		v.object({
+			key: v.custom<BenchmarkMetricKey>(
+				(value): value is BenchmarkMetricKey =>
+					typeof value === 'string' && isBenchmarkMetricKey(value)
+			),
+			timeAxis: v.number(),
+			values: v.array(v.union([v.number(), v.null()]))
+		})
+	)
+});
 
 export function getParsedBenchmarkRunVersion(contents: string): number | null {
 	const match = /^\s*\{"version":(\d+),/.exec(contents);
@@ -51,7 +80,9 @@ export function serializeParsedBenchmarkRun(benchmarkRun: BenchmarkRun): string 
 
 export function deserializeParsedBenchmarkRun(contents: string): BenchmarkRun | null {
 	try {
-		const parsed = JSON.parse(contents) as Partial<ParsedBenchmarkRun>;
+		const result = v.safeParse(parsedBenchmarkRunSchema, JSON.parse(contents));
+		if (!result.success) return null;
+		const parsed = result.output;
 		if (!isParsedBenchmarkRun(parsed)) return null;
 
 		return {
@@ -86,44 +117,16 @@ function arraysEqual(left: number[], right: number[]): boolean {
 	return true;
 }
 
-function isParsedBenchmarkRun(value: unknown): value is ParsedBenchmarkRun {
-	if (typeof value !== 'object' || value === null) return false;
-
-	const run = value as Partial<ParsedBenchmarkRun>;
+function isParsedBenchmarkRun(run: ParsedBenchmarkRun): boolean {
 	return (
 		run.version === BENCHMARK_PARSER_VERSION &&
-		(run.source === 'mangohud' || run.source === 'capframex') &&
-		isBenchmarkSystemInfo(run.systemInfo) &&
-		Array.isArray(run.timeAxes) &&
-		run.timeAxes.every(Array.isArray) &&
-		Array.isArray(run.metrics) &&
 		run.metrics.every(
 			(metric) =>
-				typeof metric === 'object' &&
-				metric !== null &&
-				isBenchmarkMetricKey(metric.key) &&
 				Number.isSafeInteger(metric.timeAxis) &&
 				metric.timeAxis >= 0 &&
-				metric.timeAxis < run.timeAxes!.length &&
+				metric.timeAxis < run.timeAxes.length &&
 				Array.isArray(metric.values) &&
-				run.timeAxes![metric.timeAxis]!.length === metric.values.length
+				run.timeAxes[metric.timeAxis]!.length === metric.values.length
 		)
-	);
-}
-
-function isBenchmarkSystemInfo(value: unknown): boolean {
-	if (typeof value !== 'object' || value === null) return false;
-
-	const systemInfo = value as Record<string, unknown>;
-	return (
-		typeof systemInfo.os === 'string' &&
-		typeof systemInfo.cpu === 'string' &&
-		typeof systemInfo.gpu === 'string' &&
-		(systemInfo.ramBytes === null || typeof systemInfo.ramBytes === 'number') &&
-		typeof systemInfo.ramDescription === 'string' &&
-		typeof systemInfo.kernel === 'string' &&
-		typeof systemInfo.driver === 'string' &&
-		typeof systemInfo.cpuScheduler === 'string' &&
-		typeof systemInfo.motherboard === 'string'
 	);
 }

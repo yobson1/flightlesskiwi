@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import { AUTH_MODAL_VIEWS, type AuthModalView } from '$lib/types/auth';
+import { AUTH_MODAL_VIEWS, type AuthAPIResponse, type AuthModalView } from '$lib/types/auth';
 
 const AUTH_MODAL_CONTEXT = Symbol('auth-modal');
 const AUTH_MODAL_DATA_ENDPOINTS: Partial<Record<AuthModalView, string>> = {
@@ -10,7 +10,7 @@ const AUTH_MODAL_DATA_ENDPOINTS: Partial<Record<AuthModalView, string>> = {
 };
 
 export interface AuthModalOpenOptions {
-	data?: unknown;
+	data?: AuthAPIResponse;
 	required?: boolean;
 	onClose?: () => void | Promise<void>;
 	onComplete?: () => void | Promise<void>;

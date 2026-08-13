@@ -1,4 +1,5 @@
 import type { OAuthProvider } from '$lib/types/oauth';
+import * as v from 'valibot';
 
 export const AUTH_MODAL_VIEWS = [
 	'login',
@@ -14,6 +15,7 @@ export const AUTH_MODAL_VIEWS = [
 ] as const;
 
 export type AuthModalView = (typeof AUTH_MODAL_VIEWS)[number];
+export type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';
 
 export interface ClientAuthState {
 	user: {
@@ -30,16 +32,25 @@ export interface ClientAuthState {
 	};
 }
 
-export interface AuthAPIResponse {
-	next: AuthModalView | null;
-	message?: string;
-	retryAfterSeconds?: number;
-	[key: string]: unknown;
-}
+export const authAPIResponseSchema = v.object({
+	next: v.nullable(v.picklist(AUTH_MODAL_VIEWS)),
+	message: v.optional(v.string()),
+	retryAfterSeconds: v.optional(v.number()),
+	sent: v.optional(v.boolean()),
+	registeredTOTP: v.optional(v.boolean()),
+	registeredPasskey: v.optional(v.boolean()),
+	recoveryCode: v.optional(v.string()),
+	keyURI: v.optional(v.string()),
+	stage: v.optional(v.picklist(['request', 'email-code', 'two-factor', 'password'])),
+	email: v.optional(v.string()),
+	options: v.optional(v.unknown())
+});
 
-export interface AuthAPIErrorResponse {
-	message: string;
-	modal?: AuthModalView;
-	reauthenticationRequired?: boolean;
-	retryAfterSeconds?: number;
-}
+export type AuthAPIResponse = v.InferOutput<typeof authAPIResponseSchema>;
+
+export const authAPIErrorResponseSchema = v.object({
+	message: v.string(),
+	modal: v.optional(v.picklist(AUTH_MODAL_VIEWS)),
+	reauthenticationRequired: v.optional(v.boolean()),
+	retryAfterSeconds: v.optional(v.number())
+});

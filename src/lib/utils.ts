@@ -29,7 +29,7 @@ export function getActionMessage(value: unknown, fallback: string): string {
 	return fallback;
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
+export function isNonArrayObject(value: unknown): value is object {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import XIcon from '@lucide/svelte/icons/x';
-	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { Dialog } from 'bits-ui';
 	import { untrack } from 'svelte';
 	import { provideAuthTurnstile } from '$lib/auth-turnstile-context';
@@ -23,8 +22,9 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cn } from '$lib/utils.js';
-	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
+	import type { AuthAPIResponse, AuthModalView, ClientAuthState } from '$lib/types/auth';
 	import type { OAuthProvider } from '$lib/types/oauth';
+	import { parseRegistrationOptions } from '$lib/webauthn-json';
 
 	interface Props {
 		view: AuthModalView | null;
@@ -32,7 +32,7 @@
 		oauthErrorMessage: string | null;
 		turnstileSiteKey: string | null;
 		oauthProviders: OAuthProvider[];
-		viewData?: unknown;
+		viewData?: AuthAPIResponse | null;
 		required?: boolean;
 		onViewChange?: (view: AuthModalView) => void | Promise<void>;
 		onClose?: () => void | Promise<void>;
@@ -59,8 +59,8 @@
 	});
 
 	const wide = $derived(view === 'login' || view === 'signup');
-	const totpKeyURI = $derived(getStringProperty(viewData, 'keyURI'));
-	const passkeyOptions = $derived(getPasskeyOptions(viewData));
+	const totpKeyURI = $derived(viewData?.keyURI ?? null);
+	const passkeyOptions = $derived(parseRegistrationOptions(viewData?.options));
 	const title = $derived.by(() => {
 		switch (view) {
 			case 'login-2fa':
@@ -92,43 +92,6 @@
 
 	async function close() {
 		await onClose?.();
-	}
-
-	function getStringProperty(value: unknown, key: string): string | null {
-		if (typeof value !== 'object' || value === null || !(key in value)) return null;
-		const property = (value as Record<string, unknown>)[key];
-		return typeof property === 'string' ? property : null;
-	}
-
-	function getBooleanProperty(value: unknown, key: string): boolean {
-		return (
-			typeof value === 'object' &&
-			value !== null &&
-			key in value &&
-			(value as Record<string, unknown>)[key] === true
-		);
-	}
-
-	function getPasskeyOptions(value: unknown): PublicKeyCredentialCreationOptionsJSON | null {
-		if (typeof value !== 'object' || value === null || !('options' in value)) return null;
-		const options = value.options;
-		if (
-			typeof options !== 'object' ||
-			options === null ||
-			!('challenge' in options) ||
-			typeof options.challenge !== 'string' ||
-			!('rp' in options) ||
-			typeof options.rp !== 'object' ||
-			options.rp === null ||
-			!('user' in options) ||
-			typeof options.user !== 'object' ||
-			options.user === null ||
-			!('pubKeyCredParams' in options) ||
-			!Array.isArray(options.pubKeyCredParams)
-		) {
-			return null;
-		}
-		return options as unknown as PublicKeyCredentialCreationOptionsJSON;
 	}
 </script>
 
@@ -183,8 +146,8 @@
 				{:else if view === 'login-2fa'}
 					<OTPForm
 						kind="login-2fa"
-						totpAvailable={getBooleanProperty(viewData, 'registeredTOTP')}
-						passkeyAvailable={getBooleanProperty(viewData, 'registeredPasskey')}
+						totpAvailable={viewData?.registeredTOTP === true}
+						passkeyAvailable={viewData?.registeredPasskey === true}
 						onBack={() => switchView('login')}
 						{onComplete}
 					/>

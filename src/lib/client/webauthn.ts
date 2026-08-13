@@ -14,12 +14,12 @@ import {
 	formatAAGUID
 } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
-import { isRecord } from '$lib/utils';
+import { parseAuthenticationOptions } from '$lib/webauthn-json';
 
 async function getWebAuthnOptions(
 	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>,
 	signal?: AbortSignal
-): Promise<unknown> {
+): Promise<PublicKeyCredentialRequestOptionsJSON> {
 	const response = await fetch('/api/webauthn/options', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
@@ -29,7 +29,12 @@ async function getWebAuthnOptions(
 	if (!response.ok) {
 		throw new Error('Failed to create WebAuthn options');
 	}
-	return response.json() as Promise<unknown>;
+	const data: unknown = await response.json();
+	const options = parseAuthenticationOptions(data);
+	if (options === null) {
+		throw new Error('Invalid WebAuthn authentication options');
+	}
+	return options;
 }
 
 export async function createWebAuthnAssertion(
@@ -41,9 +46,6 @@ export async function createWebAuthnAssertion(
 		throw new Error('Browser does not support WebAuthn autofill');
 	}
 	const authenticationOptions = await getWebAuthnOptions(purpose, options.signal);
-	if (!isAuthenticationOptions(authenticationOptions)) {
-		throw new Error('Invalid WebAuthn authentication options');
-	}
 
 	return startAuthentication({
 		optionsJSON: authenticationOptions,
@@ -83,15 +85,6 @@ export async function createWebAuthnRegistration(
 
 export function isWebAuthnCancellation(cause: unknown): cause is Error {
 	return cause instanceof Error && cause.name === 'NotAllowedError';
-}
-
-function isAuthenticationOptions(value: unknown): value is PublicKeyCredentialRequestOptionsJSON {
-	return (
-		isRecord(value) &&
-		typeof value.challenge === 'string' &&
-		typeof value.rpId === 'string' &&
-		(value.allowCredentials === undefined || Array.isArray(value.allowCredentials))
-	);
 }
 
 function verifyWebAuthnSupport(): void {

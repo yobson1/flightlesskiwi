@@ -22,12 +22,10 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
 	import ResendCodeButton from '$lib/components/resend-code-button.svelte';
-	import type { AuthAPIResponse, AuthModalView } from '$lib/types/auth';
-
-	type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';
+	import type { AuthAPIResponse, AuthModalView, PasswordResetStage } from '$lib/types/auth';
 
 	interface Props {
-		initialState?: unknown;
+		initialState?: AuthAPIResponse | null;
 		onBack?: () => void | Promise<void>;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
@@ -57,7 +55,7 @@
 		registeredTOTP = nextState.registeredTOTP;
 		registeredPasskey = nextState.registeredPasskey;
 		factorMode = 'choose';
-		if (nextState.stage === 'email-code') setResendAvailability(initialState);
+		if (nextState.stage === 'email-code' && initialState) setResendAvailability(initialState);
 	});
 
 	async function submit(event: SubmitEvent) {
@@ -175,17 +173,17 @@
 		}
 	}
 
-	function setResendAvailability(value: unknown) {
+	function setResendAvailability(value: { retryAfterSeconds?: number }) {
 		resendAvailableAt = computeResendAvailableAt(value, EMAIL_CODE_SEND_INTERVAL_SECONDS);
 	}
 
-	function readState(value: unknown): {
+	function readState(value: AuthAPIResponse | null | undefined): {
 		stage: PasswordResetStage;
 		email: string;
 		registeredTOTP: boolean;
 		registeredPasskey: boolean;
 	} {
-		if (typeof value !== 'object' || value === null) {
+		if (value === null || value === undefined) {
 			return {
 				stage: 'request',
 				email: '',
@@ -193,16 +191,15 @@
 				registeredPasskey: false
 			};
 		}
-		const data = value as Record<string, unknown>;
 		const parsedStage =
-			data.stage === 'email-code' || data.stage === 'two-factor' || data.stage === 'password'
-				? data.stage
+			value.stage === 'email-code' || value.stage === 'two-factor' || value.stage === 'password'
+				? value.stage
 				: 'request';
 		return {
 			stage: parsedStage,
-			email: typeof data.email === 'string' ? data.email : '',
-			registeredTOTP: data.registeredTOTP === true,
-			registeredPasskey: data.registeredPasskey === true
+			email: value.email ?? '',
+			registeredTOTP: value.registeredTOTP === true,
+			registeredPasskey: value.registeredPasskey === true
 		};
 	}
 </script>

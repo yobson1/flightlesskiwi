@@ -1,6 +1,6 @@
 import * as client from 'openid-client';
 import { encodeBase64 } from '$lib/encoding';
-import { isRecord } from '$lib/utils';
+import { isNonArrayObject } from '$lib/utils';
 
 type TokenResponse = Awaited<ReturnType<typeof client.authorizationCodeGrant>>;
 const GITHUB_API_VERSION = '2026-03-10';
@@ -170,20 +170,31 @@ export class GitHub extends OAuth2Provider {
 			this.fetchJSON(tokens, 'https://api.github.com/user', headers),
 			this.fetchJSON(tokens, 'https://api.github.com/user/emails', headers)
 		]);
-		if (!isRecord(profile) || (typeof profile.id !== 'string' && typeof profile.id !== 'number')) {
+		if (
+			!isNonArrayObject(profile) ||
+			!('id' in profile) ||
+			(typeof profile.id !== 'string' && typeof profile.id !== 'number')
+		) {
 			throw new OAuthUserProfileError('GitHub returned an invalid user profile');
 		}
-		if (typeof profile.login !== 'string' || !Array.isArray(emails)) {
+		if (!('login' in profile) || typeof profile.login !== 'string' || !Array.isArray(emails)) {
 			throw new OAuthUserProfileError('GitHub returned an invalid user profile');
 		}
 		const primaryEmail = emails.find(
 			(value) =>
-				isRecord(value) &&
+				isNonArrayObject(value) &&
+				'primary' in value &&
+				'verified' in value &&
+				'email' in value &&
 				value.primary === true &&
 				value.verified === true &&
 				typeof value.email === 'string'
 		);
-		if (!isRecord(primaryEmail) || typeof primaryEmail.email !== 'string') {
+		if (
+			!isNonArrayObject(primaryEmail) ||
+			!('email' in primaryEmail) ||
+			typeof primaryEmail.email !== 'string'
+		) {
 			throw new OAuthUserProfileError('GitHub account does not have a verified primary email');
 		}
 		return {
@@ -216,7 +227,11 @@ export class Discord extends OAuth2Provider {
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
 		const profile = await this.fetchJSON(tokens, 'https://discord.com/api/v10/users/@me');
 		if (
-			!isRecord(profile) ||
+			!isNonArrayObject(profile) ||
+			!('id' in profile) ||
+			!('username' in profile) ||
+			!('email' in profile) ||
+			!('verified' in profile) ||
 			typeof profile.id !== 'string' ||
 			typeof profile.username !== 'string' ||
 			typeof profile.email !== 'string' ||
@@ -228,7 +243,10 @@ export class Discord extends OAuth2Provider {
 			id: profile.id,
 			email: profile.email,
 			emailVerified: true,
-			username: typeof profile.global_name === 'string' ? profile.global_name : profile.username
+			username:
+				'global_name' in profile && typeof profile.global_name === 'string'
+					? profile.global_name
+					: profile.username
 		};
 	}
 }
@@ -313,7 +331,8 @@ async function fetchTwitch(url: string, options: client.CustomFetchOptions): Pro
 		return response;
 	}
 	if (
-		!isRecord(body) ||
+		!isNonArrayObject(body) ||
+		!('scope' in body) ||
 		!Array.isArray(body.scope) ||
 		!body.scope.every((scope) => typeof scope === 'string')
 	) {
@@ -338,14 +357,20 @@ export function formatOAuthError(cause: unknown): string {
 	while (current instanceof Error && !seen.has(current) && errors.length < 5) {
 		seen.add(current);
 		const metadata: string[] = [];
-		if (isRecord(current) && typeof current.code === 'string') metadata.push(current.code);
-		if (isRecord(current) && typeof current.status === 'number') {
+		if (isNonArrayObject(current) && 'code' in current && typeof current.code === 'string') {
+			metadata.push(current.code);
+		}
+		if (isNonArrayObject(current) && 'status' in current && typeof current.status === 'number') {
 			metadata.push(`HTTP ${current.status}`);
 		}
-		if (isRecord(current) && typeof current.error === 'string') {
+		if (isNonArrayObject(current) && 'error' in current && typeof current.error === 'string') {
 			metadata.push(`error=${sanitizeErrorDetail(current.error)}`);
 		}
-		if (isRecord(current) && typeof current.error_description === 'string') {
+		if (
+			isNonArrayObject(current) &&
+			'error_description' in current &&
+			typeof current.error_description === 'string'
+		) {
 			metadata.push(`description=${sanitizeErrorDetail(current.error_description)}`);
 		}
 		const suffix = metadata.length === 0 ? '' : ` (${metadata.join(', ')})`;

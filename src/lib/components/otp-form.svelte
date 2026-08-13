@@ -164,7 +164,7 @@
 		}
 	}
 
-	function setResendAvailability(value: unknown) {
+	function setResendAvailability(value: { retryAfterSeconds?: number }) {
 		resendAvailableAt = computeResendAvailableAt(value, EMAIL_CODE_SEND_INTERVAL_SECONDS);
 	}
 

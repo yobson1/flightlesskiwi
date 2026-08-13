@@ -451,7 +451,12 @@ describe('OAuth provider clients', () => {
 	});
 });
 
-function providerTokens(claims?: Record<string, unknown>): OAuth2Tokens {
+function providerTokens(claims?: {
+	sub?: string;
+	preferred_username?: string;
+	email?: string;
+	email_verified?: boolean;
+}): OAuth2Tokens {
 	return new OAuth2Tokens({
 		access_token: 'access-token',
 		claims: () => claims

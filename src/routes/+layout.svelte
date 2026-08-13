@@ -25,7 +25,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import Wordmark from '$lib/components/wordmark.svelte';
-	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
+	import type { AuthAPIResponse, AuthModalView, ClientAuthState } from '$lib/types/auth';
 	import {
 		getOAuthErrorMessage,
 		getOAuthProviderName,
@@ -41,7 +41,7 @@
 	const initialView = untrack(() => requiredAuthModal(data.auth));
 	let authView = $state<AuthModalView | null>(initialView);
 	let requestedView = $state<AuthModalView | null>(initialView);
-	let authViewData = $state<unknown>(null);
+	let authViewData = $state<AuthAPIResponse | null>(null);
 	let authRequired = $state(initialView !== null);
 	let modalOptions = $state<AuthModalOpenOptions>({});
 	let returnHash = $state('');
@@ -198,7 +198,7 @@
 		}
 	}
 
-	async function loadAuthModalData(view: AuthModalView): Promise<unknown> {
+	async function loadAuthModalData(view: AuthModalView): Promise<AuthAPIResponse | null> {
 		const endpoint = authModalDataEndpoint(view);
 		if (endpoint === null) return null;
 		const response = await authRequest(endpoint, { method: authModalDataMethod(view) });

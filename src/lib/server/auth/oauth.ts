@@ -13,7 +13,7 @@ import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import { decryptToString, encryptString } from '$lib/server/auth/encryption';
 import * as oauth from '$lib/server/oauth';
 import { OAUTH_PROVIDERS, type OAuthErrorCode, type OAuthProvider } from '$lib/types/oauth';
-import { isRecord } from '$lib/utils';
+import { isNonArrayObject } from '$lib/utils';
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
@@ -174,10 +174,15 @@ function consumeOAuthState(event: RequestEvent, provider: OAuthProvider): OAuthS
 	try {
 		const state = JSON.parse(decryptToString(decodeBase64url(value))) as unknown;
 		if (
-			!isRecord(state) ||
+			!isNonArrayObject(state) ||
+			!('state' in state) ||
+			!('codeVerifier' in state) ||
+			!('flow' in state) ||
+			!('returnTo' in state) ||
+			!('expiresAt' in state) ||
 			typeof state.state !== 'string' ||
 			typeof state.codeVerifier !== 'string' ||
-			(state.nonce !== undefined && typeof state.nonce !== 'string') ||
+			('nonce' in state && state.nonce !== undefined && typeof state.nonce !== 'string') ||
 			(state.flow !== 'login' && state.flow !== 'reauth' && state.flow !== 'link') ||
 			(state.returnTo !== null && typeof state.returnTo !== 'string') ||
 			typeof state.expiresAt !== 'number' ||

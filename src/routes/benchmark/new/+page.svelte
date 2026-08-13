@@ -19,6 +19,15 @@
 	import { getMessage } from '$lib/utils';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
+	import * as v from 'valibot';
+
+	const submittedValuesSchema = v.object({
+		values: v.object({
+			gameId: v.nullable(v.number()),
+			title: v.string(),
+			description: v.string()
+		})
+	});
 
 	let { form, data }: PageProps = $props();
 
@@ -71,28 +80,8 @@
 				description: string;
 		  }
 		| undefined {
-		if (
-			typeof value !== 'object' ||
-			value === null ||
-			!('values' in value) ||
-			typeof value.values !== 'object' ||
-			value.values === null
-		) {
-			return undefined;
-		}
-		const values = value.values as Record<string, unknown>;
-		if (
-			(values.gameId !== null && typeof values.gameId !== 'number') ||
-			typeof values.title !== 'string' ||
-			typeof values.description !== 'string'
-		) {
-			return undefined;
-		}
-		return {
-			gameId: values.gameId,
-			title: values.title,
-			description: values.description
-		};
+		const result = v.safeParse(submittedValuesSchema, value);
+		return result.success ? result.output.values : undefined;
 	}
 </script>
 
