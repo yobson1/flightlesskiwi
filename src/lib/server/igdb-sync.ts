@@ -1,6 +1,7 @@
 import { error, info, warn } from '$lib/logger';
 import { igdb, invalidateIgdbAccessToken } from '$lib/server/igdb';
 import type { IgdbImportProgress, IgdbImportStatus } from '$lib/igdb';
+import { igdbGamesSchema, type Game as IGDBGame } from '$lib/types/igdb';
 import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
 import { IGDB_IMPORT_CRON, IGDB_IMPORT_TIME_ZONE } from '$app/env/private';
 import { db } from '$lib/server/db';
@@ -35,43 +36,6 @@ const IGDB_REQUEST_INTERVAL_MS = 1000;
 const MAX_REQUEST_ATTEMPTS = 4;
 const DB_WRITE_BATCH_SIZE = 200;
 const httpErrorSchema = v.object({ response: v.object({ status: v.number() }) });
-const websiteSchema = v.object({ url: v.string(), type: v.optional(v.number()) });
-const igdbGameSchema = v.object({
-	id: v.number(),
-	name: v.string(),
-	cover: v.optional(v.object({ image_id: v.string() })),
-	external_games: v.optional(
-		v.array(
-			v.object({
-				url: v.optional(v.string()),
-				external_game_source: v.number()
-			})
-		)
-	),
-	websites: v.optional(v.array(v.object({ url: v.string(), type: v.number() }))),
-	first_release_date: v.optional(v.number()),
-	game_engines: v.optional(
-		v.array(v.object({ id: v.number(), name: v.string(), url: v.optional(v.string()) }))
-	),
-	involved_companies: v.optional(
-		v.array(
-			v.object({
-				company: v.object({
-					id: v.number(),
-					name: v.string(),
-					websites: v.optional(v.array(websiteSchema))
-				}),
-				developer: v.boolean(),
-				publisher: v.boolean()
-			})
-		)
-	),
-	alternative_names: v.optional(v.array(v.object({ name: v.string() }))),
-	parent_game: v.optional(v.number()),
-	version_parent: v.optional(v.number())
-});
-const igdbGamesSchema = v.array(igdbGameSchema);
-type IGDBGame = v.InferOutput<typeof igdbGameSchema>;
 
 interface IgdbImportSchedulerState {
 	nextImportAt: string | null;
