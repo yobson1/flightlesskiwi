@@ -1,14 +1,20 @@
 import { building } from '$app/env';
+import { ORIGIN } from '$app/env/private';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { error } from '$lib/logger';
 import * as auth from '$lib/server/auth';
 import { authError, getClientIP } from '$lib/server/auth/api';
 import { startBenchmarkSearchSync } from '$lib/server/benchmark-search';
 import { seedStores, startIgdbImportScheduler, startIgdbSync } from '$lib/server/igdb-sync';
+import { isCrossOriginAPIRequest } from '$lib/server/request-origin';
 import { verifyTurnstileToken } from '$lib/server/turnstile';
 import { requiresAuthTurnstile, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
 
 export const handle: Handle = async ({ event, resolve }) => {
+	if (isCrossOriginAPIRequest(event.request, event.url.pathname, new URL(ORIGIN!).origin)) {
+		return authError(403, 'Cross-origin API requests are not allowed');
+	}
+
 	const sessionToken = event.cookies.get(auth.sessionCookieName);
 
 	if (!sessionToken) {
