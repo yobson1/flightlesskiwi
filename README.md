@@ -51,8 +51,18 @@ Run the built Bun server with:
 bun --bun run build/index.js
 ```
 
-The tagged GitHub releases contain this build output, its runtime package files, and
-the versioned database migrations.
+Alternatively, build a standalone executable containing the Bun runtime, client assets, and
+database migrations:
+
+```sh
+bun run build:binary
+./flightlesskiwi
+```
+
+Tagged GitHub releases contain this standalone Linux executable and its runtime configuration
+examples. It applies database migrations automatically before starting and does not require
+Bun or `node_modules`. Run `./flightlesskiwi migrate` to apply migrations without starting the
+server.
 
 For production deployment it is strongly recommended to use docker as described below
 

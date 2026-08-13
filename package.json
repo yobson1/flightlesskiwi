@@ -15,7 +15,7 @@
 	"scripts": {
 		"dev": "bun --bun vite dev",
 		"build": "bun --bun vite build",
-		"build:binary": "bun run build && cd build && bun build --compile ../scripts/compile-entry.ts --asset ./client --outfile ../flightlesskiwi",
+		"build:binary": "bun run build && cp -R drizzle build/drizzle && cd build && bun build --compile ../scripts/compile-entry.ts --asset ./client --asset ./drizzle --outfile ../flightlesskiwi",
 		"preview": "bun --bun vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

@@ -34,3 +34,6 @@ vite.config.ts.timestamp-*
 # Meilisearch
 data.ms
 config.toml
+
+# Standalone binary
+flightlesskiwi

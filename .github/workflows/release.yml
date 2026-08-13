@@ -35,15 +35,15 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build
-        run: bun run build
+      - name: Build standalone binary
+        run: bun run build:binary
 
       - name: Verify database migrations
         env:
           DATABASE_URL: ${{ runner.temp }}/release.db
         run: |
-          bun run db:migrate:deploy
-          bun run db:migrate:deploy
+          ./flightlesskiwi migrate
+          ./flightlesskiwi migrate
 
       - name: Package build
         id: package
@@ -57,8 +57,7 @@ jobs:
 
           mkdir "$bundle"
           cp -R \
-            build drizzle scripts package.json bun.lock LICENSE README.md \
-            .env.example compose.example.yml \
+            flightlesskiwi LICENSE README.md .env.example compose.example.yml \
             "$bundle/"
           tar -czf "$archive" "$bundle"
 
@@ -67,7 +66,7 @@ jobs:
       - name: Upload release build
         uses: actions/upload-artifact@v7
         with:
-          name: release-build
+          name: release-binary
           path: |
             ${{ steps.package.outputs.archive }}
           if-no-files-found: error
@@ -213,7 +212,7 @@ jobs:
       - name: Download release build
         uses: actions/download-artifact@v8
         with:
-          name: release-build
+          name: release-binary
           path: artifacts
 
       - name: Install typos

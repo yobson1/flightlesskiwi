@@ -64,13 +64,13 @@ body = """
       `ghcr.io/{{ remote.github.owner }}/{{ remote.github.repo }}:{{ version | trim_start_matches(pat="v") }}`.
     - Start the services with `docker compose up -d`.
 
-    ### Build archive
+    ### Standalone binary
 
     - Download and extract \
       `{{ remote.github.repo }}_{{ version | trim_start_matches(pat="v") }}.tar.gz`.
-    - Install runtime dependencies with `bun install --production --frozen-lockfile`.
-    - Apply database migrations with `bun run db:migrate:deploy`.
-    - Start the server with `bun --bun run build/index.js`.
+    - Configure the environment, including `DATABASE_URL`.
+    - Start the standalone server with `./{{ remote.github.repo }}`. Database migrations are \
+      applied automatically before the server starts.
 {% endif %}
 """
 footer = """
