@@ -11,6 +11,9 @@ This is a Bun-powered SvelteKit application for users to upload, view and share 
 ## Implementation Preferences
 
 - Use Valibot when appropriate to define and verify data schemas.
+- Tests should protect meaningful user-facing behavior, domain rules, security properties, or difficult edge cases. Avoid redundant API smoke tests, tests of TypeScript’s type system, and tests that only preserve removed behavior.
+- Be idiomatic. If your TS code looks like a Python dev wrote it then it's bad TS code.
+- Use Svelte 5 principles and conventions.
 
 ## Validation and Type Safety
 
