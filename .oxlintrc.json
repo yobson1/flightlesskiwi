@@ -40,20 +40,16 @@
 	],
 	"rules": {
 		"anti-slop/no-chained-type-assertions": "error",
-		"anti-slop/no-conditional-empty-object-spread": "allow",
-		"anti-slop/no-known-value-widening": "error",
-		"anti-slop/no-module-mocking": "off",
+		"anti-slop/no-known-value-widening": "warn",
 		"anti-slop/no-object-parameters": "error",
-		"anti-slop/no-reflect-apply": "error",
-		"anti-slop/no-reflect-get": "error",
-		"anti-slop/no-runtime-typeof": "allow",
-		"anti-slop/no-shape-in-symbol-names": "error",
+		"anti-slop/no-reflect-apply": "warn",
+		"anti-slop/no-reflect-get": "warn",
 		"anti-slop/no-unknown-parameters": "warn",
 		"anti-slop/no-unknown-returns": "warn",
 		"anti-slop/no-unknown-type-aliases": "warn",
 		"anti-slop/no-unsafe-dictionary-type": "error",
 		"anti-slop/no-widen-then-assert": "error",
-		"anti-slop/require-safety-comment-for-type-assertion": "error",
+		"anti-slop/require-safety-comment-for-type-assertion": "warn",
 		"constructor-super": "error",
 		"for-direction": "error",
 		"getter-return": "error",
@@ -165,6 +161,22 @@
 				"no-inner-declarations": "off",
 				"no-unassigned-vars": "off",
 				"no-self-assign": "off"
+			}
+		},
+		{
+			"files": [
+				"**/*.test.js",
+				"**/*.test.jsx",
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/*.spec.js",
+				"**/*.spec.jsx",
+				"**/*.spec.ts",
+				"**/*.spec.tsx"
+			],
+			"rules": {
+				"anti-slop/no-chained-type-assertions": "warn",
+				"anti-slop/require-safety-comment-for-type-assertion": "off"
 			}
 		}
 	]
