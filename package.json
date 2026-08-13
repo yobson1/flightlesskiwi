@@ -15,6 +15,7 @@
 	"scripts": {
 		"dev": "bun --bun vite dev",
 		"build": "bun --bun vite build",
+		"build:binary": "bun run build && cd build && bun build --compile ../scripts/compile-entry.ts --asset ./client --outfile ../flightlesskiwi",
 		"preview": "bun --bun vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -75,6 +76,7 @@
 		"openid-client": "^6.8.5",
 		"otpauth": "^9.5.1",
 		"qrcode": "^1.5.4",
+		"reflect-metadata": "^0.2.2",
 		"svelte": "^5.56.9",
 		"svelte-adapter-bun": "^1.0.1",
 		"svelte-sonner": "^1.1.1",

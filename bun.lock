@@ -29,6 +29,7 @@
         "openid-client": "^6.8.5",
         "otpauth": "^9.5.1",
         "qrcode": "^1.5.4",
+        "reflect-metadata": "^0.2.2",
         "svelte": "^5.56.9",
         "svelte-adapter-bun": "^1.0.1",
         "svelte-sonner": "^1.1.1",
