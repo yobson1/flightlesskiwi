@@ -6,7 +6,7 @@ import { authError, getClientIP } from '$lib/server/auth/api';
 import { startBenchmarkSearchSync } from '$lib/server/benchmark-search';
 import { seedStores, startIgdbImportScheduler, startIgdbSync } from '$lib/server/igdb-sync';
 import { verifyTurnstileToken } from '$lib/server/turnstile';
-import { isTurnstileProtectedAuthRequest, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
+import { requiresAuthTurnstile, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionToken = event.cookies.get(auth.sessionCookieName);
@@ -27,7 +27,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.session = session;
 	}
 
-	if (isTurnstileProtectedAuthRequest(event.url.pathname, event.request.method)) {
+	if (requiresAuthTurnstile(event.url.pathname, event.request.method)) {
 		const verified = await verifyTurnstileToken(
 			event.request.headers.get(TURNSTILE_RESPONSE_FIELD),
 			getClientIP(event),

@@ -1,11 +1,48 @@
 import * as client from 'openid-client';
 import { encodeBase64 } from '$lib/encoding';
-import { isNonArrayObject } from '$lib/utils';
+import * as v from 'valibot';
 
 type TokenResponse = Awaited<ReturnType<typeof client.authorizationCodeGrant>>;
 const GITHUB_API_VERSION = '2026-03-10';
 const TWITCH_TOKEN_ENDPOINT = 'https://id.twitch.tv/oauth2/token';
 const TWITCH_REVOCATION_ENDPOINT = 'https://id.twitch.tv/oauth2/revoke';
+const githubProfileSchema = v.object({
+	id: v.union([v.string(), v.number()]),
+	login: v.string()
+});
+const githubPrimaryEmailSchema = v.object({
+	primary: v.literal(true),
+	verified: v.literal(true),
+	email: v.string()
+});
+const githubEmailsSchema = v.array(v.fallback(v.nullable(githubPrimaryEmailSchema), null));
+const discordProfileSchema = v.object({
+	id: v.string(),
+	username: v.string(),
+	global_name: v.optional(v.nullable(v.string())),
+	email: v.string(),
+	verified: v.literal(true)
+});
+const twitchClaimsSchema = v.object({
+	sub: v.string(),
+	preferred_username: v.string(),
+	email: v.string(),
+	email_verified: v.literal(true)
+});
+const twitchTokenResponseSchema = v.object({
+	access_token: v.string(),
+	token_type: v.string(),
+	expires_in: v.number(),
+	refresh_token: v.optional(v.string()),
+	scope: v.array(v.string()),
+	id_token: v.optional(v.string())
+});
+const oauthErrorMetadataSchema = v.object({
+	code: v.optional(v.string()),
+	status: v.optional(v.number()),
+	error: v.optional(v.string()),
+	error_description: v.optional(v.string())
+});
 
 export interface OAuthUserProfile {
 	id: string;
@@ -170,38 +207,20 @@ export class GitHub extends OAuth2Provider {
 			this.fetchJSON(tokens, 'https://api.github.com/user', headers),
 			this.fetchJSON(tokens, 'https://api.github.com/user/emails', headers)
 		]);
-		if (
-			!isNonArrayObject(profile) ||
-			!('id' in profile) ||
-			(typeof profile.id !== 'string' && typeof profile.id !== 'number')
-		) {
+		const profileResult = v.safeParse(githubProfileSchema, profile);
+		const emailsResult = v.safeParse(githubEmailsSchema, emails);
+		if (!profileResult.success || !emailsResult.success) {
 			throw new OAuthUserProfileError('GitHub returned an invalid user profile');
 		}
-		if (!('login' in profile) || typeof profile.login !== 'string' || !Array.isArray(emails)) {
-			throw new OAuthUserProfileError('GitHub returned an invalid user profile');
-		}
-		const primaryEmail = emails.find(
-			(value) =>
-				isNonArrayObject(value) &&
-				'primary' in value &&
-				'verified' in value &&
-				'email' in value &&
-				value.primary === true &&
-				value.verified === true &&
-				typeof value.email === 'string'
-		);
-		if (
-			!isNonArrayObject(primaryEmail) ||
-			!('email' in primaryEmail) ||
-			typeof primaryEmail.email !== 'string'
-		) {
+		const primaryEmail = emailsResult.output.find((email) => email !== null);
+		if (primaryEmail === undefined) {
 			throw new OAuthUserProfileError('GitHub account does not have a verified primary email');
 		}
 		return {
-			id: String(profile.id),
+			id: String(profileResult.output.id),
 			email: primaryEmail.email,
 			emailVerified: true,
-			username: profile.login
+			username: profileResult.output.login
 		};
 	}
 }
@@ -225,28 +244,19 @@ export class Discord extends OAuth2Provider {
 	}
 
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
-		const profile = await this.fetchJSON(tokens, 'https://discord.com/api/v10/users/@me');
-		if (
-			!isNonArrayObject(profile) ||
-			!('id' in profile) ||
-			!('username' in profile) ||
-			!('email' in profile) ||
-			!('verified' in profile) ||
-			typeof profile.id !== 'string' ||
-			typeof profile.username !== 'string' ||
-			typeof profile.email !== 'string' ||
-			profile.verified !== true
-		) {
+		const result = v.safeParse(
+			discordProfileSchema,
+			await this.fetchJSON(tokens, 'https://discord.com/api/v10/users/@me')
+		);
+		if (!result.success) {
 			throw new OAuthUserProfileError('Discord account does not have a verified email');
 		}
+		const profile = result.output;
 		return {
 			id: profile.id,
 			email: profile.email,
 			emailVerified: true,
-			username:
-				'global_name' in profile && typeof profile.global_name === 'string'
-					? profile.global_name
-					: profile.username
+			username: profile.global_name ?? profile.username
 		};
 	}
 }
@@ -276,16 +286,11 @@ export class Twitch extends OAuth2Provider {
 	}
 
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
-		const claims = tokens.idTokenClaims();
-		if (
-			claims === undefined ||
-			typeof claims.sub !== 'string' ||
-			typeof claims.preferred_username !== 'string' ||
-			typeof claims.email !== 'string' ||
-			claims.email_verified !== true
-		) {
+		const result = v.safeParse(twitchClaimsSchema, tokens.idTokenClaims());
+		if (!result.success) {
 			throw new OAuthUserProfileError('Twitch account does not have a verified email');
 		}
+		const claims = result.output;
 		return {
 			id: claims.sub,
 			email: claims.email,
@@ -330,19 +335,13 @@ async function fetchTwitch(url: string, options: client.CustomFetchOptions): Pro
 	} catch {
 		return response;
 	}
-	if (
-		!isNonArrayObject(body) ||
-		!('scope' in body) ||
-		!Array.isArray(body.scope) ||
-		!body.scope.every((scope) => typeof scope === 'string')
-	) {
-		return response;
-	}
+	const result = v.safeParse(twitchTokenResponseSchema, body);
+	if (!result.success) return response;
 
 	const headers = new Headers(response.headers);
 	headers.delete('content-length');
 	return Response.json(
-		{ ...body, scope: body.scope.join(' ') },
+		{ ...result.output, scope: result.output.scope.join(' ') },
 		{ status: response.status, statusText: response.statusText, headers }
 	);
 }
@@ -357,21 +356,16 @@ export function formatOAuthError(cause: unknown): string {
 	while (current instanceof Error && !seen.has(current) && errors.length < 5) {
 		seen.add(current);
 		const metadata: string[] = [];
-		if (isNonArrayObject(current) && 'code' in current && typeof current.code === 'string') {
-			metadata.push(current.code);
-		}
-		if (isNonArrayObject(current) && 'status' in current && typeof current.status === 'number') {
-			metadata.push(`HTTP ${current.status}`);
-		}
-		if (isNonArrayObject(current) && 'error' in current && typeof current.error === 'string') {
-			metadata.push(`error=${sanitizeErrorDetail(current.error)}`);
-		}
-		if (
-			isNonArrayObject(current) &&
-			'error_description' in current &&
-			typeof current.error_description === 'string'
-		) {
-			metadata.push(`description=${sanitizeErrorDetail(current.error_description)}`);
+		const details = v.safeParse(oauthErrorMetadataSchema, current);
+		if (details.success) {
+			if (details.output.code !== undefined) metadata.push(details.output.code);
+			if (details.output.status !== undefined) metadata.push(`HTTP ${details.output.status}`);
+			if (details.output.error !== undefined) {
+				metadata.push(`error=${sanitizeErrorDetail(details.output.error)}`);
+			}
+			if (details.output.error_description !== undefined) {
+				metadata.push(`description=${sanitizeErrorDetail(details.output.error_description)}`);
+			}
 		}
 		const suffix = metadata.length === 0 ? '' : ` (${metadata.join(', ')})`;
 		errors.push(`${current.name}: ${sanitizeErrorDetail(current.message)}${suffix}`);

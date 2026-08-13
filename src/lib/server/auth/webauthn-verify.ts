@@ -9,7 +9,7 @@ import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import {
 	getPasskeyCredential,
 	getUserPasskeyCredential,
-	isWebAuthnChallengeValid,
+	matchesWebAuthnChallenge,
 	consumeWebAuthnChallenge,
 	updatePasskeyCounter,
 	WEBAUTHN_SUPPORTED_ALGORITHM_IDS,
@@ -73,7 +73,7 @@ export async function verifyWebAuthnRegistration(
 			response,
 			expectedChallenge: (encodedChallenge) => {
 				challenge = encodedChallenge;
-				return isWebAuthnChallengeValid(challenge, userId, purpose);
+				return matchesWebAuthnChallenge(challenge, userId, purpose);
 			},
 			expectedOrigin: WEBAUTHN_ORIGIN!,
 			expectedRPID: WEBAUTHN_RP_ID!,
@@ -120,7 +120,7 @@ async function verifyWebAuthnAssertion(
 			response,
 			expectedChallenge: (encodedChallenge) => {
 				challenge = encodedChallenge;
-				return isWebAuthnChallengeValid(challenge, challengeUserId, purpose);
+				return matchesWebAuthnChallenge(challenge, challengeUserId, purpose);
 			},
 			expectedOrigin: WEBAUTHN_ORIGIN!,
 			expectedRPID: WEBAUTHN_RP_ID!,

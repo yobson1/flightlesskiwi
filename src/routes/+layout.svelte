@@ -29,8 +29,8 @@
 	import {
 		getOAuthErrorMessage,
 		getOAuthProviderName,
-		isOAuthErrorCode,
-		isOAuthProvider
+		parseOAuthErrorCode,
+		parseOAuthProvider
 	} from '$lib/types/oauth';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutProps } from './$types';
@@ -102,17 +102,15 @@
 	}
 
 	function readOAuthErrorMessage(url: URL): string | null {
-		const code = url.searchParams.get('oauth_error');
-		if (code === null || !isOAuthErrorCode(code)) return null;
-		const providerValue = url.searchParams.get('oauth_provider');
-		const provider =
-			providerValue !== null && isOAuthProvider(providerValue) ? providerValue : null;
+		const code = parseOAuthErrorCode(url.searchParams.get('oauth_error'));
+		if (code === null) return null;
+		const provider = parseOAuthProvider(url.searchParams.get('oauth_provider'));
 		return getOAuthErrorMessage(code, provider);
 	}
 
 	function readOAuthConnectedMessage(url: URL): string | null {
-		const provider = url.searchParams.get('oauth_connected');
-		return provider !== null && isOAuthProvider(provider)
+		const provider = parseOAuthProvider(url.searchParams.get('oauth_connected'));
+		return provider !== null
 			? `${getOAuthProviderName(provider)} connected as a sign-in method.`
 			: null;
 	}

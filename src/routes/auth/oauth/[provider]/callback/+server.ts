@@ -1,9 +1,6 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
-import {
-	isSessionRecentlyReauthenticated,
-	rotateSessionAfterReauthentication
-} from '$lib/server/auth';
+import { hasRecentReauthentication, rotateSessionAfterReauthentication } from '$lib/server/auth';
 import { completeLoginFirstFactor } from '$lib/server/auth/login';
 import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
 import { OAuthCallbackError, validateOAuthCallback } from '$lib/server/auth/oauth';
@@ -17,46 +14,39 @@ import { formatOAuthError } from '$lib/server/oauth';
 import {
 	createOAuthConnectedRedirect,
 	createOAuthErrorRedirect,
-	isOAuthProvider,
+	parseOAuthProvider,
 	type OAuthErrorCode
 } from '$lib/types/oauth';
 import type { RequestEvent } from './$types';
 
 export async function GET(event: RequestEvent) {
-	if (!isOAuthProvider(event.params.provider)) {
+	const provider = parseOAuthProvider(event.params.provider);
+	if (provider === null) {
 		redirect(303, createOAuthErrorRedirect('/#login', 'provider', null, event.url));
 	}
 
 	let errorDestination = '/#login';
 	try {
-		const callback = await validateOAuthCallback(event, event.params.provider);
+		const callback = await validateOAuthCallback(event, provider);
 		errorDestination = getOAuthDestination(callback.flow, callback.returnTo);
 		if (callback.flow === 'reauth') {
 			if (event.locals.session === null || event.locals.user === null) {
-				redirect(
-					303,
-					createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
-				);
+				redirect(303, createOAuthErrorRedirect('/#login', 'session', provider, event.url));
 			}
 			if (event.locals.user.registeredTOTP || event.locals.user.registeredPasskey) {
 				redirect(
 					303,
-					createOAuthErrorRedirect(
-						callback.returnTo ?? '/settings',
-						'factor',
-						event.params.provider,
-						event.url
-					)
+					createOAuthErrorRedirect(callback.returnTo ?? '/settings', 'factor', provider, event.url)
 				);
 			}
-			const linkedUser = getUserFromOAuthAccount(event.params.provider, callback.profile.id);
+			const linkedUser = getUserFromOAuthAccount(provider, callback.profile.id);
 			if (linkedUser?.id !== event.locals.user.id) {
 				redirect(
 					303,
 					createOAuthErrorRedirect(
 						callback.returnTo ?? '/settings',
 						'identity',
-						event.params.provider,
+						provider,
 						event.url
 					)
 				);
@@ -64,7 +54,7 @@ export async function GET(event: RequestEvent) {
 			if (
 				!updateUserOAuthAccountTokens(
 					event.locals.user.id,
-					event.params.provider,
+					provider,
 					callback.profile.id,
 					callback.tokens
 				)
@@ -74,7 +64,7 @@ export async function GET(event: RequestEvent) {
 					createOAuthErrorRedirect(
 						callback.returnTo ?? '/settings',
 						'identity',
-						event.params.provider,
+						provider,
 						event.url
 					)
 				);
@@ -85,69 +75,45 @@ export async function GET(event: RequestEvent) {
 		if (callback.flow === 'link') {
 			const destination = callback.returnTo ?? '/settings';
 			if (event.locals.session === null || event.locals.user === null) {
-				redirect(
-					303,
-					createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
-				);
+				redirect(303, createOAuthErrorRedirect('/#login', 'session', provider, event.url));
 			}
 			if (!event.locals.user.emailVerified) {
-				redirect(
-					303,
-					createOAuthErrorRedirect(destination, 'factor', event.params.provider, event.url)
-				);
+				redirect(303, createOAuthErrorRedirect(destination, 'factor', provider, event.url));
 			}
-			if (!isSessionRecentlyReauthenticated(event.locals.session)) {
+			if (!hasRecentReauthentication(event.locals.session)) {
 				redirect(
 					303,
-					createOAuthErrorRedirect(
-						destination,
-						'reauthentication',
-						event.params.provider,
-						event.url
-					)
+					createOAuthErrorRedirect(destination, 'reauthentication', provider, event.url)
 				);
 			}
 
 			const result = linkUserOAuthAccount(
 				event.locals.user.id,
-				event.params.provider,
+				provider,
 				callback.profile.id,
 				callback.tokens
 			);
 			if (result === 'provider-in-use') {
 				redirect(
 					303,
-					createOAuthErrorRedirect(
-						destination,
-						'connection-in-use',
-						event.params.provider,
-						event.url
-					)
+					createOAuthErrorRedirect(destination, 'connection-in-use', provider, event.url)
 				);
 			}
 			if (result === 'provider-connected') {
 				redirect(
 					303,
-					createOAuthErrorRedirect(
-						destination,
-						'connection-exists',
-						event.params.provider,
-						event.url
-					)
+					createOAuthErrorRedirect(destination, 'connection-exists', provider, event.url)
 				);
 			}
 			if (result === 'user-not-found') {
-				redirect(
-					303,
-					createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
-				);
+				redirect(303, createOAuthErrorRedirect('/#login', 'session', provider, event.url));
 			}
-			redirect(303, createOAuthConnectedRedirect(destination, event.params.provider, event.url));
+			redirect(303, createOAuthConnectedRedirect(destination, provider, event.url));
 		}
 		if (event.locals.session !== null) redirect(303, '/');
 
 		invalidateLoginAttemptRequest(event);
-		const user = createOrLinkOAuthUser(event.params.provider, callback.profile, callback.tokens);
+		const user = createOrLinkOAuthUser(provider, callback.profile, callback.tokens);
 		const next = completeLoginFirstFactor(event, user);
 		redirect(303, next === null ? '/' : `/#${next}`);
 	} catch (cause) {
@@ -156,21 +122,15 @@ export async function GET(event: RequestEvent) {
 			if (shouldLogOAuthError(cause.code)) {
 				const oauthCause = cause.cause instanceof Error ? cause.cause : cause;
 				logError(
-					`Failed to complete ${event.params.provider} OAuth: ${formatOAuthError(oauthCause)}`,
+					`Failed to complete ${provider} OAuth: ${formatOAuthError(oauthCause)}`,
 					oauthCause
 				);
 			}
 			const destination = getOAuthDestination(cause.flow, cause.returnTo);
-			redirect(
-				303,
-				createOAuthErrorRedirect(destination, cause.code, event.params.provider, event.url)
-			);
+			redirect(303, createOAuthErrorRedirect(destination, cause.code, provider, event.url));
 		}
-		logError(`Failed to complete ${event.params.provider} OAuth`, cause);
-		redirect(
-			303,
-			createOAuthErrorRedirect(errorDestination, 'failed', event.params.provider, event.url)
-		);
+		logError(`Failed to complete ${provider} OAuth`, cause);
+		redirect(303, createOAuthErrorRedirect(errorDestination, 'failed', provider, event.url));
 	}
 }
 

@@ -2,26 +2,26 @@ import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
 import { decodeBase64url, encodeBase64url } from '$lib/encoding';
 import { decryptToString, encryptString } from '$lib/server/auth/encryption';
+import * as v from 'valibot';
 
 const recoveryCodeCookieName = 'recovery_code_setup';
 const RECOVERY_CODE_SETUP_TTL_SECONDS = 15 * 60;
+const pendingRecoveryCodeSchema = v.object({ userId: v.string(), code: v.string() });
 
 export function getPendingRecoveryCode(event: RequestEvent, userId: string): string | null {
 	const encoded = event.cookies.get(recoveryCodeCookieName);
 	if (!encoded) return null;
 
 	try {
-		const payload = JSON.parse(decryptToString(decodeBase64url(encoded))) as PendingRecoveryCode;
-		if (
-			typeof payload !== 'object' ||
-			payload === null ||
-			payload.userId !== userId ||
-			typeof payload.code !== 'string'
-		) {
+		const result = v.safeParse(
+			pendingRecoveryCodeSchema,
+			JSON.parse(decryptToString(decodeBase64url(encoded)))
+		);
+		if (!result.success || result.output.userId !== userId) {
 			deletePendingRecoveryCodeCookie(event);
 			return null;
 		}
-		return payload.code;
+		return result.output.code;
 	} catch {
 		deletePendingRecoveryCodeCookie(event);
 		return null;

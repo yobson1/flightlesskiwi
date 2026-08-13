@@ -78,7 +78,7 @@ mock.module('@simplewebauthn/server/helpers', () => ({ decodeClientDataJSON }));
 
 const {
 	consumeWebAuthnChallenge,
-	isWebAuthnChallengeValid,
+	matchesWebAuthnChallenge,
 	storeWebAuthnChallenge,
 	updatePasskeyCounter,
 	WEBAUTHN_SUPPORTED_ALGORITHM_IDS
@@ -114,17 +114,17 @@ describe('WebAuthn challenge storage', () => {
 		storeWebAuthnChallenge('generated-registration-challenge', 'first-user', 'passkey-register');
 
 		expect(
-			isWebAuthnChallengeValid('generated-registration-challenge', 'first-user', 'passkey-register')
+			matchesWebAuthnChallenge('generated-registration-challenge', 'first-user', 'passkey-register')
 		).toBe(true);
 		expect(
-			isWebAuthnChallengeValid(
+			matchesWebAuthnChallenge(
 				'generated-registration-challenge',
 				'second-user',
 				'passkey-register'
 			)
 		).toBe(false);
 		expect(
-			isWebAuthnChallengeValid('generated-registration-challenge', 'first-user', 'passkey-2fa')
+			matchesWebAuthnChallenge('generated-registration-challenge', 'first-user', 'passkey-2fa')
 		).toBe(false);
 
 		expect(
@@ -142,7 +142,7 @@ describe('WebAuthn challenge storage', () => {
 			.set({ expiresAt: new Date(Date.now() - 1) })
 			.run();
 
-		expect(isWebAuthnChallengeValid('expired-challenge', 'first-user', 'passkey-register')).toBe(
+		expect(matchesWebAuthnChallenge('expired-challenge', 'first-user', 'passkey-register')).toBe(
 			false
 		);
 		expect(consumeWebAuthnChallenge('expired-challenge', 'first-user', 'passkey-register')).toBe(
@@ -155,10 +155,10 @@ describe('WebAuthn challenge storage', () => {
 		storeWebAuthnChallenge('first-challenge', 'first-user', 'passkey-register');
 		storeWebAuthnChallenge('second-challenge', 'first-user', 'passkey-register');
 
-		expect(isWebAuthnChallengeValid('first-challenge', 'first-user', 'passkey-register')).toBe(
+		expect(matchesWebAuthnChallenge('first-challenge', 'first-user', 'passkey-register')).toBe(
 			false
 		);
-		expect(isWebAuthnChallengeValid('second-challenge', 'first-user', 'passkey-register')).toBe(
+		expect(matchesWebAuthnChallenge('second-challenge', 'first-user', 'passkey-register')).toBe(
 			true
 		);
 	});
@@ -224,7 +224,7 @@ describe('WebAuthn assertion verification', () => {
 			},
 			requireUserVerification: true
 		});
-		expect(isWebAuthnChallengeValid('assertion-challenge', null, 'passkey-login')).toBe(false);
+		expect(matchesWebAuthnChallenge('assertion-challenge', null, 'passkey-login')).toBe(false);
 		expect(getPasskeyCounter(credentialId)).toBe(8);
 	});
 
@@ -235,7 +235,7 @@ describe('WebAuthn assertion verification', () => {
 
 		await verifyWebAuthnAssertionRequest(createAssertionRequest(), 'first-user', 'settings-reauth');
 
-		expect(isWebAuthnChallengeValid('assertion-challenge', 'first-user', 'settings-reauth')).toBe(
+		expect(matchesWebAuthnChallenge('assertion-challenge', 'first-user', 'settings-reauth')).toBe(
 			false
 		);
 		expect(getPasskeyCounter(credentialId)).toBe(8);
@@ -286,7 +286,7 @@ describe('WebAuthn registration verification', () => {
 			signCount: 2
 		});
 		expect(
-			isWebAuthnChallengeValid('registration-challenge', 'first-user', 'passkey-register')
+			matchesWebAuthnChallenge('registration-challenge', 'first-user', 'passkey-register')
 		).toBe(false);
 	});
 
@@ -298,7 +298,7 @@ describe('WebAuthn registration verification', () => {
 			verifyWebAuthnRegistration(createRegistrationResponse(), 'first-user', 'passkey-register')
 		).rejects.toBeInstanceOf(WebAuthnVerificationError);
 		expect(
-			isWebAuthnChallengeValid('registration-challenge', 'first-user', 'passkey-register')
+			matchesWebAuthnChallenge('registration-challenge', 'first-user', 'passkey-register')
 		).toBe(true);
 	});
 });

@@ -7,7 +7,7 @@ const UNPROTECTED_AUTH_POST_ENDPOINTS = new Set([
 	'/api/auth/totp-setup'
 ]);
 
-export function isTurnstileProtectedAuthRequest(pathname: string, method: string): boolean {
+export function requiresAuthTurnstile(pathname: string, method: string): boolean {
 	const normalizedMethod = method.toUpperCase();
 	if (!pathname.startsWith('/api/auth/')) return false;
 	if (pathname === '/api/auth/logout') return false;

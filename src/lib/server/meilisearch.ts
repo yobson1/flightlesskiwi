@@ -10,9 +10,16 @@ import {
 	type EnqueuedTaskPromise,
 	type RecordAny
 } from 'meilisearch';
+import * as v from 'valibot';
 
 const TASK_TIMEOUT_MS = 300_000;
 const INDEX_BATCH_SIZE = 1_000;
+const documentIdSchema = v.union([v.string(), v.number()]);
+const documentVersionSchema = v.number();
+const missingIndexErrorSchema = v.pipe(
+	v.instance(MeilisearchApiError),
+	v.check((error) => error.cause?.code === ErrorStatusCode.INDEX_NOT_FOUND)
+);
 
 const client = new Meilisearch({
 	host: MEILI_HOST,
@@ -59,7 +66,7 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 		try {
 			existingPrimaryKey = (await client.getRawIndex(name)).primaryKey;
 		} catch (cause) {
-			if (!isMissingIndex(cause)) throw cause;
+			if (!v.is(missingIndexErrorSchema, cause)) throw cause;
 			info(`Creating Meilisearch index "${name}"`);
 			await waitForMeilisearchTask(client.createIndex(name, { primaryKey }));
 			existingPrimaryKey = primaryKey;
@@ -138,18 +145,16 @@ export function createMeilisearchIndex<Document extends RecordAny, Id extends Do
 			});
 
 			for (const document of response.results) {
-				const rawDocumentId = document[primaryKey];
-				if (
-					(typeof rawDocumentId !== 'string' && typeof rawDocumentId !== 'number') ||
-					typeof document.schemaVersion !== 'number'
-				) {
+				const documentIdResult = v.safeParse(documentIdSchema, document[primaryKey]);
+				const versionResult = v.safeParse(documentVersionSchema, document.schemaVersion);
+				if (!documentIdResult.success || !versionResult.success) {
 					needsReindex = true;
 					continue;
 				}
 
-				const documentId = parseDocumentId(String(rawDocumentId));
+				const documentId = parseDocumentId(String(documentIdResult.output));
 				indexedIds.push(documentId);
-				if (document.schemaVersion !== documentVersion || !databaseIdSet.has(String(documentId))) {
+				if (versionResult.output !== documentVersion || !databaseIdSet.has(String(documentId))) {
 					needsReindex = true;
 				}
 			}
@@ -274,12 +279,6 @@ export async function waitForMeilisearchTask(task: EnqueuedTaskPromise) {
 		);
 	}
 	return result;
-}
-
-function isMissingIndex(cause: unknown) {
-	return (
-		cause instanceof MeilisearchApiError && cause.cause?.code === ErrorStatusCode.INDEX_NOT_FOUND
-	);
 }
 
 function arraysEqual(left: readonly unknown[] | null | undefined, right: readonly unknown[]) {

@@ -13,6 +13,7 @@ import * as schema from '$lib/server/db/schema';
 import type { AuthUser } from '$lib/server/auth/user';
 import { createTestDatabase } from '$lib/server/test-db';
 import type { AuthAPIResponse, AuthModalView } from '$lib/types/auth';
+import * as v from 'valibot';
 
 interface MockAuthErrorOptions {
 	modal?: AuthModalView;
@@ -31,6 +32,18 @@ let totpVerification: 'valid' | 'invalid' | 'rate-limited' = 'invalid';
 let passkeyUserId: string | null = null;
 let passkeyVerificationRequest: { userId: string | null; purpose: string } | null = null;
 let clientIPCounter = 10;
+const passwordInputSchema = v.pipe(v.string(), v.nonEmpty());
+const totpCodeSchema = v.pipe(v.string(), v.regex(/^\d{6}$/));
+
+function parseMockPasswordInput(value: unknown): string | null {
+	const result = v.safeParse(passwordInputSchema, value);
+	return result.success ? result.output : null;
+}
+
+function parseMockTOTPCode(value: unknown): string | null {
+	const result = v.safeParse(totpCodeSchema, value);
+	return result.success ? result.output : null;
+}
 
 mock.module('$app/env', () => ({ dev: true }));
 mock.module('$lib/server/db', () => ({ db: testDb }));
@@ -48,16 +61,16 @@ mock.module('$lib/server/auth/api', () => ({
 	}
 }));
 mock.module('$lib/server/auth/2fa', () => ({
-	isRecoveryCode: () => false,
+	parseRecoveryCode: () => null,
 	verifyUserRecoveryCode: async () => 'invalid'
 }));
 mock.module('$lib/server/auth/password', () => ({
 	hashPassword: async () => 'dummy-hash',
-	isPasswordInput: (value: unknown) => typeof value === 'string' && value.length > 0,
+	parsePasswordInput: parseMockPasswordInput,
 	verifyPasswordHash: async () => passwordValid
 }));
 mock.module('$lib/server/auth/totp', () => ({
-	isTOTPCode: (value: unknown) => typeof value === 'string' && /^\d{6}$/.test(value),
+	parseTOTPCode: parseMockTOTPCode,
 	verifyUserTOTP: () => totpVerification
 }));
 mock.module('$lib/server/auth/user', () => ({

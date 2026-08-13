@@ -9,11 +9,18 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Popover from '$lib/components/ui/popover';
 	import { constructImageUrl } from '$lib/igdb';
+	import {
+		benchmarkAPIErrorSchema,
+		benchmarkPageResponseSchema,
+		benchmarkSearchResponseSchema,
+		type BenchmarkPageResponse
+	} from '$lib/types/benchmark-api';
 	import type { GameSearchResult } from '$lib/types/game';
 	import { onDestroy, untrack } from 'svelte';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import type { PageProps } from './$types';
+	import * as v from 'valibot';
 
 	let { data }: PageProps = $props();
 	const initialPage = untrack(() => data);
@@ -34,11 +41,6 @@
 	);
 
 	type Benchmark = (typeof benchmarks)[number];
-	type BenchmarkPage = {
-		benchmarks: Array<Omit<Benchmark, 'createdAt'> & { createdAt: string }>;
-		nextCursor: typeof nextCursor;
-	};
-
 	onDestroy(() => filterController?.abort());
 
 	async function searchBenchmarks(query: string, signal: AbortSignal): Promise<Benchmark[]> {
@@ -49,17 +51,18 @@
 			`${resolve('/api/benchmarks/search/[query]', { query })}${searchSuffix}`,
 			{ signal }
 		);
-		const data = await response.json();
+		const data: unknown = await response.json();
 		if (!response.ok) {
-			throw new Error(data.error || `Failed to search benchmarks (${response.status})`);
+			const errorResult = v.safeParse(benchmarkAPIErrorSchema, data);
+			throw new Error(
+				errorResult.success && errorResult.output.error
+					? errorResult.output.error
+					: `Failed to search benchmarks (${response.status})`
+			);
 		}
-
-		return (data as Array<Omit<Benchmark, 'createdAt'> & { createdAt: string }>).map(
-			(benchmark) => ({
-				...benchmark,
-				createdAt: new Date(benchmark.createdAt)
-			})
-		);
+		const result = v.safeParse(benchmarkSearchResponseSchema, data);
+		if (!result.success) throw new Error('Invalid benchmark search response');
+		return mapBenchmarkDates({ benchmarks: result.output, nextCursor: null });
 	}
 
 	function setSearchResults(query: string, results: Benchmark[]) {
@@ -81,7 +84,7 @@
 		loadMoreFailed = false;
 	}
 
-	function mapBenchmarkDates(page: BenchmarkPage) {
+	function mapBenchmarkDates(page: BenchmarkPageResponse) {
 		return page.benchmarks.map((benchmark) => ({
 			...benchmark,
 			createdAt: new Date(benchmark.createdAt)
@@ -110,10 +113,18 @@
 			const response = await fetch(`${resolve('/api/benchmarks')}${suffix}`, {
 				signal: controller.signal
 			});
-			const page = (await response.json()) as BenchmarkPage & { message?: string };
+			const data: unknown = await response.json();
 			if (!response.ok) {
-				throw new Error(page.message || 'Unable to apply the game filter');
+				const errorResult = v.safeParse(benchmarkAPIErrorSchema, data);
+				throw new Error(
+					errorResult.success && errorResult.output.message
+						? errorResult.output.message
+						: 'Unable to apply the game filter'
+				);
 			}
+			const pageResult = v.safeParse(benchmarkPageResponseSchema, data);
+			if (!pageResult.success) throw new Error('Invalid benchmark page response');
+			const page = pageResult.output;
 			if (controller.signal.aborted || activeSearchQuery) return;
 
 			benchmarks = mapBenchmarkDates(page);
@@ -149,7 +160,9 @@
 			const response = await fetch(`${resolve('/api/benchmarks')}?${searchParams}`);
 			if (!response.ok) throw new Error('Unable to load more benchmarks');
 
-			const page = (await response.json()) as BenchmarkPage;
+			const pageResult = v.safeParse(benchmarkPageResponseSchema, await response.json());
+			if (!pageResult.success) throw new Error('Invalid benchmark page response');
+			const page = pageResult.output;
 			if (activeSearchQuery || requestedListVersion !== benchmarkListVersion) return;
 			benchmarks = [...benchmarks, ...mapBenchmarkDates(page)];
 			browsedBenchmarks = [...benchmarks];

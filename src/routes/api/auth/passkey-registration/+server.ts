@@ -17,8 +17,13 @@ import {
 	WebAuthnVerificationError
 } from '$lib/server/auth/webauthn-verify';
 import type { RequestEvent } from './$types';
+import * as v from 'valibot';
 
 const MAX_PASSKEYS = 10;
+const passkeyRegistrationFormSchema = v.object({
+	name: v.pipe(v.string(), v.maxLength(MAX_PASSKEY_NAME_LENGTH), v.trim(), v.nonEmpty()),
+	credential: v.string()
+});
 
 export async function POST(event: RequestEvent) {
 	const guarded = requireVerifiedSession(event, { recentlyReauthenticated: true });
@@ -51,30 +56,28 @@ export async function PUT(event: RequestEvent) {
 	if (guarded.response) return guarded.response;
 	const { session, user } = guarded.authenticated;
 	const formData = await event.request.formData();
-	const name = formData.get('name');
-	const encodedCredential = formData.get('credential');
-	if (
-		typeof name !== 'string' ||
-		name.trim().length === 0 ||
-		name.length > MAX_PASSKEY_NAME_LENGTH ||
-		typeof encodedCredential !== 'string'
-	) {
+	const formResult = v.safeParse(passkeyRegistrationFormSchema, {
+		name: formData.get('name'),
+		credential: formData.get('credential')
+	});
+	if (!formResult.success) {
 		return authError(400, 'Invalid or missing fields');
 	}
+	const { name, credential: encodedCredential } = formResult.output;
 	if (getUserPasskeyCredentials(user.id).length >= MAX_PASSKEYS) {
 		return authError(400, 'Too many passkeys');
 	}
 
 	let credential: unknown;
 	try {
-		credential = JSON.parse(encodedCredential) as unknown;
+		credential = JSON.parse(encodedCredential);
 	} catch {
 		return authError(400, 'Invalid passkey registration');
 	}
 	try {
 		const verified = await verifyWebAuthnRegistration(credential, user.id, 'passkey-register');
 		if (!user.registered2FA) rotateSessionFor2FAEnrollment(event, session);
-		createPasskeyCredential({ ...verified, userId: user.id, name: name.trim() });
+		createPasskeyCredential({ ...verified, userId: user.id, name });
 	} catch (cause) {
 		if (cause instanceof WebAuthnVerificationError || String(cause).includes('UNIQUE')) {
 			return authError(400, 'Invalid passkey registration');

@@ -113,7 +113,7 @@ export function invalidateSession(sessionId: string): void {
 	db.delete(sessionTable).where(eq(sessionTable.id, sessionId)).run();
 }
 
-export function isSessionRecentlyReauthenticated(session: Session): boolean {
+export function hasRecentReauthentication(session: Session): boolean {
 	return (
 		session.lastReauthenticatedAt !== null &&
 		Date.now() - session.lastReauthenticatedAt.getTime() <= REAUTHENTICATION_TTL_MS

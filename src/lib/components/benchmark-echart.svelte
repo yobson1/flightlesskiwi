@@ -9,6 +9,12 @@
 		type BenchmarkEChartTheme
 	} from '$lib/benchmark-echart';
 	import { cn } from '$lib/utils';
+	import * as v from 'valibot';
+
+	const pointerEventSchema = v.object({
+		offsetX: v.number(),
+		offsetY: v.number()
+	});
 
 	interface Props {
 		ariaLabel: string;
@@ -80,12 +86,10 @@
 			onImageExporterChange?.(saveChartImage);
 			if (dragZoom) {
 				resetZoom = (event: unknown) => {
-					const pointer = event as { offsetX?: number; offsetY?: number };
-					if (
-						typeof pointer.offsetX !== 'number' ||
-						typeof pointer.offsetY !== 'number' ||
-						!chart?.containPixel({ gridIndex: 0 }, [pointer.offsetX, pointer.offsetY])
-					) {
+					const result = v.safeParse(pointerEventSchema, event);
+					if (!result.success) return;
+					const pointer = result.output;
+					if (!chart?.containPixel({ gridIndex: 0 }, [pointer.offsetX, pointer.offsetY])) {
 						return;
 					}
 

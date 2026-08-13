@@ -1,3 +1,5 @@
+import * as v from 'valibot';
+
 export const OAUTH_PROVIDERS = ['github', 'discord', 'twitch'] as const;
 export const OAUTH_ERROR_CODES = [
 	'cancelled',
@@ -17,6 +19,8 @@ export const OAUTH_ERROR_CODES = [
 
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
 export type OAuthErrorCode = (typeof OAUTH_ERROR_CODES)[number];
+const oauthProviderSchema = v.picklist(OAUTH_PROVIDERS);
+const oauthErrorCodeSchema = v.picklist(OAUTH_ERROR_CODES);
 
 const OAUTH_PROVIDER_NAMES: Record<OAuthProvider, string> = {
 	github: 'GitHub',
@@ -28,12 +32,14 @@ const OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS: Partial<Record<OAuthProvider, 
 	twitch: 'https://www.twitch.tv/settings/connections'
 };
 
-export function isOAuthProvider(value: string): value is OAuthProvider {
-	return (OAUTH_PROVIDERS as readonly string[]).includes(value);
+export function parseOAuthProvider(value: unknown): OAuthProvider | null {
+	const result = v.safeParse(oauthProviderSchema, value);
+	return result.success ? result.output : null;
 }
 
-export function isOAuthErrorCode(value: string): value is OAuthErrorCode {
-	return (OAUTH_ERROR_CODES as readonly string[]).includes(value);
+export function parseOAuthErrorCode(value: unknown): OAuthErrorCode | null {
+	const result = v.safeParse(oauthErrorCodeSchema, value);
+	return result.success ? result.output : null;
 }
 
 export function getOAuthProviderName(provider: OAuthProvider): string {

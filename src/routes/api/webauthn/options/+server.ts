@@ -9,36 +9,28 @@ import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 import { getUserPasskeyCredentials, storeWebAuthnChallenge } from '$lib/server/auth/webauthn';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 import type { RequestEvent } from './$types';
+import * as v from 'valibot';
 
 const challengeBucket = new RefillingTokenBucket<string>('webauthn-challenge-ip', 30, 10);
 type WebAuthnAuthenticationPurpose = Exclude<WebAuthnChallengePurpose, 'passkey-register'>;
-const purposes = new Set<WebAuthnAuthenticationPurpose>([
-	'passkey-login',
-	'passkey-2fa',
-	'password-reset-2fa',
-	'settings-reauth'
-]);
+const optionsRequestSchema = v.object({
+	purpose: v.picklist(['passkey-login', 'passkey-2fa', 'password-reset-2fa', 'settings-reauth'])
+});
 
 export async function POST(event: RequestEvent) {
 	if (!challengeBucket.consume(getClientIP(event), 1)) {
 		return new Response('Too many requests', { status: 429 });
 	}
-	let body: unknown;
+	let result;
 	try {
-		body = await event.request.json();
+		result = v.safeParse(optionsRequestSchema, await event.request.json());
 	} catch {
 		return new Response('Invalid request', { status: 400 });
 	}
-	if (
-		typeof body !== 'object' ||
-		body === null ||
-		!('purpose' in body) ||
-		typeof body.purpose !== 'string' ||
-		!purposes.has(body.purpose as WebAuthnAuthenticationPurpose)
-	) {
+	if (!result.success) {
 		return new Response('Invalid purpose', { status: 400 });
 	}
-	const purpose = body.purpose as WebAuthnAuthenticationPurpose;
+	const purpose: WebAuthnAuthenticationPurpose = result.output.purpose;
 
 	let userId: string | null;
 	if (purpose === 'passkey-login') {

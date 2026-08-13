@@ -13,7 +13,7 @@
 		TOTP_CODE_LENGTH_WORD
 	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
-	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
+	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -66,7 +66,7 @@
 				method: 'POST',
 				signal
 			});
-			if ('sent' in result && result.sent === true) {
+			if (result.sent === true) {
 				resendMessage = 'A verification code was sent to your inbox.';
 			}
 			setResendAvailability(result);
@@ -127,7 +127,7 @@
 			});
 			await onComplete?.(result.next);
 		} catch (cause) {
-			if (isWebAuthnCancellation(cause)) {
+			if (parseWebAuthnCancellation(cause) !== null) {
 				message = 'Passkey verification was cancelled.';
 			} else if (cause instanceof AuthAPIError && cause.modal) {
 				await onComplete?.(cause.modal);

@@ -2,14 +2,29 @@
 	import GamepadIcon from '@lucide/svelte/icons/gamepad-2';
 	import { constructImageUrl } from '$lib/igdb';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import type { FullGame } from '$lib/server/db/schema';
+	import * as v from 'valibot';
+
+	const gameResponseSchema = v.object({
+		names: v.array(v.object({ name: v.string() })),
+		releaseDate: v.nullable(v.string()),
+		coverImgId: v.nullable(v.string()),
+		involvedCompanies: v.array(
+			v.object({
+				developer: v.boolean(),
+				publisher: v.boolean(),
+				company: v.object({ name: v.string() })
+			})
+		)
+	});
+	const gameErrorSchema = v.object({ error: v.string() });
+	type GameResponse = v.InferOutput<typeof gameResponseSchema>;
 
 	interface Props {
 		gameId: number;
 	}
 
 	let { gameId }: Props = $props();
-	let game = $state<FullGame | null>(null);
+	let game = $state<GameResponse | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
@@ -43,11 +58,14 @@
 	async function loadGame(requestedGameId: number, signal: AbortSignal) {
 		try {
 			const response = await fetch(`/api/game/${requestedGameId}`, { signal });
+			const body: unknown = await response.json();
 			if (!response.ok) {
-				const body = (await response.json()) as { error?: unknown };
-				throw new Error(typeof body.error === 'string' ? body.error : 'Failed to fetch game');
+				const result = v.safeParse(gameErrorSchema, body);
+				throw new Error(result.success ? result.output.error : 'Failed to fetch game');
 			}
-			game = (await response.json()) as FullGame;
+			const result = v.safeParse(gameResponseSchema, body);
+			if (!result.success) throw new Error('Invalid game response');
+			game = result.output;
 		} catch (cause) {
 			if (cause instanceof Error && cause.name === 'AbortError') return;
 			error = cause instanceof Error ? cause.message : 'Failed to fetch game';

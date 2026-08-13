@@ -1,8 +1,18 @@
 <script lang="ts" module>
-	interface LineTooltipItem {
-		axisValue?: unknown;
-		value?: unknown;
-	}
+	import * as v from 'valibot';
+
+	const lineTooltipItemSchema = v.object({
+		axisValue: v.optional(v.number()),
+		value: v.optional(v.array(v.unknown()))
+	});
+	const lineTooltipParamsSchema = v.union([
+		v.array(lineTooltipItemSchema),
+		v.pipe(
+			lineTooltipItemSchema,
+			v.transform((item) => [item])
+		)
+	]);
+	const tooltipValueSchema = v.number();
 
 	interface LineTooltipSeries {
 		color: string;
@@ -15,20 +25,13 @@
 		unit: string,
 		series: readonly LineTooltipSeries[]
 	): string {
-		const items = (Array.isArray(params) ? params : [params]).filter(
-			(item): item is LineTooltipItem => typeof item === 'object' && item !== null
-		);
-		const axisValue = items.find((item) => typeof item.axisValue === 'number')?.axisValue;
-		const valueItem = items.find(
-			(item) => Array.isArray(item.value) && typeof item.value[0] === 'number'
-		);
-		const timeSeconds =
-			typeof axisValue === 'number'
-				? axisValue
-				: Array.isArray(valueItem?.value)
-					? valueItem.value[0]
-					: undefined;
-		if (typeof timeSeconds !== 'number') return '';
+		const paramsResult = v.safeParse(lineTooltipParamsSchema, params);
+		if (!paramsResult.success) return '';
+		const axisValue = paramsResult.output.find((item) => item.axisValue !== undefined)?.axisValue;
+		const valueItem = paramsResult.output.find((item) => item.value !== undefined);
+		const valueResult = v.safeParse(tooltipValueSchema, valueItem?.value?.[0]);
+		const timeSeconds = axisValue ?? (valueResult.success ? valueResult.output : undefined);
+		if (timeSeconds === undefined) return '';
 
 		const rows = series
 			.flatMap(({ color, label, points }) => {

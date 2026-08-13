@@ -9,8 +9,10 @@ import type { BenchmarkRun } from '$lib/benchmark-run-model';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rename, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import * as v from 'valibot';
 
 const FILE_ID_PATTERN = /^[a-z2-7]+$/;
+const missingFileErrorSchema = v.object({ code: v.literal('ENOENT') });
 
 function getUploadDirectory(): string {
 	return resolve(BENCHMARK_UPLOAD_DIR);
@@ -122,7 +124,7 @@ export async function deleteBenchmarkFiles(fileIds: string[]): Promise<void> {
 				try {
 					await unlink(filePath);
 				} catch (cause) {
-					if (isMissingFileError(cause)) return;
+					if (v.is(missingFileErrorSchema, cause)) return;
 					throw cause;
 				}
 			})
@@ -134,13 +136,4 @@ export async function deleteBenchmarkFiles(fileIds: string[]): Promise<void> {
 	if (failures.length > 0) {
 		throw new AggregateError(failures, 'Failed to remove one or more benchmark files');
 	}
-}
-
-function isMissingFileError(cause: unknown): boolean {
-	return (
-		typeof cause === 'object' &&
-		cause !== null &&
-		'code' in cause &&
-		(cause as { code?: unknown }).code === 'ENOENT'
-	);
 }

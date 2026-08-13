@@ -15,6 +15,12 @@ import {
 } from '$lib/passkey-authenticator-metadata';
 import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
 import { parseAuthenticationOptions } from '$lib/webauthn-json';
+import * as v from 'valibot';
+
+const webAuthnCancellationSchema = v.pipe(
+	v.instance(Error),
+	v.check((error) => error.name === 'NotAllowedError')
+);
 
 async function getWebAuthnOptions(
 	purpose: Exclude<WebAuthnChallengePurpose, 'passkey-register'>,
@@ -83,8 +89,9 @@ export async function createWebAuthnRegistration(
 	};
 }
 
-export function isWebAuthnCancellation(cause: unknown): cause is Error {
-	return cause instanceof Error && cause.name === 'NotAllowedError';
+export function parseWebAuthnCancellation(cause: unknown): Error | null {
+	const result = v.safeParse(webAuthnCancellationSchema, cause);
+	return result.success ? result.output : null;
 }
 
 function verifyWebAuthnSupport(): void {

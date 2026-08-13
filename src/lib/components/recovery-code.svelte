@@ -29,7 +29,7 @@
 		message = '';
 		try {
 			const data = await authRequest('/api/auth/recovery-code', { method: 'POST', signal });
-			if (typeof data.recoveryCode !== 'string') throw new Error('Invalid recovery code response');
+			if (data.recoveryCode === undefined) throw new Error('Invalid recovery code response');
 			code = data.recoveryCode;
 		} catch (cause) {
 			if (cause instanceof DOMException && cause.name === 'AbortError') return;

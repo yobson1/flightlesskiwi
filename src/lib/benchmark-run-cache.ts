@@ -1,6 +1,6 @@
 import {
+	BENCHMARK_METRIC_KEYS,
 	createBenchmarkMetric,
-	isBenchmarkMetricKey,
 	type BenchmarkMetricKey,
 	type BenchmarkRun,
 	type BenchmarkSource,
@@ -12,7 +12,7 @@ import * as v from 'valibot';
 export const BENCHMARK_PARSER_VERSION = 1;
 
 interface ParsedBenchmarkRun {
-	version: number;
+	version: typeof BENCHMARK_PARSER_VERSION;
 	source: BenchmarkSource;
 	systemInfo: BenchmarkSystemInfo;
 	timeAxes: number[][];
@@ -36,22 +36,28 @@ const benchmarkSystemInfoSchema = v.object({
 	cpuScheduler: v.string(),
 	motherboard: v.string()
 });
-const parsedBenchmarkRunSchema = v.object({
-	version: v.number(),
-	source: v.picklist(['mangohud', 'capframex']),
-	systemInfo: benchmarkSystemInfoSchema,
-	timeAxes: v.array(v.array(v.number())),
-	metrics: v.array(
-		v.object({
-			key: v.custom<BenchmarkMetricKey>(
-				(value): value is BenchmarkMetricKey =>
-					typeof value === 'string' && isBenchmarkMetricKey(value)
-			),
-			timeAxis: v.number(),
-			values: v.array(v.union([v.number(), v.null()]))
-		})
+const parsedBenchmarkRunSchema = v.pipe(
+	v.object({
+		version: v.literal(BENCHMARK_PARSER_VERSION),
+		source: v.picklist(['mangohud', 'capframex']),
+		systemInfo: benchmarkSystemInfoSchema,
+		timeAxes: v.array(v.array(v.number())),
+		metrics: v.array(
+			v.object({
+				key: v.picklist(BENCHMARK_METRIC_KEYS),
+				timeAxis: v.pipe(v.number(), v.safeInteger(), v.minValue(0)),
+				values: v.array(v.union([v.number(), v.null()]))
+			})
+		)
+	}),
+	v.check((run) =>
+		run.metrics.every(
+			(metric) =>
+				metric.timeAxis < run.timeAxes.length &&
+				run.timeAxes[metric.timeAxis]!.length === metric.values.length
+		)
 	)
-});
+);
 
 export function getParsedBenchmarkRunVersion(contents: string): number | null {
 	const match = /^\s*\{"version":(\d+),/.exec(contents);
@@ -83,7 +89,6 @@ export function deserializeParsedBenchmarkRun(contents: string): BenchmarkRun | 
 		const result = v.safeParse(parsedBenchmarkRunSchema, JSON.parse(contents));
 		if (!result.success) return null;
 		const parsed = result.output;
-		if (!isParsedBenchmarkRun(parsed)) return null;
 
 		return {
 			source: parsed.source,
@@ -115,18 +120,4 @@ function arraysEqual(left: number[], right: number[]): boolean {
 		if (left[index] !== right[index]) return false;
 	}
 	return true;
-}
-
-function isParsedBenchmarkRun(run: ParsedBenchmarkRun): boolean {
-	return (
-		run.version === BENCHMARK_PARSER_VERSION &&
-		run.metrics.every(
-			(metric) =>
-				Number.isSafeInteger(metric.timeAxis) &&
-				metric.timeAxis >= 0 &&
-				metric.timeAxis < run.timeAxes.length &&
-				Array.isArray(metric.values) &&
-				run.timeAxes[metric.timeAxis]!.length === metric.values.length
-		)
-	);
 }

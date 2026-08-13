@@ -16,10 +16,12 @@ import {
 } from '$lib/server/auth/email-verification';
 import { invalidateUserPasswordResetSessions } from '$lib/server/auth/password-reset';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { isUserUniqueConstraintError } from '$lib/server/auth/user';
+import { matchesUserUniqueConstraintError } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
+import * as v from 'valibot';
 
 const verifyBucket = new ExpiringTokenBucket<string>('email-verification-code', 5, 30 * 60);
+const verificationCodeSchema = v.pipe(v.string(), v.nonEmpty());
 
 export async function POST(event: RequestEvent) {
 	const guarded = requireAuthenticated(event);
@@ -61,10 +63,11 @@ export async function PUT(event: RequestEvent) {
 	if (request === null) return authError(401, 'Verification request expired');
 	if (!verifyBucket.check(user.id, 1)) return authError(429, 'Too many requests');
 	const formData = await event.request.formData();
-	const code = formData.get('code');
-	if (typeof code !== 'string' || code.length === 0) {
+	const codeResult = v.safeParse(verificationCodeSchema, formData.get('code'));
+	if (!codeResult.success) {
 		return authError(400, 'Enter your code');
 	}
+	const code = codeResult.output;
 	if (!verifyBucket.consume(user.id, 1)) return authError(429, 'Too many requests');
 	if (!verifyEmailVerificationCode(request, code)) {
 		return authError(400, 'Incorrect or expired code');
@@ -77,7 +80,7 @@ export async function PUT(event: RequestEvent) {
 			return authError(401, 'Verification request expired');
 		}
 	} catch (cause) {
-		if (isUserUniqueConstraintError(cause, 'email')) {
+		if (matchesUserUniqueConstraintError(cause, 'email')) {
 			return authError(409, 'Email is already used');
 		}
 		logError('Failed to complete email verification', cause);

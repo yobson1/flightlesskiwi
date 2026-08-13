@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
-import { isSessionRecentlyReauthenticated } from '$lib/server/auth';
+import { hasRecentReauthentication } from '$lib/server/auth';
 import { getClientIP } from '$lib/server/auth/api';
 import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
 import {
@@ -9,13 +9,14 @@ import {
 	OAuthConfigurationError
 } from '$lib/server/auth/oauth';
 import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { createOAuthErrorRedirect, isOAuthProvider } from '$lib/types/oauth';
+import { createOAuthErrorRedirect, parseOAuthProvider } from '$lib/types/oauth';
 import type { RequestEvent } from './$types';
 
 const authorizationBucket = new RefillingTokenBucket<string>('oauth-authorization-ip', 20, 60);
 
 export async function GET(event: RequestEvent) {
-	if (!isOAuthProvider(event.params.provider)) {
+	const provider = parseOAuthProvider(event.params.provider);
+	if (provider === null) {
 		return new Response('OAuth provider not found', { status: 404 });
 	}
 	if (!authorizationBucket.consume(getClientIP(event), 1)) {
@@ -29,7 +30,7 @@ export async function GET(event: RequestEvent) {
 		if (event.locals.session === null || event.locals.user === null) {
 			redirect(303, '/#login');
 		}
-		if (!event.locals.user.oauthProviders.includes(event.params.provider)) {
+		if (!event.locals.user.oauthProviders.includes(provider)) {
 			return new Response('OAuth provider is not linked to this account', { status: 403 });
 		}
 		if (event.locals.user.registeredTOTP || event.locals.user.registeredPasskey) {
@@ -39,25 +40,16 @@ export async function GET(event: RequestEvent) {
 	} else if (flow === 'link') {
 		returnTo = normalizeOAuthReturnTo(event.url.searchParams.get('return_to')) ?? '/settings';
 		if (event.locals.session === null || event.locals.user === null) {
-			redirect(
-				303,
-				createOAuthErrorRedirect('/#login', 'session', event.params.provider, event.url)
-			);
+			redirect(303, createOAuthErrorRedirect('/#login', 'session', provider, event.url));
 		}
 		if (!event.locals.user.emailVerified) {
-			redirect(303, createOAuthErrorRedirect(returnTo, 'factor', event.params.provider, event.url));
+			redirect(303, createOAuthErrorRedirect(returnTo, 'factor', provider, event.url));
 		}
-		if (!isSessionRecentlyReauthenticated(event.locals.session)) {
-			redirect(
-				303,
-				createOAuthErrorRedirect(returnTo, 'reauthentication', event.params.provider, event.url)
-			);
+		if (!hasRecentReauthentication(event.locals.session)) {
+			redirect(303, createOAuthErrorRedirect(returnTo, 'reauthentication', provider, event.url));
 		}
-		if (event.locals.user.oauthProviders.includes(event.params.provider)) {
-			redirect(
-				303,
-				createOAuthErrorRedirect(returnTo, 'connection-exists', event.params.provider, event.url)
-			);
+		if (event.locals.user.oauthProviders.includes(provider)) {
+			redirect(303, createOAuthErrorRedirect(returnTo, 'connection-exists', provider, event.url));
 		}
 	} else {
 		if (event.locals.session !== null) redirect(303, '/');
@@ -68,15 +60,10 @@ export async function GET(event: RequestEvent) {
 
 	let authorizationURL: URL;
 	try {
-		authorizationURL = await createOAuthAuthorizationURL(
-			event,
-			event.params.provider,
-			flow,
-			returnTo
-		);
+		authorizationURL = await createOAuthAuthorizationURL(event, provider, flow, returnTo);
 	} catch (cause) {
 		if (!(cause instanceof OAuthConfigurationError)) {
-			logError(`Failed to start ${event.params.provider} OAuth`, cause);
+			logError(`Failed to start ${provider} OAuth`, cause);
 		}
 		return new Response('OAuth provider is unavailable', { status: 503 });
 	}

@@ -6,7 +6,7 @@ import {
 	setAuthTurnstileToken,
 	takeAuthTurnstileToken
 } from './client/auth-turnstile';
-import { isTurnstileProtectedAuthRequest } from './turnstile';
+import { requiresAuthTurnstile } from './turnstile';
 
 afterEach(() => {
 	configureAuthTurnstile(false);
@@ -42,17 +42,17 @@ describe('Turnstile auth token state', () => {
 
 describe('Turnstile auth request selection', () => {
 	test('protects submitted auth and reauthentication actions', () => {
-		expect(isTurnstileProtectedAuthRequest('/api/auth/signup', 'POST')).toBe(true);
-		expect(isTurnstileProtectedAuthRequest('/api/auth/login', 'PUT')).toBe(true);
-		expect(isTurnstileProtectedAuthRequest('/api/auth/reauth', 'POST')).toBe(true);
-		expect(isTurnstileProtectedAuthRequest('/api/auth/reauth/passkey', 'POST')).toBe(true);
+		expect(requiresAuthTurnstile('/api/auth/signup', 'POST')).toBe(true);
+		expect(requiresAuthTurnstile('/api/auth/login', 'PUT')).toBe(true);
+		expect(requiresAuthTurnstile('/api/auth/reauth', 'POST')).toBe(true);
+		expect(requiresAuthTurnstile('/api/auth/reauth/passkey', 'POST')).toBe(true);
 	});
 
 	test('does not protect reads, logout, or modal bootstrap requests', () => {
-		expect(isTurnstileProtectedAuthRequest('/api/auth/password-reset', 'GET')).toBe(false);
-		expect(isTurnstileProtectedAuthRequest('/api/auth/logout', 'POST')).toBe(false);
-		expect(isTurnstileProtectedAuthRequest('/api/auth/totp-setup', 'POST')).toBe(false);
-		expect(isTurnstileProtectedAuthRequest('/api/auth/totp-setup', 'PUT')).toBe(true);
-		expect(isTurnstileProtectedAuthRequest('/api/game/1', 'POST')).toBe(false);
+		expect(requiresAuthTurnstile('/api/auth/password-reset', 'GET')).toBe(false);
+		expect(requiresAuthTurnstile('/api/auth/logout', 'POST')).toBe(false);
+		expect(requiresAuthTurnstile('/api/auth/totp-setup', 'POST')).toBe(false);
+		expect(requiresAuthTurnstile('/api/auth/totp-setup', 'PUT')).toBe(true);
+		expect(requiresAuthTurnstile('/api/game/1', 'POST')).toBe(false);
 	});
 });

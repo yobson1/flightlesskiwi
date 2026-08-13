@@ -1,14 +1,14 @@
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
-import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
+import { parseRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
 import {
 	consumeLoginAttemptRequest,
 	invalidateLoginAttemptRequest,
 	validateLoginAttemptRequest
 } from '$lib/server/auth/login-attempt';
 import { completeLogin, completeLoginFirstFactor } from '$lib/server/auth/login';
-import { hashPassword, isPasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
+import { hashPassword, parsePasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
+import { parseTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import {
 	getUserById,
 	getUserFromEmail,
@@ -17,6 +17,7 @@ import {
 	verifyEmailInput
 } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
+import * as v from 'valibot';
 
 const ipBucket = new ExpiringTokenBucket<string>('login-ip', 20, 10 * 60);
 // Account failures must be shared across source IPs. Refilling one attempt at a time avoids
@@ -34,13 +35,13 @@ export async function POST(event: RequestEvent) {
 	}
 
 	const formData = await event.request.formData();
-	const rawEmail = formData.get('email');
-	const password = formData.get('password');
-	if (typeof rawEmail !== 'string' || typeof password !== 'string') {
+	const rawEmailResult = v.safeParse(v.string(), formData.get('email'));
+	const password = parsePasswordInput(formData.get('password'));
+	if (!rawEmailResult.success || password === null) {
 		return authError(400, 'Invalid or missing fields');
 	}
-	const email = normalizeEmail(rawEmail);
-	if (!verifyEmailInput(email) || !isPasswordInput(password)) {
+	const email = normalizeEmail(rawEmailResult.output);
+	if (!verifyEmailInput(email)) {
 		return authError(400, 'Invalid email or password');
 	}
 	if (!ipBucket.consume(clientIP, 1) || !accountBucket.check(email, 1)) {
@@ -85,8 +86,8 @@ export async function PUT(event: RequestEvent) {
 		return authError(429, 'Too many requests');
 	}
 	const formData = await event.request.formData();
-	const code = formData.get('code');
-	if (!isTOTPCode(code)) {
+	const code = parseTOTPCode(formData.get('code'));
+	if (code === null) {
 		return authError(400, 'Invalid or missing fields');
 	}
 	if (!ipBucket.consume(clientIP, 1)) {
@@ -129,8 +130,8 @@ export async function PATCH(event: RequestEvent) {
 		return authError(429, 'Too many requests');
 	}
 	const formData = await event.request.formData();
-	const code = formData.get('code');
-	if (!isRecoveryCode(code)) {
+	const code = parseRecoveryCode(formData.get('code'));
+	if (code === null) {
 		return authError(400, 'Invalid or missing fields');
 	}
 	if (!ipBucket.consume(clientIP, 1)) {

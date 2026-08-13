@@ -7,6 +7,7 @@ import { parseBenchmarkRun } from '$lib/server/benchmark-run';
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
+import { getMessage } from '$lib/utils';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) => {
@@ -74,9 +75,8 @@ export const actions: Actions = {
 	delete: async (event) => {
 		const authResult = requireVerifiedSession(event);
 		if (authResult.response) {
-			const responseData = (await authResult.response.json()) as { message?: string };
 			return fail(authResult.response.status, {
-				message: responseData.message ?? 'Sign in to delete this benchmark'
+				message: getMessage(await authResult.response.json(), 'Sign in to delete this benchmark')
 			});
 		}
 

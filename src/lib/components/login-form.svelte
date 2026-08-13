@@ -6,7 +6,7 @@
 	import {
 		cancelWebAuthnCeremony,
 		createWebAuthnAssertion,
-		isWebAuthnCancellation,
+		parseWebAuthnCancellation,
 		type WebAuthnAssertion
 	} from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
@@ -86,7 +86,7 @@
 			const assertion = await createWebAuthnAssertion('passkey-login');
 			await completePasskeyLogin(assertion);
 		} catch (cause) {
-			if (isWebAuthnCancellation(cause)) {
+			if (parseWebAuthnCancellation(cause) !== null) {
 				message = 'Passkey sign-in was cancelled.';
 			} else {
 				message = getPasskeyErrorMessage(cause);

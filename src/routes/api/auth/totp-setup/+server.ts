@@ -9,6 +9,7 @@ import {
 	setTOTPSetupCookie,
 	totpUpdateBucket,
 	updateUserTOTPKey,
+	parseTOTPCode,
 	verifyTOTPKey
 } from '$lib/server/auth/totp';
 import type { RequestEvent } from './$types';
@@ -33,8 +34,8 @@ export async function PUT(event: RequestEvent) {
 	const { session, user } = guarded.authenticated;
 	if (!totpUpdateBucket.check(user.id, 1)) return authError(429, 'Too many requests');
 	const formData = await event.request.formData();
-	const code = formData.get('code');
-	if (typeof code !== 'string' || code.length === 0) return authError(400, 'Enter your code');
+	const code = parseTOTPCode(formData.get('code'));
+	if (code === null) return authError(400, 'Enter your code');
 	const key = getTOTPSetupKey(event, user.id);
 	if (key === null) return authError(400, 'Authenticator setup expired; reload and try again');
 	if (!totpUpdateBucket.consume(user.id, 1)) return authError(429, 'Too many requests');

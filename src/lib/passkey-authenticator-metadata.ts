@@ -1,4 +1,3 @@
-import { isNonArrayObject } from '$lib/utils';
 import * as v from 'valibot';
 
 export const PASSKEY_AUTHENTICATOR_AAGUIDS_URL =
@@ -10,6 +9,11 @@ const passkeyAuthenticatorMetadataSchema = v.object({
 	icon_dark: v.optional(v.string()),
 	icon_light: v.optional(v.string())
 });
+const passkeyAuthenticatorCatalogueSchema = v.pipe(
+	v.record(v.string(), v.fallback(v.nullable(passkeyAuthenticatorMetadataSchema), null)),
+	v.check((catalogue) => !Array.isArray(catalogue))
+);
+const svgDataURISchema = v.pipe(v.string(), v.regex(SVG_DATA_URI_PATTERN));
 
 export interface PasskeyAuthenticatorMetadata {
 	name: string;
@@ -42,22 +46,17 @@ export function formatAAGUID(bytes: Uint8Array): string {
 function parsePasskeyAuthenticatorMetadata(
 	value: unknown
 ): Record<string, PasskeyAuthenticatorMetadata> {
-	if (!isNonArrayObject(value)) return {};
+	const catalogue = v.safeParse(passkeyAuthenticatorCatalogueSchema, value);
+	if (!catalogue.success) return {};
 
 	const metadata: Record<string, PasskeyAuthenticatorMetadata> = {};
-	for (const [aaguid, entry] of Object.entries(value)) {
-		const result = v.safeParse(passkeyAuthenticatorMetadataSchema, entry);
-		if (!result.success) continue;
-		const parsed = result.output;
+	for (const [aaguid, parsed] of Object.entries(catalogue.output)) {
+		if (parsed === null) continue;
 		metadata[aaguid.toLowerCase()] = {
 			name: parsed.name,
-			...(isSVGDataURI(parsed.icon_dark) ? { iconDark: parsed.icon_dark } : {}),
-			...(isSVGDataURI(parsed.icon_light) ? { iconLight: parsed.icon_light } : {})
+			...(v.is(svgDataURISchema, parsed.icon_dark) ? { iconDark: parsed.icon_dark } : {}),
+			...(v.is(svgDataURISchema, parsed.icon_light) ? { iconLight: parsed.icon_light } : {})
 		};
 	}
 	return metadata;
-}
-
-function isSVGDataURI(value: unknown): value is string {
-	return typeof value === 'string' && SVG_DATA_URI_PATTERN.test(value);
 }

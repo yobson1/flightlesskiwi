@@ -6,7 +6,7 @@ import {
 	TOTP_CODE_LENGTH_WORD
 } from '$lib/auth-constants';
 import { createSessionAndSetCookie } from '$lib/server/auth';
-import { isRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
+import { parseRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
 import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
 import {
 	checkCodeEmailSendRateLimit,
@@ -15,7 +15,7 @@ import {
 	getCodeEmailSendRetryAfterSeconds,
 	sendPasswordResetEmail
 } from '$lib/server/auth/email';
-import { verifyPasswordStrength } from '$lib/server/auth/password';
+import { parsePasswordInput, verifyPasswordStrength } from '$lib/server/auth/password';
 import {
 	completePasswordReset,
 	createPasswordResetSession,
@@ -30,7 +30,7 @@ import {
 	type PasswordResetSession
 } from '$lib/server/auth/password-reset';
 import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
+import { parseTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import {
 	getUserFromEmail,
 	normalizeEmail,
@@ -39,10 +39,13 @@ import {
 	type AuthUser
 } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
+import * as v from 'valibot';
 
 const requestIPBucket = new RefillingTokenBucket<string>('password-reset-modal-ip', 3, 60);
 const requestEmailBucket = new RefillingTokenBucket<string>('password-reset-modal-email', 3, 60);
 const codeBucket = new ExpiringTokenBucket<string>('password-reset-modal-code', 5, 30 * 60);
+const emailInputSchema = v.string();
+const emailCodeSchema = v.pipe(v.string(), v.length(EMAIL_CODE_LENGTH));
 
 export function GET(event: RequestEvent) {
 	if (event.locals.session !== null) {
@@ -80,10 +83,11 @@ async function requestReset(event: RequestEvent, formData: FormData): Promise<Re
 	if (!requestIPBucket.check(clientIP, 1)) {
 		return authError(429, 'Too many reset requests. Try again later.');
 	}
-	const rawEmail = formData.get('email');
-	if (typeof rawEmail !== 'string') {
+	const emailResult = v.safeParse(emailInputSchema, formData.get('email'));
+	if (!emailResult.success) {
 		return authError(400, 'Enter your email');
 	}
+	const rawEmail = emailResult.output;
 	const email = normalizeEmail(rawEmail);
 	if (!verifyEmailInput(email)) {
 		return authError(400, 'Enter a valid email');
@@ -133,15 +137,11 @@ async function requestReset(event: RequestEvent, formData: FormData): Promise<Re
 
 function verifyEmailCode(event: RequestEvent, formData: FormData): Response {
 	const { session, user } = validatePasswordResetSessionRequest(event);
-	const code = formData.get('code');
-	if (
-		session === null ||
-		session.emailVerified ||
-		typeof code !== 'string' ||
-		code.length !== EMAIL_CODE_LENGTH
-	) {
+	const codeResult = v.safeParse(emailCodeSchema, formData.get('code'));
+	if (session === null || session.emailVerified || !codeResult.success) {
 		return authError(400, 'Incorrect or expired reset code');
 	}
+	const code = codeResult.output;
 	if (!codeBucket.consume(session.userId, 1)) {
 		return authError(429, 'Too many attempts. Try again later.');
 	}
@@ -168,8 +168,8 @@ function verifyTOTP(event: RequestEvent, formData: FormData): Response {
 	) {
 		return authError(403, 'Authenticator verification is not available');
 	}
-	const code = formData.get('code');
-	if (!isTOTPCode(code)) {
+	const code = parseTOTPCode(formData.get('code'));
+	if (code === null) {
 		return authError(400, `Enter the ${TOTP_CODE_LENGTH_WORD}-digit authenticator code`);
 	}
 	const verification = verifyUserTOTP(session.userId, code);
@@ -194,8 +194,8 @@ async function verifyRecoveryCode(event: RequestEvent, formData: FormData): Prom
 	) {
 		return authError(403, 'Recovery-code verification is not available');
 	}
-	const code = formData.get('code');
-	if (!isRecoveryCode(code)) {
+	const code = parseRecoveryCode(formData.get('code'));
+	if (code === null) {
 		return authError(400, 'Enter your recovery code');
 	}
 	const verification = await verifyUserRecoveryCode(session.userId, code);
@@ -218,9 +218,9 @@ async function updatePassword(event: RequestEvent, formData: FormData): Promise<
 	) {
 		return authError(403, 'Complete password reset verification first');
 	}
-	const password = formData.get('password');
-	const confirmPassword = formData.get('confirmPassword');
-	if (typeof password !== 'string' || typeof confirmPassword !== 'string') {
+	const password = parsePasswordInput(formData.get('password'));
+	const confirmPassword = parsePasswordInput(formData.get('confirmPassword'));
+	if (password === null || confirmPassword === null) {
 		return authError(400, 'Enter and confirm your new password');
 	}
 	if (password !== confirmPassword) {

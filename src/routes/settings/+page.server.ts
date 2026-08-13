@@ -12,7 +12,7 @@ import { fetchPasskeyAuthenticatorMetadata } from '$lib/passkey-authenticator-me
 import {
 	createSessionAndSetCookie,
 	deleteSessionTokenCookie,
-	isSessionRecentlyReauthenticated
+	hasRecentReauthentication
 } from '$lib/server/auth';
 import { requireVerifiedPage } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
@@ -44,7 +44,7 @@ import {
 	checkUsernameAvailability,
 	deleteUserOAuthAccount,
 	getUserOAuthAuthorizations,
-	isUserUniqueConstraintError,
+	matchesUserUniqueConstraintError,
 	normalizeEmail,
 	resetUserRecoveryCode,
 	updateUserPassword,
@@ -59,11 +59,17 @@ import { benchmarkFile, benchmarkResult, user as userTable } from '$lib/server/d
 import {
 	getOAuthProviderAuthorizationSettingsURL,
 	getOAuthProviderName,
-	isOAuthProvider
+	parseOAuthProvider
 } from '$lib/types/oauth';
 import type { Actions, RequestEvent } from './$types';
+import * as v from 'valibot';
 
 const passwordUpdateBucket = new ExpiringTokenBucket<string>('password-update', 5, 30 * 60);
+const stringFieldSchema = v.string();
+const passwordUpdateFormSchema = v.object({
+	password: v.string(),
+	confirmation: v.string()
+});
 
 export async function load(event: RequestEvent) {
 	event.setHeaders({ 'cache-control': 'no-store' });
@@ -74,7 +80,7 @@ export async function load(event: RequestEvent) {
 	return {
 		user,
 		recoveryCodeConfigured: user.recoveryCodeConfigured,
-		recentlyReauthenticated: isSessionRecentlyReauthenticated(session),
+		recentlyReauthenticated: hasRecentReauthentication(session),
 		passkeyCredentials: passkeyCredentials.map((credential) => ({
 			id: encodeBase64(credential.id),
 			name: credential.name,
@@ -100,10 +106,11 @@ async function updateUsername(event: RequestEvent) {
 	if ('failure' in guarded) return guarded.failure;
 	const { user } = guarded;
 	const formData = await event.request.formData();
-	const username = formData.get('username');
-	if (typeof username !== 'string') {
+	const usernameResult = v.safeParse(stringFieldSchema, formData.get('username'));
+	if (!usernameResult.success) {
 		return fail(400, { username: { message: 'Invalid or missing fields' } });
 	}
+	const username = usernameResult.output;
 	if (!verifyUsernameInput(username)) {
 		return fail(400, {
 			username: {
@@ -119,7 +126,7 @@ async function updateUsername(event: RequestEvent) {
 			return fail(404, { username: { message: 'Account not found' } });
 		}
 	} catch (cause) {
-		if (isUserUniqueConstraintError(cause, 'username')) {
+		if (matchesUserUniqueConstraintError(cause, 'username')) {
 			return fail(400, { username: { message: 'Username is already used' } });
 		}
 		logError('Failed to update username', cause);
@@ -136,11 +143,14 @@ async function updatePassword(event: RequestEvent) {
 		return fail(429, { password: { message: 'Too many requests' } });
 	}
 	const formData = await event.request.formData();
-	const newPassword = formData.get('new_password');
-	const confirmPassword = formData.get('confirm_password');
-	if (typeof newPassword !== 'string' || typeof confirmPassword !== 'string') {
+	const formResult = v.safeParse(passwordUpdateFormSchema, {
+		password: formData.get('new_password'),
+		confirmation: formData.get('confirm_password')
+	});
+	if (!formResult.success) {
 		return fail(400, { password: { message: 'Invalid or missing fields' } });
 	}
+	const { password: newPassword, confirmation: confirmPassword } = formResult.output;
 	if (newPassword !== confirmPassword) {
 		return fail(400, { password: { message: 'Passwords do not match' } });
 	}
@@ -167,10 +177,11 @@ async function updateEmail(event: RequestEvent) {
 	if ('failure' in guarded) return guarded.failure;
 	const { user } = guarded;
 	const formData = await event.request.formData();
-	const rawEmail = formData.get('email');
-	if (typeof rawEmail !== 'string') {
+	const emailResult = v.safeParse(stringFieldSchema, formData.get('email'));
+	if (!emailResult.success) {
 		return fail(400, { email: { message: 'Invalid or missing fields' } });
 	}
+	const rawEmail = emailResult.output;
 	const email = normalizeEmail(rawEmail);
 	if (!verifyEmailInput(email)) {
 		return fail(400, { email: { message: 'Invalid email' } });
@@ -242,8 +253,8 @@ async function disconnectOAuth(event: RequestEvent) {
 	if ('failure' in guarded) return guarded.failure;
 	const { user } = guarded;
 	const formData = await event.request.formData();
-	const provider = formData.get('provider');
-	if (typeof provider !== 'string' || !isOAuthProvider(provider)) {
+	const provider = parseOAuthProvider(formData.get('provider'));
+	if (provider === null) {
 		return fail(400, { connection: { message: 'Invalid OAuth provider' } });
 	}
 
@@ -286,10 +297,11 @@ async function deletePasskey(event: RequestEvent) {
 	if ('failure' in guarded) return guarded.failure;
 	const { user } = guarded;
 	const formData = await event.request.formData();
-	const encodedCredentialId = formData.get('credential_id');
-	if (typeof encodedCredentialId !== 'string') {
+	const credentialIdResult = v.safeParse(stringFieldSchema, formData.get('credential_id'));
+	if (!credentialIdResult.success) {
 		return fail(400);
 	}
+	const encodedCredentialId = credentialIdResult.output;
 	try {
 		if (!deleteUserPasskeyCredential(user.id, decodeBase64(encodedCredentialId))) {
 			return fail(400);
@@ -313,8 +325,8 @@ async function deleteAccount(event: RequestEvent) {
 	if ('failure' in guarded) return guarded.failure;
 	const { user } = guarded;
 	const formData = await event.request.formData();
-	const username = formData.get('username');
-	if (typeof username !== 'string' || username !== user.username) {
+	const usernameResult = v.safeParse(stringFieldSchema, formData.get('username'));
+	if (!usernameResult.success || usernameResult.output !== user.username) {
 		return fail(400, {
 			account: { message: 'Enter your username exactly as shown to delete your account' }
 		});
@@ -388,7 +400,7 @@ function requireSensitiveSettingsAction(
 	if (!user.emailVerified || (options.requiresTOTP && !user.registeredTOTP)) {
 		return { failure: settingsActionFailure(403, 'Forbidden', options.field) };
 	}
-	if (!isSessionRecentlyReauthenticated(session)) {
+	if (!hasRecentReauthentication(session)) {
 		return { failure: reauthenticationRequired(options.field) };
 	}
 	return { session, user };

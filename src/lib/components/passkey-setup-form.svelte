@@ -6,7 +6,7 @@
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
 	import {
 		createWebAuthnRegistration,
-		isWebAuthnCancellation,
+		parseWebAuthnCancellation,
 		type WebAuthnRegistration
 	} from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
@@ -36,7 +36,7 @@
 			registration = await createWebAuthnRegistration(options);
 			name = registration.suggested_name;
 		} catch (cause) {
-			if (isWebAuthnCancellation(cause)) {
+			if (parseWebAuthnCancellation(cause) !== null) {
 				message = 'Passkey creation was cancelled.';
 			} else {
 				message = cause instanceof Error ? cause.message : 'Unable to create passkey';

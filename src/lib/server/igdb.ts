@@ -3,8 +3,13 @@ import type { ApicalypseConfig } from 'apicalypse';
 import { version } from '$app/env';
 import { IGDB_CLIENT_ID, IGDB_CLIENT_SECRET } from '$app/env/private';
 import { info } from '$lib/logger';
+import * as v from 'valibot';
 
 const REQUEST_TIMEOUT_MS = 15_000;
+const accessTokenResponseSchema = v.object({
+	access_token: v.string(),
+	expires_in: v.number()
+});
 const tokenCache: { token: string | null; expiry: number } = {
 	token: null,
 	expiry: 0
@@ -35,10 +40,11 @@ async function refreshAccessToken() {
 		throw new Error(`Failed to get IGDB access token (${response.status} ${response.statusText})`);
 	}
 
-	const data = (await response.json()) as { access_token?: unknown; expires_in?: unknown };
-	if (typeof data.access_token !== 'string' || typeof data.expires_in !== 'number') {
+	const result = v.safeParse(accessTokenResponseSchema, await response.json());
+	if (!result.success) {
 		throw new Error('IGDB returned an invalid access token response');
 	}
+	const data = result.output;
 
 	tokenCache.token = data.access_token;
 	tokenCache.expiry = Date.now() + data.expires_in * 1000 - 60_000;

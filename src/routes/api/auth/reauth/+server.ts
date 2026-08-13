@@ -1,9 +1,9 @@
 import { TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
 import { rotateSessionAfterReauthentication } from '$lib/server/auth';
 import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
-import { isPasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
+import { parsePasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { isTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
+import { parseTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
 import { getUserPasswordHash } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
 
@@ -17,8 +17,8 @@ export async function POST(event: RequestEvent) {
 		return authError(403, 'Password reauthentication is not available');
 	}
 	const formData = await event.request.formData();
-	const password = formData.get('password');
-	if (!isPasswordInput(password)) {
+	const password = parsePasswordInput(formData.get('password'));
+	if (password === null) {
 		return authError(400, 'Enter your password');
 	}
 	if (!reauthenticationBucket.consume(session.id, 1)) {
@@ -41,8 +41,8 @@ export async function PUT(event: RequestEvent) {
 		return authError(403, 'Authenticator reauthentication is not available');
 	}
 	const formData = await event.request.formData();
-	const code = formData.get('code');
-	if (!isTOTPCode(code)) {
+	const code = parseTOTPCode(formData.get('code'));
+	if (code === null) {
 		return authError(400, `Enter the ${TOTP_CODE_LENGTH_WORD}-digit code`);
 	}
 	if (!reauthenticationBucket.consume(session.id, 1)) {

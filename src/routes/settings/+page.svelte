@@ -44,6 +44,10 @@
 	import { tick } from 'svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
+	import * as v from 'valibot';
+
+	const generatedRecoveryCodeSchema = v.object({ recoveryCode: v.string() });
+	const reauthenticationFailureSchema = v.object({ reauthenticationRequired: v.literal(true) });
 
 	let { data }: PageProps = $props();
 	const authModal = getAuthModal();
@@ -82,7 +86,7 @@
 				return;
 			}
 			return async ({ result, update }) => {
-				if (result.type === 'failure' && needsReauthentication(result.data)) {
+				if (result.type === 'failure' && v.is(reauthenticationFailureSchema, result.data)) {
 					recentlyReauthenticated = false;
 					requestSettingsReauthentication(formElement, confirmation);
 					return;
@@ -176,14 +180,8 @@
 	}
 
 	function setGeneratedRecoveryCode(value: unknown) {
-		if (
-			typeof value === 'object' &&
-			value !== null &&
-			'recoveryCode' in value &&
-			typeof value.recoveryCode === 'string'
-		) {
-			recoveryCode = value.recoveryCode;
-		}
+		const result = v.safeParse(generatedRecoveryCodeSchema, value);
+		if (result.success) recoveryCode = result.output.recoveryCode;
 	}
 
 	function submitForm(id: string) {
@@ -191,15 +189,6 @@
 		if (form instanceof HTMLFormElement) {
 			form.requestSubmit();
 		}
-	}
-
-	function needsReauthentication(value: unknown): boolean {
-		return (
-			typeof value === 'object' &&
-			value !== null &&
-			'reauthenticationRequired' in value &&
-			value.reauthenticationRequired === true
-		);
 	}
 </script>
 

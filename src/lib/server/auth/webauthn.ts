@@ -56,7 +56,7 @@ export function consumeWebAuthnChallenge(
 	});
 }
 
-export function isWebAuthnChallengeValid(
+export function matchesWebAuthnChallenge(
 	challenge: string,
 	userId: string | null,
 	purpose: WebAuthnChallengePurpose

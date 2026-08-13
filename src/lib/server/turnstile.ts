@@ -1,15 +1,20 @@
 import { ORIGIN, TURNSTILE_SECRET, TURNSTILE_SITE_KEY } from '$app/env/private';
 import { TURNSTILE_ACTION } from '$lib/turnstile';
-import { isNonArrayObject } from '$lib/utils';
+import * as v from 'valibot';
 
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+const turnstileSuccessSchema = v.object({
+	success: v.literal(true),
+	action: v.literal(TURNSTILE_ACTION),
+	hostname: v.string()
+});
 
-export function isTurnstileEnabled(): boolean {
+export function hasTurnstileConfiguration(): boolean {
 	return Boolean(TURNSTILE_SITE_KEY && TURNSTILE_SECRET);
 }
 
 export function getTurnstileSiteKey(): string | null {
-	return isTurnstileEnabled() ? TURNSTILE_SITE_KEY! : null;
+	return hasTurnstileConfiguration() ? TURNSTILE_SITE_KEY! : null;
 }
 
 export async function verifyTurnstileToken(
@@ -17,8 +22,9 @@ export async function verifyTurnstileToken(
 	clientIp: string,
 	fetcher: typeof fetch = fetch
 ): Promise<boolean> {
-	if (!isTurnstileEnabled()) return true;
-	if (typeof token !== 'string' || !token) return false;
+	if (!hasTurnstileConfiguration()) return true;
+	const tokenResult = v.safeParse(v.pipe(v.string(), v.nonEmpty()), token);
+	if (!tokenResult.success) return false;
 
 	try {
 		const response = await fetcher(SITEVERIFY_URL, {
@@ -26,22 +32,14 @@ export async function verifyTurnstileToken(
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams({
 				secret: TURNSTILE_SECRET!,
-				response: token,
+				response: tokenResult.output,
 				remoteip: clientIp
 			})
 		});
 		if (!response.ok) throw new Error(`siteverify ${response.status}`);
-		const result = (await response.json()) as unknown;
+		const result = v.safeParse(turnstileSuccessSchema, await response.json());
 		const expectedHostname = new URL(ORIGIN!).hostname;
-		return (
-			isNonArrayObject(result) &&
-			'success' in result &&
-			'action' in result &&
-			'hostname' in result &&
-			result.success === true &&
-			result.action === TURNSTILE_ACTION &&
-			result.hostname === expectedHostname
-		);
+		return result.success && result.output.hostname === expectedHostname;
 	} catch {
 		return false;
 	}

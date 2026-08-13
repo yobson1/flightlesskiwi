@@ -1,11 +1,12 @@
 import {
+	benchmarkMetricKeySchema,
 	createBenchmarkMetric,
-	isBenchmarkMetricKey,
 	type BenchmarkData,
 	type BenchmarkMetricKey,
 	type BenchmarkRun,
 	type BenchmarkSystemInfo
 } from '$lib/benchmark-run-model';
+import * as v from 'valibot';
 
 const REQUIRED_SYSTEM_HEADERS = ['os', 'cpu', 'gpu', 'ram', 'kernel'] as const;
 const MAXIMUM_DATA_RECORDS = 100_000;
@@ -100,7 +101,7 @@ function parseMangoHudCsv(
 			const seenMetrics = new Set<string>();
 			metricColumns = [];
 			for (const [index, key] of headers.entries()) {
-				if (!isBenchmarkMetricKey(key) || seenMetrics.has(key)) continue;
+				if (!v.is(benchmarkMetricKeySchema, key) || seenMetrics.has(key)) continue;
 				seenMetrics.add(key);
 				metricColumns.push({ key, index, values: [] });
 			}

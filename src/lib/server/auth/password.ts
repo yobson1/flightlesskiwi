@@ -1,4 +1,12 @@
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '$lib/auth-constants';
+import * as v from 'valibot';
+
+const passwordInputSchema = v.pipe(v.string(), v.nonEmpty(), v.maxLength(MAX_PASSWORD_LENGTH));
+const strongPasswordSchema = v.pipe(
+	v.string(),
+	v.minLength(MIN_PASSWORD_LENGTH),
+	v.maxLength(MAX_PASSWORD_LENGTH)
+);
 
 const ARGON2ID_OPTIONS = {
 	algorithm: 'argon2id',
@@ -15,11 +23,12 @@ export async function verifyPasswordHash(passwordHash: string, password: string)
 }
 
 export function verifyPasswordStrength(password: string): boolean {
-	return password.length >= MIN_PASSWORD_LENGTH && password.length <= MAX_PASSWORD_LENGTH;
+	return v.is(strongPasswordSchema, password);
 }
 
-export function isPasswordInput(value: unknown): value is string {
-	return typeof value === 'string' && value.length > 0 && value.length <= MAX_PASSWORD_LENGTH;
+export function parsePasswordInput(value: unknown): string | null {
+	const result = v.safeParse(passwordInputSchema, value);
+	return result.success ? result.output : null;
 }
 
 export async function hashRecoveryCode(recoveryCode: string): Promise<string> {

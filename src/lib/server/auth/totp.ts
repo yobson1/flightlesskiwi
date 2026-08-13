@@ -8,14 +8,22 @@ import { totpCredential, user as userTable } from '$lib/server/db/schema';
 import { decrypt, encrypt } from '$lib/server/auth/encryption';
 import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
 import { verifyTOTPKey } from '$lib/server/auth/totp-code';
+import * as v from 'valibot';
 
 export { createTOTPKeyURI, verifyTOTPKey } from '$lib/server/auth/totp-code';
 
 const totpBucket = new ExpiringTokenBucket<string>('totp-verify', 5, 30 * 60);
 export const totpUpdateBucket = new RefillingTokenBucket<string>('totp-update', 3, 10 * 60);
+const totpCodeSchema = v.pipe(v.string(), v.length(TOTP_CODE_LENGTH), v.regex(/^\d+$/));
+const totpSetupPayloadSchema = v.object({
+	userId: v.string(),
+	key: v.string(),
+	expiresAt: v.number()
+});
 
-export function isTOTPCode(value: unknown): value is string {
-	return typeof value === 'string' && value.length === TOTP_CODE_LENGTH && /^\d+$/.test(value);
+export function parseTOTPCode(value: unknown): string | null {
+	const result = v.safeParse(totpCodeSchema, value);
+	return result.success ? result.output : null;
 }
 
 export function generateTOTPKey(): Uint8Array {
@@ -106,23 +114,18 @@ export function getTOTPSetupKey(event: RequestEvent, userId: string): Uint8Array
 		return null;
 	}
 	try {
-		const payload = JSON.parse(
-			new TextDecoder().decode(decrypt(decodeBase64url(cookie)))
-		) as unknown;
+		const result = v.safeParse(
+			totpSetupPayloadSchema,
+			JSON.parse(new TextDecoder().decode(decrypt(decodeBase64url(cookie))))
+		);
 		if (
-			typeof payload !== 'object' ||
-			payload === null ||
-			!('userId' in payload) ||
-			!('key' in payload) ||
-			!('expiresAt' in payload) ||
-			payload.userId !== userId ||
-			typeof payload.key !== 'string' ||
-			typeof payload.expiresAt !== 'number' ||
-			payload.expiresAt <= Date.now()
+			!result.success ||
+			result.output.userId !== userId ||
+			result.output.expiresAt <= Date.now()
 		) {
 			return null;
 		}
-		const key = decodeBase64url(payload.key);
+		const key = decodeBase64url(result.output.key);
 		return key.byteLength === 20 ? key : null;
 	} catch {
 		return null;

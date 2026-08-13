@@ -1,3 +1,25 @@
+import * as v from 'valibot';
+
+export const BENCHMARK_METRIC_KEYS = [
+	'fps',
+	'frametime',
+	'cpu_load',
+	'cpu_mhz',
+	'cpu_power',
+	'gpu_load',
+	'cpu_temp',
+	'gpu_temp',
+	'gpu_core_clock',
+	'gpu_mem_clock',
+	'gpu_vram_used',
+	'gpu_power',
+	'ram_used',
+	'process_rss'
+] as const;
+
+export type BenchmarkMetricKey = (typeof BENCHMARK_METRIC_KEYS)[number];
+export const benchmarkMetricKeySchema = v.picklist(BENCHMARK_METRIC_KEYS);
+
 export const BENCHMARK_METRIC_DEFINITIONS = {
 	fps: { prettyName: 'FPS', unit: 'FPS' },
 	frametime: { prettyName: 'Frametime', unit: 'ms' },
@@ -13,14 +35,9 @@ export const BENCHMARK_METRIC_DEFINITIONS = {
 	gpu_power: { prettyName: 'GPU Power', unit: 'W' },
 	ram_used: { prettyName: 'RAM Used', unit: 'GiB' },
 	process_rss: { prettyName: 'Process RAM Usage', unit: 'GiB' }
-} as const;
+} as const satisfies Record<BenchmarkMetricKey, { prettyName: string; unit: string }>;
 
 export type BenchmarkSource = 'mangohud' | 'capframex';
-export type BenchmarkMetricKey = keyof typeof BENCHMARK_METRIC_DEFINITIONS;
-
-export const BENCHMARK_METRIC_KEYS = Object.keys(
-	BENCHMARK_METRIC_DEFINITIONS
-) as BenchmarkMetricKey[];
 
 export interface BenchmarkSystemInfo {
 	os: string;
@@ -50,10 +67,6 @@ export interface BenchmarkRun {
 	source: BenchmarkSource;
 	systemInfo: BenchmarkSystemInfo;
 	data: BenchmarkData;
-}
-
-export function isBenchmarkMetricKey(value: string): value is BenchmarkMetricKey {
-	return (BENCHMARK_METRIC_KEYS as readonly string[]).includes(value);
 }
 
 export function createBenchmarkMetric(

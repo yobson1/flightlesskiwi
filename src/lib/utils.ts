@@ -1,36 +1,29 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import * as v from 'valibot';
+
+const messageSchema = v.object({ message: v.string() });
+const actionMessagesSchema = v.pipe(
+	v.record(v.string(), v.fallback(v.nullable(messageSchema), null)),
+	v.check((messages) => !Array.isArray(messages))
+);
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
 export function getMessage(value: unknown, fallback: string): string {
-	if (
-		typeof value === 'object' &&
-		value !== null &&
-		'message' in value &&
-		typeof value.message === 'string'
-	) {
-		return value.message;
-	}
-	return fallback;
+	const result = v.safeParse(messageSchema, value);
+	return result.success ? result.output.message : fallback;
 }
 
 export function getActionMessage(value: unknown, fallback: string): string {
-	if (typeof value !== 'object' || value === null) return fallback;
-	if ('message' in value && typeof value.message === 'string') return value.message;
-	for (const nested of Object.values(value)) {
-		if (typeof nested === 'object' && nested !== null && 'message' in nested) {
-			const message = nested.message;
-			if (typeof message === 'string') return message;
-		}
-	}
-	return fallback;
-}
-
-export function isNonArrayObject(value: unknown): value is object {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+	const direct = v.safeParse(messageSchema, value);
+	if (direct.success) return direct.output.message;
+	const nested = v.safeParse(actionMessagesSchema, value);
+	return nested.success
+		? (Object.values(nested.output).find((entry) => entry !== null)?.message ?? fallback)
+		: fallback;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

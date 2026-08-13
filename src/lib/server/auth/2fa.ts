@@ -10,13 +10,18 @@ import {
 } from '$lib/server/db/schema';
 import { verifyRecoveryCodeHash } from '$lib/server/auth/password';
 import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
+import * as v from 'valibot';
 
 const recoveryCodeBucket = new ExpiringTokenBucket<string>('recovery-code', 3, 60 * 60);
+const recoveryCodeSchema = v.pipe(
+	v.string(),
+	v.maxLength(MAX_RECOVERY_CODE_LENGTH),
+	v.check((value) => value.trim().length > 0)
+);
 
-export function isRecoveryCode(value: unknown): value is string {
-	return (
-		typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_RECOVERY_CODE_LENGTH
-	);
+export function parseRecoveryCode(value: unknown): string | null {
+	const result = v.safeParse(recoveryCodeSchema, value);
+	return result.success ? result.output : null;
 }
 
 export async function verifyUserRecoveryCode(

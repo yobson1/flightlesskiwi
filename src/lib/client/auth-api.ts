@@ -5,7 +5,7 @@ import {
 	type AuthModalView
 } from '$lib/types/auth';
 import { resetAuthTurnstile, takeAuthTurnstileToken } from '$lib/client/auth-turnstile';
-import { isTurnstileProtectedAuthRequest, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
+import { requiresAuthTurnstile, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
 import * as v from 'valibot';
 
 export class AuthAPIError extends Error {
@@ -35,7 +35,7 @@ export async function authRequest(
 ): Promise<AuthAPIResponse> {
 	const method = init.method ?? 'GET';
 	const pathname = new URL(endpoint, window.location.origin).pathname;
-	const protectedByTurnstile = isTurnstileProtectedAuthRequest(pathname, method);
+	const protectedByTurnstile = requiresAuthTurnstile(pathname, method);
 	const token = protectedByTurnstile ? await takeAuthTurnstileToken(init.signal) : null;
 	const headers = new Headers(init.headers);
 	if (token) headers.set(TURNSTILE_RESPONSE_FIELD, token);
@@ -91,11 +91,10 @@ export function computeResendAvailableAt(
 	value: { retryAfterSeconds?: number },
 	defaultIntervalSeconds: number
 ): number {
-	const retryAfterSeconds =
-		typeof value.retryAfterSeconds === 'number' &&
-		Number.isFinite(value.retryAfterSeconds) &&
-		value.retryAfterSeconds >= 0
-			? Math.ceil(value.retryAfterSeconds)
-			: defaultIntervalSeconds;
+	const result = v.safeParse(
+		v.pipe(v.number(), v.finite(), v.minValue(0), v.transform(Math.ceil)),
+		value.retryAfterSeconds
+	);
+	const retryAfterSeconds = result.success ? result.output : defaultIntervalSeconds;
 	return Date.now() + retryAfterSeconds * 1000;
 }

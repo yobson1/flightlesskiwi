@@ -20,13 +20,29 @@ import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game } from '$lib/server/db/schema';
 import { verifyTurnstileToken } from '$lib/server/turnstile';
 import { TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
+import { getMessage } from '$lib/utils';
 import type { Actions, PageServerLoad } from './$types';
+import * as v from 'valibot';
 
-interface SubmittedValues {
-	gameId: number | null;
-	title: string;
-	description: string;
-}
+const submittedValuesSchema = v.object({
+	gameId: v.fallback(
+		v.nullable(
+			v.pipe(
+				v.string(),
+				v.trim(),
+				v.nonEmpty(),
+				v.transform(Number),
+				v.safeInteger(),
+				v.minValue(1)
+			)
+		),
+		null
+	),
+	title: v.fallback(v.pipe(v.string(), v.trim()), ''),
+	description: v.fallback(v.pipe(v.string(), v.trim()), '')
+});
+const benchmarkFilesSchema = v.array(v.instance(File));
+type SubmittedValues = v.InferOutput<typeof submittedValuesSchema>;
 
 export const load: PageServerLoad = (event) => {
 	event.setHeaders({ 'cache-control': 'no-store' });
@@ -37,9 +53,8 @@ export const actions: Actions = {
 	default: async (event) => {
 		const authResult = requireVerifiedSession(event);
 		if (authResult.response) {
-			const responseData = (await authResult.response.json()) as { message?: string };
 			return fail(authResult.response.status, {
-				message: responseData.message ?? 'Sign in to upload a benchmark'
+				message: getMessage(await authResult.response.json(), 'Sign in to upload a benchmark')
 			});
 		}
 
@@ -58,10 +73,11 @@ export const actions: Actions = {
 		if (validationMessage) return fail(400, { message: validationMessage, values });
 
 		const rawFiles = formData.getAll('files');
-		if (!rawFiles.every((value) => value instanceof File)) {
+		const filesResult = v.safeParse(benchmarkFilesSchema, rawFiles);
+		if (!filesResult.success) {
 			return fail(400, { message: 'Select valid benchmark files', values });
 		}
-		const files = rawFiles as File[];
+		const files = filesResult.output;
 		const fileValidationMessage = validateFiles(files);
 		if (fileValidationMessage) return fail(400, { message: fileValidationMessage, values });
 
@@ -149,17 +165,11 @@ export const actions: Actions = {
 };
 
 function parseValues(formData: FormData): SubmittedValues {
-	const rawGameId = formData.get('game_id');
-	const gameId =
-		typeof rawGameId === 'string' && rawGameId.trim() !== '' ? Number(rawGameId) : null;
-	const rawTitle = formData.get('title');
-	const rawDescription = formData.get('description');
-
-	return {
-		gameId: Number.isSafeInteger(gameId) && gameId! > 0 ? gameId : null,
-		title: typeof rawTitle === 'string' ? rawTitle.trim() : '',
-		description: typeof rawDescription === 'string' ? rawDescription.trim() : ''
-	};
+	return v.parse(submittedValuesSchema, {
+		gameId: formData.get('game_id'),
+		title: formData.get('title'),
+		description: formData.get('description')
+	});
 }
 
 function validateValues(values: SubmittedValues): string | null {

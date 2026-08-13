@@ -1,7 +1,6 @@
 import { error, info, warn } from '$lib/logger';
 import { igdb, invalidateIgdbAccessToken } from '$lib/server/igdb';
 import type { IgdbImportProgress, IgdbImportStatus } from '$lib/igdb';
-import type { Game as IGDBGame } from '$lib/types/igdb';
 import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
 import { IGDB_IMPORT_CRON, IGDB_IMPORT_TIME_ZONE } from '$app/env/private';
 import { db } from '$lib/server/db';
@@ -26,6 +25,7 @@ import {
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
 import { sleep } from 'bun';
 import { inArray, sql } from 'drizzle-orm';
+import * as v from 'valibot';
 
 const IGDB_FIELDS =
 	'name, first_release_date, parent_game, version_parent, cover.image_id, external_games.external_game_source, external_games.url, websites.url, websites.type, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, involved_companies.company.websites.url, game_engines.name, game_engines.url, alternative_names.name';
@@ -34,6 +34,44 @@ const IGDB_REQUESTS_PER_BATCH = 4;
 const IGDB_REQUEST_INTERVAL_MS = 1000;
 const MAX_REQUEST_ATTEMPTS = 4;
 const DB_WRITE_BATCH_SIZE = 200;
+const httpErrorSchema = v.object({ response: v.object({ status: v.number() }) });
+const websiteSchema = v.object({ url: v.string(), type: v.optional(v.number()) });
+const igdbGameSchema = v.object({
+	id: v.number(),
+	name: v.string(),
+	cover: v.optional(v.object({ image_id: v.string() })),
+	external_games: v.optional(
+		v.array(
+			v.object({
+				url: v.string(),
+				external_game_source: v.number()
+			})
+		)
+	),
+	websites: v.optional(v.array(v.object({ url: v.string(), type: v.number() }))),
+	first_release_date: v.optional(v.number()),
+	game_engines: v.optional(
+		v.array(v.object({ id: v.number(), name: v.string(), url: v.optional(v.string()) }))
+	),
+	involved_companies: v.optional(
+		v.array(
+			v.object({
+				company: v.object({
+					id: v.number(),
+					name: v.string(),
+					websites: v.optional(v.array(websiteSchema))
+				}),
+				developer: v.boolean(),
+				publisher: v.boolean()
+			})
+		)
+	),
+	alternative_names: v.optional(v.array(v.object({ name: v.string() }))),
+	parent_game: v.optional(v.number()),
+	version_parent: v.optional(v.number())
+});
+const igdbGamesSchema = v.array(igdbGameSchema);
+type IGDBGame = v.InferOutput<typeof igdbGameSchema>;
 
 interface IgdbImportSchedulerState {
 	nextImportAt: string | null;
@@ -520,15 +558,13 @@ class IgdbRateLimiter {
 	}
 }
 
-function getHttpStatus(cause: unknown) {
-	if (!cause || typeof cause !== 'object' || !('response' in cause)) return;
-	const response = cause.response;
-	if (!response || typeof response !== 'object' || !('status' in response)) return;
-	return typeof response.status === 'number' ? response.status : undefined;
+function parseHttpStatus(cause: unknown): number | undefined {
+	const result = v.safeParse(httpErrorSchema, cause);
+	return result.success ? result.output.response.status : undefined;
 }
 
-function isRetryable(cause: unknown) {
-	const status = getHttpStatus(cause);
+function shouldRetry(cause: unknown) {
+	const status = parseHttpStatus(cause);
 	return (
 		status === undefined ||
 		status === 401 ||
@@ -548,13 +584,12 @@ async function requestWithRetry<T>(
 		try {
 			return await rateLimiter.run(request);
 		} catch (cause) {
-			if (attempt === MAX_REQUEST_ATTEMPTS || !isRetryable(cause)) throw cause;
+			if (attempt === MAX_REQUEST_ATTEMPTS || !shouldRetry(cause)) throw cause;
 
-			if (getHttpStatus(cause) === 401) invalidateIgdbAccessToken();
+			const status = parseHttpStatus(cause);
+			if (status === 401) invalidateIgdbAccessToken();
 			const retryDelay = IGDB_REQUEST_INTERVAL_MS * 2 ** (attempt - 1);
-			warn(
-				`${description} failed${getHttpStatus(cause) ? ` (${getHttpStatus(cause)})` : ''}; retrying in ${retryDelay}ms`
-			);
+			warn(`${description} failed${status ? ` (${status})` : ''}; retrying in ${retryDelay}ms`);
 			await sleep(retryDelay);
 		}
 	}
@@ -593,17 +628,18 @@ async function fetchGames(
 						.where(filter)
 						.request('/games');
 
-					if (!Array.isArray(response.data)) {
+					const result = v.safeParse(igdbGamesSchema, response.data);
+					if (!result.success) {
 						throw new Error(`IGDB returned an invalid response at offset ${pageOffset}`);
 					}
 
-					return response;
+					return result.output;
 				}
 			);
 		})
 	);
 
-	return responses.flatMap((response) => response.data as IGDBGame[]);
+	return responses.flat();
 }
 
 async function igdbSync(

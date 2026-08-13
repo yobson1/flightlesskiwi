@@ -1,6 +1,6 @@
 import { json, redirect, type RequestEvent } from '@sveltejs/kit';
 import { error as logError } from '$lib/logger';
-import { isSessionRecentlyReauthenticated, type Session } from '$lib/server/auth';
+import { hasRecentReauthentication, type Session } from '$lib/server/auth';
 import type { AuthUser } from '$lib/server/auth/user';
 import type { WebAuthnUserCredential } from '$lib/server/auth/webauthn';
 import {
@@ -90,7 +90,7 @@ export function requireVerifiedSession(
 			response: authError(403, 'Verify your email to continue', { modal: 'verify-email' })
 		};
 	}
-	if (options.recentlyReauthenticated && !isSessionRecentlyReauthenticated(session)) {
+	if (options.recentlyReauthenticated && !hasRecentReauthentication(session)) {
 		return {
 			response: authError(428, 'Confirm your identity to continue', {
 				reauthenticationRequired: true

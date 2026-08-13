@@ -18,14 +18,20 @@ import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
 	createUser,
-	isUserUniqueConstraintError,
+	matchesUserUniqueConstraintError,
 	normalizeEmail,
 	verifyEmailInput,
 	verifyUsernameInput
 } from '$lib/server/auth/user';
 import type { RequestEvent } from './$types';
+import * as v from 'valibot';
 
 const ipBucket = new RefillingTokenBucket<string>('signup-ip', 3, 10);
+const signupFormSchema = v.object({
+	email: v.string(),
+	username: v.string(),
+	password: v.string()
+});
 
 export async function POST(event: RequestEvent) {
 	if (event.locals.session !== null) {
@@ -36,16 +42,15 @@ export async function POST(event: RequestEvent) {
 		return authError(429, 'Too many requests');
 	}
 	const formData = await event.request.formData();
-	const rawEmail = formData.get('email');
-	const username = formData.get('username');
-	const password = formData.get('password');
-	if (
-		typeof rawEmail !== 'string' ||
-		typeof username !== 'string' ||
-		typeof password !== 'string'
-	) {
+	const result = v.safeParse(signupFormSchema, {
+		email: formData.get('email'),
+		username: formData.get('username'),
+		password: formData.get('password')
+	});
+	if (!result.success) {
 		return authError(400, 'Invalid or missing fields');
 	}
+	const { email: rawEmail, username, password } = result.output;
 	const email = normalizeEmail(rawEmail);
 	if (!verifyEmailInput(email)) return authError(400, 'Invalid email');
 	if (!verifyUsernameInput(username)) return authError(400, 'Invalid username');
@@ -68,10 +73,10 @@ export async function POST(event: RequestEvent) {
 	try {
 		user = await createUser(email, username, password);
 	} catch (cause) {
-		if (isUserUniqueConstraintError(cause, 'email')) {
+		if (matchesUserUniqueConstraintError(cause, 'email')) {
 			return authError(400, 'Email is already used');
 		}
-		if (isUserUniqueConstraintError(cause, 'username')) {
+		if (matchesUserUniqueConstraintError(cause, 'username')) {
 			return authError(400, 'Username is already used');
 		}
 		logError('Failed to create auth user', cause);

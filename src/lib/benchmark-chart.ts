@@ -1,4 +1,5 @@
 import type { BenchmarkMetric, BenchmarkMetricKey, BenchmarkRun } from '$lib/benchmark-run';
+import * as v from 'valibot';
 
 export interface BenchmarkChartRun {
 	id: string;
@@ -26,6 +27,7 @@ interface FrametimeDistributionPoint {
 }
 
 const BENCHMARK_CHART_COLOR_COUNT = 8;
+const validFrametimeSchema = v.pipe(v.number(), v.finite(), v.minValue(Number.MIN_VALUE));
 export const LOW_FPS_THRESHOLD = 25;
 export const STUTTER_FACTOR = 2.5;
 export const FRAMETIME_DISTRIBUTION_BIN_SIZE = 0.1;
@@ -88,7 +90,7 @@ export function calculateFrametimeStability(values: Array<number | null>): {
 export function calculateFrametimeMovingAverage(
 	values: Array<number | null>
 ): Array<number | null> {
-	const validValues = values.filter(isValidFrametime);
+	const validValues = values.filter((value) => v.is(validFrametimeSchema, value));
 	if (validValues.length === 0) return values.map(() => null);
 
 	const average = validValues.reduce((total, value) => total + value, 0) / validValues.length;
@@ -97,7 +99,7 @@ export function calculateFrametimeMovingAverage(
 	const validHistory: number[] = [];
 
 	for (const value of values) {
-		if (!isValidFrametime(value)) {
+		if (!v.is(validFrametimeSchema, value)) {
 			movingAverage.push(null);
 			continue;
 		}
@@ -131,7 +133,7 @@ export function calculateFrametimeClassification(
 	for (let index = 0; index < values.length; index++) {
 		const value = values[index];
 		const average = movingAverage[index];
-		if (!isValidFrametime(value) || !isValidFrametime(average)) continue;
+		if (!v.is(validFrametimeSchema, value) || !v.is(validFrametimeSchema, average)) continue;
 
 		const label =
 			value > average * stutterFactor
@@ -165,7 +167,7 @@ export function calculateFrametimeVariance(values: Array<number | null>): Benchm
 	for (let index = 1; index < values.length; index++) {
 		const previous = values[index - 1];
 		const current = values[index];
-		if (!isValidFrametime(previous) || !isValidFrametime(current)) continue;
+		if (!v.is(validFrametimeSchema, previous) || !v.is(validFrametimeSchema, current)) continue;
 
 		const difference = Math.abs(current - previous);
 		const binIndex =
@@ -184,7 +186,7 @@ export function calculateFrametimeVariance(values: Array<number | null>): Benchm
 export function calculateFrametimeDistribution(
 	values: Array<number | null>
 ): FrametimeDistributionPoint[] {
-	const validValues = values.filter(isValidFrametime);
+	const validValues = values.filter((value) => v.is(validFrametimeSchema, value));
 	const totalDuration = validValues.reduce((total, value) => total + value, 0);
 	if (totalDuration === 0) return [];
 
@@ -391,8 +393,4 @@ export function formatMetricValue(value: number, unit = ''): string {
 	const formatted = new Intl.NumberFormat('en', { maximumFractionDigits }).format(value);
 	if (!unit) return formatted;
 	return unit === '%' ? `${formatted}%` : `${formatted} ${unit}`;
-}
-
-function isValidFrametime(value: number | null | undefined): value is number {
-	return value !== null && value !== undefined && Number.isFinite(value) && value > 0;
 }

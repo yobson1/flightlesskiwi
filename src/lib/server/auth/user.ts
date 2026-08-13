@@ -15,22 +15,31 @@ import { hashPassword, hashRecoveryCode } from '$lib/server/auth/password';
 import { generateRandomRecoveryCode, generateSecureRandomString } from '$lib/server/auth/utils';
 import type { OAuthTokenSet, OAuthUserProfile } from '$lib/server/oauth';
 import { canRemoveOAuthConnection, type OAuthProvider } from '$lib/types/oauth';
+import * as v from 'valibot';
+
+const emailInputSchema = v.pipe(
+	v.string(),
+	v.maxLength(MAX_EMAIL_LENGTH),
+	v.regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+);
+const usernameInputSchema = v.pipe(
+	v.string(),
+	v.minLength(MIN_USERNAME_LENGTH),
+	v.maxLength(MAX_USERNAME_LENGTH),
+	v.check((username) => username.trim() === username),
+	v.regex(/^[\p{L}\p{N}_ -]+$/u)
+);
 
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
 }
 
 export function verifyEmailInput(email: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= MAX_EMAIL_LENGTH;
+	return v.is(emailInputSchema, email);
 }
 
 export function verifyUsernameInput(username: string): boolean {
-	return (
-		username.length >= MIN_USERNAME_LENGTH &&
-		username.length <= MAX_USERNAME_LENGTH &&
-		username.trim() === username &&
-		/^[\p{L}\p{N}_ -]+$/u.test(username)
-	);
+	return v.is(usernameInputSchema, username);
 }
 
 export function checkEmailAvailability(email: string): boolean {
@@ -51,7 +60,10 @@ export function checkUsernameAvailability(username: string, excludedUserId?: str
 	return db.select({ id: userTable.id }).from(userTable).where(predicate).get() === undefined;
 }
 
-export function isUserUniqueConstraintError(cause: unknown, field: 'email' | 'username'): boolean {
+export function matchesUserUniqueConstraintError(
+	cause: unknown,
+	field: 'email' | 'username'
+): boolean {
 	return String(cause).includes(`UNIQUE constraint failed: user.${field}`);
 }
 

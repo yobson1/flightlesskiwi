@@ -13,7 +13,7 @@
 		MIN_PASSWORD_LENGTH
 	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
-	import { createWebAuthnAssertion, isWebAuthnCancellation } from '$lib/client/webauthn';
+	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -108,7 +108,7 @@
 			});
 			applyState(result);
 		} catch (cause) {
-			if (isWebAuthnCancellation(cause)) {
+			if (parseWebAuthnCancellation(cause) !== null) {
 				message = 'Passkey verification was cancelled.';
 			} else {
 				message = cause instanceof Error ? cause.message : 'Unable to verify your passkey';
