@@ -17,6 +17,8 @@ export const AUTH_MODAL_VIEWS = [
 export type AuthModalView = (typeof AUTH_MODAL_VIEWS)[number];
 export type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';
 
+export const authModalViewSchema = v.picklist(AUTH_MODAL_VIEWS);
+
 export interface ClientAuthState {
 	user: {
 		email: string;
@@ -33,7 +35,7 @@ export interface ClientAuthState {
 }
 
 export const authAPIResponseSchema = v.object({
-	next: v.nullable(v.picklist(AUTH_MODAL_VIEWS)),
+	next: v.nullable(authModalViewSchema),
 	message: v.optional(v.string()),
 	retryAfterSeconds: v.optional(v.number()),
 	sent: v.optional(v.boolean()),
@@ -50,7 +52,7 @@ export type AuthAPIResponse = v.InferOutput<typeof authAPIResponseSchema>;
 
 export const authAPIErrorResponseSchema = v.object({
 	message: v.string(),
-	modal: v.optional(v.picklist(AUTH_MODAL_VIEWS)),
+	modal: v.optional(authModalViewSchema),
 	reauthenticationRequired: v.optional(v.boolean()),
 	retryAfterSeconds: v.optional(v.number())
 });

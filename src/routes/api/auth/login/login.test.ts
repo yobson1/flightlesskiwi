@@ -139,7 +139,7 @@ describe('login route orchestration', () => {
 		);
 
 		const response = await verifyPasskey(
-			createEvent('PUT', undefined, cookies) as unknown as Parameters<typeof verifyPasskey>[0]
+			asTestEvent<Parameters<typeof verifyPasskey>[0]>()(createEvent('PUT', undefined, cookies))
 		);
 
 		expect(response.status).toBe(200);
@@ -211,7 +211,7 @@ function createEvent(
 	cookies: CookieJar,
 	clientIP = `192.0.2.${clientIPCounter++}`
 ) {
-	return {
+	return asTestEvent<Parameters<typeof POST>[0]>()({
 		locals: { session: null, user: null },
 		request: new Request('https://example.com/api/auth/login', {
 			method,
@@ -219,7 +219,14 @@ function createEvent(
 		}),
 		cookies,
 		getClientAddress: () => clientIP
-	} as unknown as Parameters<typeof POST>[0];
+	});
+}
+
+function asTestEvent<Target>() {
+	return <Source>(value: Source): Target => {
+		// oxlint-disable-next-line anti-slop/no-chained-type-assertions -- Partial RequestEvent fixture containing every field exercised by this route test.
+		return value as unknown as Target;
+	};
 }
 
 function createCookieJar() {

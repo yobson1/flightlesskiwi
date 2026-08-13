@@ -21,11 +21,15 @@ export interface PasskeyAuthenticatorMetadata {
 	iconLight?: string;
 }
 
+export interface PasskeyAuthenticatorCatalogue {
+	[aaguid: string]: PasskeyAuthenticatorMetadata;
+}
+
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export async function fetchPasskeyAuthenticatorMetadata(
 	fetcher: Fetcher = fetch
-): Promise<Record<string, PasskeyAuthenticatorMetadata>> {
+): Promise<PasskeyAuthenticatorCatalogue> {
 	try {
 		const response = await fetcher(PASSKEY_AUTHENTICATOR_AAGUIDS_URL);
 		if (!response.ok) return {};
@@ -43,13 +47,11 @@ export function formatAAGUID(bytes: Uint8Array): string {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function parsePasskeyAuthenticatorMetadata(
-	value: unknown
-): Record<string, PasskeyAuthenticatorMetadata> {
+function parsePasskeyAuthenticatorMetadata(value: unknown): PasskeyAuthenticatorCatalogue {
 	const catalogue = v.safeParse(passkeyAuthenticatorCatalogueSchema, value);
 	if (!catalogue.success) return {};
 
-	const metadata: Record<string, PasskeyAuthenticatorMetadata> = {};
+	const metadata: PasskeyAuthenticatorCatalogue = {};
 	for (const [aaguid, parsed] of Object.entries(catalogue.output)) {
 		if (parsed === null) continue;
 		metadata[aaguid.toLowerCase()] = {

@@ -86,7 +86,8 @@
 	}
 
 	function handleInput(event: Event) {
-		const target = event.target as HTMLInputElement;
+		if (!(event.currentTarget instanceof HTMLInputElement)) return;
+		const target = event.currentTarget;
 		searchQuery = target.value;
 		onQueryChange?.(searchQuery.trim());
 		clearTimeout(debounceTimer);
@@ -133,7 +134,8 @@
 	}
 
 	function handleFocus(event: FocusEvent) {
-		const target = event.target as HTMLInputElement;
+		if (!(event.currentTarget instanceof HTMLInputElement)) return;
+		const target = event.currentTarget;
 
 		if (searchQuery === '' && target.value.trim()) {
 			searchQuery = target.value;

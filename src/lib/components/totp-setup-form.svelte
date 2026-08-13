@@ -6,6 +6,7 @@
 	import QRCode from 'qrcode';
 	import { TOTP_CODE_LENGTH, TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { formDataFromSubmitEvent } from '$lib/client/forms';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -46,7 +47,7 @@
 		try {
 			const result = await authRequest('/api/auth/totp-setup', {
 				method: 'PUT',
-				body: new FormData(event.currentTarget as HTMLFormElement)
+				body: formDataFromSubmitEvent(event)
 			});
 			await onComplete?.(result.next);
 		} catch (cause) {

@@ -8,6 +8,7 @@ const turnstileSuccessSchema = v.object({
 	action: v.literal(TURNSTILE_ACTION),
 	hostname: v.string()
 });
+type TurnstileFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export function hasTurnstileConfiguration(): boolean {
 	return Boolean(TURNSTILE_SITE_KEY && TURNSTILE_SECRET);
@@ -20,7 +21,7 @@ export function getTurnstileSiteKey(): string | null {
 export async function verifyTurnstileToken(
 	token: FormDataEntryValue | string | null,
 	clientIp: string,
-	fetcher: typeof fetch = fetch
+	fetcher: TurnstileFetcher = fetch
 ): Promise<boolean> {
 	if (!hasTurnstileConfiguration()) return true;
 	const tokenResult = v.safeParse(v.pipe(v.string(), v.nonEmpty()), token);

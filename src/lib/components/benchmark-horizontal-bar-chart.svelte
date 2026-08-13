@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatMetricValue } from '$lib/benchmark-chart';
+	import type { DefaultLabelFormatterCallbackParams } from 'echarts';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
 	import {
 		getBenchmarkEChartAxis,
@@ -9,6 +10,8 @@
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
 	} from '$lib/benchmark-echart';
+
+	type EChartValue = DefaultLabelFormatterCallbackParams['value'];
 
 	interface BenchmarkBarDatum {
 		run: string;
@@ -67,7 +70,7 @@
 					shadowStyle: { color: theme.border, opacity: 0.35 }
 				},
 				trigger: 'axis',
-				valueFormatter: (value: unknown) =>
+				valueFormatter: (value: EChartValue) =>
 					typeof value === 'number' ? formatMetricValue(value, unit) : String(value)
 			},
 			xAxis: {
@@ -89,7 +92,7 @@
 				emphasis: { focus: 'series' },
 				label: {
 					color: theme.foreground,
-					formatter: ({ value: labelValue }: { value: unknown }) =>
+					formatter: ({ value: labelValue }: DefaultLabelFormatterCallbackParams) =>
 						typeof labelValue === 'number'
 							? formatMetricValue(labelValue, unit)
 							: String(labelValue),

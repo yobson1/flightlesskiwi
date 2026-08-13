@@ -10,7 +10,12 @@ const accessTokenResponseSchema = v.object({
 	access_token: v.string(),
 	expires_in: v.number()
 });
-const tokenCache: { token: string | null; expiry: number } = {
+interface AccessTokenCache {
+	token: string | null;
+	expiry: number;
+}
+
+const tokenCache: AccessTokenCache = {
 	token: null,
 	expiry: 0
 };

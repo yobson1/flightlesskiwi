@@ -42,8 +42,7 @@
 	} from '$lib/types/oauth';
 	import { getActionMessage } from '$lib/utils';
 	import { tick } from 'svelte';
-	import type { SubmitFunction } from '@sveltejs/kit';
-	import type { PageProps } from './$types';
+	import type { PageProps, SubmitFunction } from './$types';
 	import * as v from 'valibot';
 
 	const generatedRecoveryCodeSchema = v.object({ recoveryCode: v.string() });
@@ -76,7 +75,7 @@
 
 	function settingsSubmit(
 		successMessage: string,
-		onSuccess?: (data: unknown) => void,
+		onSuccess?: () => void,
 		confirmation?: ConfirmationController
 	): SubmitFunction {
 		return ({ formElement, cancel }) => {
@@ -94,7 +93,8 @@
 				if (result.type === 'failure') {
 					toast.error(getActionMessage(result.data, 'Unable to update settings'));
 				} else if (result.type === 'success') {
-					onSuccess?.(result.data);
+					setGeneratedRecoveryCode(result.data);
+					onSuccess?.();
 					toast.success(getActionMessage(result.data, successMessage));
 				}
 				await update({
@@ -744,8 +744,7 @@
 							action="/settings?/regenerate_recovery_code"
 							use:enhance={settingsSubmit(
 								'Recovery code generated',
-								(value) => {
-									setGeneratedRecoveryCode(value);
+								() => {
 									replaceRecoveryCodeOpen = false;
 								},
 								{

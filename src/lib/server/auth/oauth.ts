@@ -25,11 +25,11 @@ const oauthStateSchema = v.object({
 	expiresAt: v.number()
 });
 
-const providerScopes: Record<OAuthProvider, string[]> = {
+const providerScopes = {
 	github: ['user:email'],
 	discord: ['identify', 'email'],
 	twitch: ['openid', 'user:read:email']
-};
+} as const satisfies Record<OAuthProvider, readonly string[]>;
 
 export function getEnabledOAuthProviders(): OAuthProvider[] {
 	return OAUTH_PROVIDERS.filter((provider) => getOAuthCredentials(provider) !== null);
@@ -61,7 +61,12 @@ export async function createOAuthAuthorizationURL(
 		}
 	);
 
-	return oauthClient.createAuthorizationURL(state, codeVerifier, providerScopes[provider], nonce);
+	return oauthClient.createAuthorizationURL(
+		state,
+		codeVerifier,
+		[...providerScopes[provider]],
+		nonce
+	);
 }
 
 export async function validateOAuthCallback(

@@ -13,6 +13,7 @@
 		MIN_PASSWORD_LENGTH
 	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
+	import { formDataFromSubmitEvent } from '$lib/client/forms';
 	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import OTPForm from '$lib/components/otp-form.svelte';
@@ -28,6 +29,13 @@
 		initialState?: AuthAPIResponse | null;
 		onBack?: () => void | Promise<void>;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
+	}
+
+	interface PasswordResetViewState {
+		stage: PasswordResetStage;
+		email: string;
+		registeredTOTP: boolean;
+		registeredPasskey: boolean;
 	}
 
 	let { initialState, onBack, onComplete }: Props = $props();
@@ -69,7 +77,7 @@
 
 		pending = true;
 		try {
-			const formData = new FormData(event.currentTarget as HTMLFormElement);
+			const formData = formDataFromSubmitEvent(event);
 			const result = await authRequest('/api/auth/password-reset', {
 				method: 'POST',
 				body: formData
@@ -177,12 +185,7 @@
 		resendAvailableAt = computeResendAvailableAt(value, EMAIL_CODE_SEND_INTERVAL_SECONDS);
 	}
 
-	function readState(value: AuthAPIResponse | null | undefined): {
-		stage: PasswordResetStage;
-		email: string;
-		registeredTOTP: boolean;
-		registeredPasskey: boolean;
-	} {
+	function readState(value: AuthAPIResponse | null | undefined): PasswordResetViewState {
 		if (value === null || value === undefined) {
 			return {
 				stage: 'request',

@@ -89,15 +89,22 @@ describe('persistent sessions', () => {
 function createCookieEvent(currentToken: string) {
 	let rotatedToken = '';
 	return {
-		event: {
+		event: asTestEvent<RequestEvent>()({
 			cookies: {
 				get: () => currentToken,
 				set: (_name: string, value: string) => {
 					rotatedToken = value;
 				}
 			}
-		} as unknown as RequestEvent,
+		}),
 		rotatedToken: () => rotatedToken
+	};
+}
+
+function asTestEvent<Target>() {
+	return <Source>(value: Source): Target => {
+		// oxlint-disable-next-line anti-slop/no-chained-type-assertions -- Partial RequestEvent fixture containing every field exercised by this unit test.
+		return value as unknown as Target;
 	};
 }
 

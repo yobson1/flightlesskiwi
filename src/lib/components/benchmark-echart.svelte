@@ -9,12 +9,7 @@
 		type BenchmarkEChartTheme
 	} from '$lib/benchmark-echart';
 	import { cn } from '$lib/utils';
-	import * as v from 'valibot';
-
-	const pointerEventSchema = v.object({
-		offsetX: v.number(),
-		offsetY: v.number()
-	});
+	import type { ElementEvent } from 'zrender';
 
 	interface Props {
 		ariaLabel: string;
@@ -44,7 +39,7 @@
 	let cancelPreparation: (() => void) | undefined;
 	let cancelRender: (() => void) | undefined;
 	let cancelThemeRefresh: (() => void) | undefined;
-	let resetZoom: ((event: unknown) => void) | undefined;
+	let resetZoom: ((event: ElementEvent) => void) | undefined;
 
 	function activateDragZoom(instance: BenchmarkEChartInstance) {
 		instance.dispatchAction({
@@ -85,11 +80,8 @@
 			chart = createBenchmarkEChart(container);
 			onImageExporterChange?.(saveChartImage);
 			if (dragZoom) {
-				resetZoom = (event: unknown) => {
-					const result = v.safeParse(pointerEventSchema, event);
-					if (!result.success) return;
-					const pointer = result.output;
-					if (!chart?.containPixel({ gridIndex: 0 }, [pointer.offsetX, pointer.offsetY])) {
+				resetZoom = (event: ElementEvent) => {
+					if (!chart?.containPixel({ gridIndex: 0 }, [event.offsetX, event.offsetY])) {
 						return;
 					}
 

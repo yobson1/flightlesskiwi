@@ -3,6 +3,7 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import { MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH } from '$lib/auth-constants';
 	import { authFormRequest, authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { formDataFromSubmitEvent } from '$lib/client/forms';
 	import {
 		cancelWebAuthnCeremony,
 		createWebAuthnAssertion,
@@ -65,10 +66,7 @@
 		message = '';
 		pending = true;
 		try {
-			const result = await authFormRequest(
-				'/api/auth/login',
-				new FormData(event.currentTarget as HTMLFormElement)
-			);
+			const result = await authFormRequest('/api/auth/login', formDataFromSubmitEvent(event));
 			await onComplete?.(result.next);
 		} catch (cause) {
 			if (cause instanceof AuthAPIError && cause.modal) await onComplete?.(cause.modal);

@@ -13,6 +13,7 @@
 		TOTP_CODE_LENGTH_WORD
 	} from '$lib/auth-constants';
 	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
+	import { formDataFromSubmitEvent } from '$lib/client/forms';
 	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -87,7 +88,7 @@
 		message = '';
 		pending = true;
 		try {
-			const formData = new FormData(event.currentTarget as HTMLFormElement);
+			const formData = formDataFromSubmitEvent(event);
 			if (kind === 'password-reset') {
 				formData.set('step', usingRecoveryCode ? 'recovery-code' : 'totp');
 			}

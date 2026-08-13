@@ -1,13 +1,14 @@
 import { getContext, setContext } from 'svelte';
-import { AUTH_MODAL_VIEWS, type AuthAPIResponse, type AuthModalView } from '$lib/types/auth';
+import { authModalViewSchema, type AuthAPIResponse, type AuthModalView } from '$lib/types/auth';
+import * as v from 'valibot';
 
 const AUTH_MODAL_CONTEXT = Symbol('auth-modal');
-const AUTH_MODAL_DATA_ENDPOINTS: Partial<Record<AuthModalView, string>> = {
+const AUTH_MODAL_DATA_ENDPOINTS = {
 	'login-2fa': '/api/auth/login',
 	'password-reset': '/api/auth/password-reset',
 	'totp-setup': '/api/auth/totp-setup',
 	'passkey-register': '/api/auth/passkey-registration'
-};
+} as const satisfies Partial<Record<AuthModalView, string>>;
 
 export interface AuthModalOpenOptions {
 	data?: AuthAPIResponse;
@@ -33,8 +34,6 @@ export function getAuthModal(): AuthModalController {
 	return controller;
 }
 
-const AUTH_MODAL_VIEW_SET: ReadonlySet<string> = new Set(AUTH_MODAL_VIEWS);
-
 export function parseAuthModalHash(hash: string): AuthModalView | null {
 	if (hash.length < 2) return null;
 	let value: string;
@@ -43,7 +42,8 @@ export function parseAuthModalHash(hash: string): AuthModalView | null {
 	} catch {
 		return null;
 	}
-	return AUTH_MODAL_VIEW_SET.has(value) ? (value as AuthModalView) : null;
+	const result = v.safeParse(authModalViewSchema, value);
+	return result.success ? result.output : null;
 }
 
 export function authModalHash(view: AuthModalView): string {
@@ -51,7 +51,15 @@ export function authModalHash(view: AuthModalView): string {
 }
 
 export function authModalDataEndpoint(view: AuthModalView): string | null {
-	return AUTH_MODAL_DATA_ENDPOINTS[view] ?? null;
+	switch (view) {
+		case 'login-2fa':
+		case 'password-reset':
+		case 'totp-setup':
+		case 'passkey-register':
+			return AUTH_MODAL_DATA_ENDPOINTS[view];
+		default:
+			return null;
+	}
 }
 
 export function authModalDataMethod(view: AuthModalView): 'GET' | 'POST' {

@@ -1,43 +1,30 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import type { RegistrationResponseJSON } from '@simplewebauthn/browser';
+import type {
+	VerifyAuthenticationResponseOpts,
+	VerifyRegistrationResponseOpts
+} from '@simplewebauthn/server';
 import { eq } from 'drizzle-orm';
 import { encodeBase64url } from '$lib/encoding';
 import * as schema from '$lib/server/db/schema';
 import { createTestDatabase } from '$lib/server/test-db';
 import { TEST_PRIVATE_ENV } from '$lib/server/test-env';
 
-interface AuthenticationVerificationOptions {
-	expectedChallenge: (challenge: string) => boolean | Promise<boolean>;
-	expectedOrigin: string;
-	expectedRPID: string;
-	credential: {
-		id: string;
-		publicKey: Uint8Array;
-		counter: number;
-	};
-	requireUserVerification: boolean;
-}
-
-interface RegistrationVerificationOptions {
-	expectedChallenge: (challenge: string) => boolean | Promise<boolean>;
-	expectedOrigin: string;
-	expectedRPID: string;
-	requireUserPresence: boolean;
-	requireUserVerification: boolean;
-	supportedAlgorithmIDs: number[];
-}
-
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
 
-let authenticationOptions: AuthenticationVerificationOptions | null;
-let registrationOptions: RegistrationVerificationOptions | null;
+let authenticationOptions: VerifyAuthenticationResponseOpts | null;
+let registrationOptions: VerifyRegistrationResponseOpts | null;
 let crossOrigin: boolean;
 let attestationFormat: string;
 
-const verifyAuthenticationResponse = mock(async (value: unknown) => {
-	const options = value as AuthenticationVerificationOptions;
+const verifyAuthenticationResponse = mock(async (options: VerifyAuthenticationResponseOpts) => {
 	authenticationOptions = options;
-	if (!(await options.expectedChallenge('assertion-challenge'))) {
+	const challengeMatches =
+		typeof options.expectedChallenge === 'string'
+			? options.expectedChallenge === 'assertion-challenge'
+			: await options.expectedChallenge('assertion-challenge');
+	if (!challengeMatches) {
 		throw new Error('Invalid challenge');
 	}
 	return {
@@ -46,10 +33,13 @@ const verifyAuthenticationResponse = mock(async (value: unknown) => {
 	};
 });
 
-const verifyRegistrationResponse = mock(async (value: unknown) => {
-	const options = value as RegistrationVerificationOptions;
+const verifyRegistrationResponse = mock(async (options: VerifyRegistrationResponseOpts) => {
 	registrationOptions = options;
-	if (!(await options.expectedChallenge('registration-challenge'))) {
+	const challengeMatches =
+		typeof options.expectedChallenge === 'string'
+			? options.expectedChallenge === 'registration-challenge'
+			: await options.expectedChallenge('registration-challenge');
+	if (!challengeMatches) {
 		throw new Error('Invalid challenge');
 	}
 	return {
@@ -358,7 +348,7 @@ function createAssertionRequest(): Request {
 	});
 }
 
-function createRegistrationResponse(): unknown {
+function createRegistrationResponse(): RegistrationResponseJSON {
 	return {
 		id: 'BAUG',
 		rawId: 'BAUG',

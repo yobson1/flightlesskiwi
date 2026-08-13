@@ -4,6 +4,7 @@
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { MAX_PASSWORD_LENGTH, TOTP_CODE_LENGTH } from '$lib/auth-constants';
 	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { formDataFromSubmitEvent } from '$lib/client/forms';
 	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import OAuthProviderButtons from '$lib/components/oauth-provider-buttons.svelte';
@@ -28,12 +29,12 @@
 
 	async function submitPassword(event: SubmitEvent) {
 		event.preventDefault();
-		await submit('/api/auth/reauth', 'POST', new FormData(event.currentTarget as HTMLFormElement));
+		await submit('/api/auth/reauth', 'POST', formDataFromSubmitEvent(event));
 	}
 
 	async function submitTOTP(event: SubmitEvent) {
 		event.preventDefault();
-		await submit('/api/auth/reauth', 'PUT', new FormData(event.currentTarget as HTMLFormElement));
+		await submit('/api/auth/reauth', 'PUT', formDataFromSubmitEvent(event));
 	}
 
 	async function submit(endpoint: string, method: string, body?: BodyInit) {

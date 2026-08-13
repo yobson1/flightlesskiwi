@@ -1,4 +1,5 @@
 <script lang="ts" module>
+	import type { TooltipComponentFormatterCallbackParams } from 'echarts';
 	import * as v from 'valibot';
 
 	const lineTooltipItemSchema = v.object({
@@ -21,7 +22,7 @@
 	}
 
 	function formatLineTooltip(
-		params: unknown,
+		params: TooltipComponentFormatterCallbackParams,
 		unit: string,
 		series: readonly LineTooltipSeries[]
 	): string {
@@ -162,7 +163,8 @@
 			tooltip: {
 				...baseOption.tooltip,
 				...getBenchmarkEChartPlotTooltip(theme),
-				formatter: (params: unknown) => formatLineTooltip(params, unit, tooltipSeries)
+				formatter: (params: TooltipComponentFormatterCallbackParams) =>
+					formatLineTooltip(params, unit, tooltipSeries)
 			},
 			xAxis: {
 				...getBenchmarkEChartPlotXAxis(theme, (value: number) => formatMetricValue(value)),

@@ -87,14 +87,14 @@ abstract class OAuth2Provider {
 		scopes: string[],
 		nonce?: string
 	): Promise<URL> {
-		const parameters: Record<string, string> = {
+		const parameters = new URLSearchParams({
 			redirect_uri: this.redirectURI,
 			scope: scopes.join(' '),
 			state,
 			code_challenge: await client.calculatePKCECodeChallenge(codeVerifier),
 			code_challenge_method: 'S256'
-		};
-		if (nonce !== undefined) parameters.nonce = nonce;
+		});
+		if (nonce !== undefined) parameters.set('nonce', nonce);
 		this.addAuthorizationParameters(parameters);
 		return client.buildAuthorizationUrl(this.configuration, parameters);
 	}
@@ -124,15 +124,19 @@ abstract class OAuth2Provider {
 		});
 	}
 
-	protected addAuthorizationParameters(parameters: Record<string, string>): void {
+	protected addAuthorizationParameters(parameters: URLSearchParams): void {
 		void parameters;
 	}
 
-	protected async fetchJSON(
+	protected async fetchJSON<
+		const Schema extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>
+	>(
 		tokens: OAuth2Tokens,
 		url: string,
+		schema: Schema,
+		invalidProfileMessage: string,
 		headers?: Headers
-	): Promise<unknown> {
+	): Promise<v.InferOutput<Schema>> {
 		const response = await client.fetchProtectedResource(
 			this.configuration,
 			tokens.accessToken(),
@@ -148,10 +152,12 @@ abstract class OAuth2Provider {
 			);
 		}
 		try {
-			return await response.json();
+			const result = v.safeParse(schema, await response.json());
+			if (result.success) return result.output;
 		} catch {
-			throw new OAuthUserProfileError('OAuth provider returned an invalid profile');
+			// Handled by the common invalid-profile error below.
 		}
+		throw new OAuthUserProfileError(invalidProfileMessage);
 	}
 }
 
@@ -204,23 +210,30 @@ export class GitHub extends OAuth2Provider {
 			'X-GitHub-Api-Version': GITHUB_API_VERSION
 		});
 		const [profile, emails] = await Promise.all([
-			this.fetchJSON(tokens, 'https://api.github.com/user', headers),
-			this.fetchJSON(tokens, 'https://api.github.com/user/emails', headers)
+			this.fetchJSON(
+				tokens,
+				'https://api.github.com/user',
+				githubProfileSchema,
+				'GitHub returned an invalid user profile',
+				headers
+			),
+			this.fetchJSON(
+				tokens,
+				'https://api.github.com/user/emails',
+				githubEmailsSchema,
+				'GitHub returned an invalid user profile',
+				headers
+			)
 		]);
-		const profileResult = v.safeParse(githubProfileSchema, profile);
-		const emailsResult = v.safeParse(githubEmailsSchema, emails);
-		if (!profileResult.success || !emailsResult.success) {
-			throw new OAuthUserProfileError('GitHub returned an invalid user profile');
-		}
-		const primaryEmail = emailsResult.output.find((email) => email !== null);
+		const primaryEmail = emails.find((email) => email !== null);
 		if (primaryEmail === undefined) {
 			throw new OAuthUserProfileError('GitHub account does not have a verified primary email');
 		}
 		return {
-			id: String(profileResult.output.id),
+			id: String(profile.id),
 			email: primaryEmail.email,
 			emailVerified: true,
-			username: profileResult.output.login
+			username: profile.login
 		};
 	}
 }
@@ -244,14 +257,12 @@ export class Discord extends OAuth2Provider {
 	}
 
 	async getUser(tokens: OAuth2Tokens): Promise<OAuthUserProfile> {
-		const result = v.safeParse(
+		const profile = await this.fetchJSON(
+			tokens,
+			'https://discord.com/api/v10/users/@me',
 			discordProfileSchema,
-			await this.fetchJSON(tokens, 'https://discord.com/api/v10/users/@me')
+			'Discord account does not have a verified email'
 		);
-		if (!result.success) {
-			throw new OAuthUserProfileError('Discord account does not have a verified email');
-		}
-		const profile = result.output;
 		return {
 			id: profile.id,
 			email: profile.email,
@@ -299,14 +310,17 @@ export class Twitch extends OAuth2Provider {
 		};
 	}
 
-	protected override addAuthorizationParameters(parameters: Record<string, string>): void {
-		parameters.claims = JSON.stringify({
-			id_token: {
-				email: null,
-				email_verified: null,
-				preferred_username: null
-			}
-		});
+	protected override addAuthorizationParameters(parameters: URLSearchParams): void {
+		parameters.set(
+			'claims',
+			JSON.stringify({
+				id_token: {
+					email: null,
+					email_verified: null,
+					preferred_username: null
+				}
+			})
+		);
 	}
 
 	override async revokeTokens(tokens: OAuthTokenSet): Promise<void> {
@@ -325,6 +339,7 @@ export class Twitch extends OAuth2Provider {
 async function fetchTwitch(url: string, options: client.CustomFetchOptions): Promise<Response> {
 	const response = await fetch(url, {
 		...options,
+		// SAFETY: openid-client's FetchBody members are valid BodyInit values in Bun's fetch implementation.
 		body: options.body as BodyInit | null | undefined
 	});
 	if (url !== TWITCH_TOKEN_ENDPOINT || !response.ok) return response;

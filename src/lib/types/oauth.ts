@@ -22,15 +22,15 @@ export type OAuthErrorCode = (typeof OAUTH_ERROR_CODES)[number];
 const oauthProviderSchema = v.picklist(OAUTH_PROVIDERS);
 const oauthErrorCodeSchema = v.picklist(OAUTH_ERROR_CODES);
 
-const OAUTH_PROVIDER_NAMES: Record<OAuthProvider, string> = {
+const OAUTH_PROVIDER_NAMES = {
 	github: 'GitHub',
 	discord: 'Discord',
 	twitch: 'Twitch'
-};
+} as const satisfies Record<OAuthProvider, string>;
 
-const OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS: Partial<Record<OAuthProvider, string>> = {
+const OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS = {
 	twitch: 'https://www.twitch.tv/settings/connections'
-};
+} as const satisfies Partial<Record<OAuthProvider, string>>;
 
 export function parseOAuthProvider(value: unknown): OAuthProvider | null {
 	const result = v.safeParse(oauthProviderSchema, value);
@@ -47,7 +47,7 @@ export function getOAuthProviderName(provider: OAuthProvider): string {
 }
 
 export function getOAuthProviderAuthorizationSettingsURL(provider: OAuthProvider): string | null {
-	return OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS[provider] ?? null;
+	return provider === 'twitch' ? OAUTH_PROVIDER_AUTHORIZATION_SETTINGS_URLS.twitch : null;
 }
 
 export function canRemoveOAuthConnection(hasPassword: boolean, connectionCount: number): boolean {

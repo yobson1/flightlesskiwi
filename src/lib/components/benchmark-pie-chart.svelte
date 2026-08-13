@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatMetricValue } from '$lib/benchmark-chart';
+	import type { DefaultLabelFormatterCallbackParams } from 'echarts';
 	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
 	import {
 		getBenchmarkEChartBaseOption,
@@ -7,6 +8,8 @@
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
 	} from '$lib/benchmark-echart';
+
+	type EChartValue = DefaultLabelFormatterCallbackParams['value'];
 
 	export interface BenchmarkPieChartDatum {
 		label: string;
@@ -72,7 +75,7 @@
 			tooltip: {
 				...baseOption.tooltip,
 				trigger: 'item',
-				valueFormatter: (value: unknown) =>
+				valueFormatter: (value: EChartValue) =>
 					typeof value === 'number' ? formatMetricValue(value, '%') : String(value)
 			}
 		};

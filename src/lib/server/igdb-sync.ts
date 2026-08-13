@@ -79,27 +79,27 @@ interface IgdbImportSchedulerState {
 	lastFailure: IgdbImportStatus['lastFailure'];
 }
 
-const syncGlobal = globalThis as typeof globalThis & {
-	flightlesskiwiIgdbImportState?: IgdbImportSchedulerState;
-	flightlesskiwiIgdbSync?: Promise<void>;
-};
+declare global {
+	var flightlesskiwiIgdbImportState: IgdbImportSchedulerState | undefined;
+	var flightlesskiwiIgdbSync: Promise<void> | undefined;
+}
 const importTimeZone = IGDB_IMPORT_TIME_ZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 const importCronOptions = { tz: importTimeZone };
 let importScheduler: Bun.CronJob | undefined;
 
-const SOURCE_TO_STORE: Record<number, number> = {
-	[GameSource.steam]: STORES.STEAM.id,
-	[GameSource.gog]: STORES.GOG.id,
-	[GameSource.itch_io]: STORES.ITCH.id,
-	[GameSource.epic_game_store]: STORES.EPIC.id
-};
+const SOURCE_TO_STORE = new Map<number, number>([
+	[GameSource.steam, STORES.STEAM.id],
+	[GameSource.gog, STORES.GOG.id],
+	[GameSource.itch_io, STORES.ITCH.id],
+	[GameSource.epic_game_store, STORES.EPIC.id]
+]);
 
-const WEBSITE_TO_STORE: Record<number, number> = {
-	[WebsiteCategory.steam]: STORES.STEAM.id,
-	[WebsiteCategory.gog]: STORES.GOG.id,
-	[WebsiteCategory.itch]: STORES.ITCH.id,
-	[WebsiteCategory.epicgames]: STORES.EPIC.id
-};
+const WEBSITE_TO_STORE = new Map<number, number>([
+	[WebsiteCategory.steam, STORES.STEAM.id],
+	[WebsiteCategory.gog, STORES.GOG.id],
+	[WebsiteCategory.itch, STORES.ITCH.id],
+	[WebsiteCategory.epicgames, STORES.EPIC.id]
+]);
 
 export function seedStores() {
 	db.insert(store)
@@ -116,7 +116,7 @@ function extractStoreLinks(igdbGame: IGDBGame) {
 	const seen = new Set<number>();
 
 	for (const externalGame of igdbGame.external_games ?? []) {
-		const storeId = SOURCE_TO_STORE[externalGame.external_game_source];
+		const storeId = SOURCE_TO_STORE.get(externalGame.external_game_source);
 		if (storeId !== undefined && !seen.has(storeId) && externalGame.url) {
 			links.push({ storeId, url: externalGame.url });
 			seen.add(storeId);
@@ -124,7 +124,7 @@ function extractStoreLinks(igdbGame: IGDBGame) {
 	}
 
 	for (const website of igdbGame.websites ?? []) {
-		const storeId = WEBSITE_TO_STORE[website.type];
+		const storeId = WEBSITE_TO_STORE.get(website.type);
 		if (storeId !== undefined && !seen.has(storeId) && website.url) {
 			links.push({ storeId, url: website.url });
 			seen.add(storeId);
@@ -140,10 +140,10 @@ function* chunks<T>(items: T[]) {
 	}
 }
 
-function runSyncWrite<T>(
+function runSyncWrite<T, Identifier>(
 	operation: string,
 	rows: T[],
-	identify: (row: T) => unknown,
+	identify: (row: T) => Identifier,
 	write: () => void
 ) {
 	try {
@@ -764,12 +764,12 @@ function getLastSyncTime() {
 }
 
 function getImportSchedulerState() {
-	syncGlobal.flightlesskiwiIgdbImportState ??= {
+	globalThis.flightlesskiwiIgdbImportState ??= {
 		nextImportAt: null,
 		activeImport: null,
 		lastFailure: null
 	};
-	return syncGlobal.flightlesskiwiIgdbImportState;
+	return globalThis.flightlesskiwiIgdbImportState;
 }
 
 function getNextImportAt() {
@@ -804,7 +804,7 @@ async function syncGameSearch() {
 }
 
 export function startIgdbSync() {
-	if (syncGlobal.flightlesskiwiIgdbSync) return syncGlobal.flightlesskiwiIgdbSync;
+	if (globalThis.flightlesskiwiIgdbSync) return globalThis.flightlesskiwiIgdbSync;
 
 	const state = getImportSchedulerState();
 	const progress: IgdbImportProgress = {
@@ -832,12 +832,12 @@ export function startIgdbSync() {
 		})
 		.finally(() => {
 			if (state.activeImport === progress) state.activeImport = null;
-			if (syncGlobal.flightlesskiwiIgdbSync === sync) {
-				delete syncGlobal.flightlesskiwiIgdbSync;
+			if (globalThis.flightlesskiwiIgdbSync === sync) {
+				globalThis.flightlesskiwiIgdbSync = undefined;
 			}
 		});
 
-	syncGlobal.flightlesskiwiIgdbSync = sync;
+	globalThis.flightlesskiwiIgdbSync = sync;
 	return sync;
 }
 

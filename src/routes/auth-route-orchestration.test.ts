@@ -219,24 +219,31 @@ function createOAuthEvent(
 	locals: { session: App.Locals['session']; user: App.Locals['user'] }
 ) {
 	const url = new URL(`https://example.com/auth/oauth/${provider}/callback?code=test-code`);
-	return {
+	return asTestEvent<Parameters<typeof completeOAuth>[0]>()({
 		params: { provider },
 		url,
 		request: new Request(url),
 		cookies,
 		locals
-	} as unknown as Parameters<typeof completeOAuth>[0];
+	});
 }
 
 function createSettingsEvent(
 	authenticated: ReturnType<typeof createAuthenticatedRequest>,
 	form: URLSearchParams
 ) {
-	return {
+	return asTestEvent<SettingsActionEvent>()({
 		locals: authenticated.locals,
 		cookies: authenticated.cookies,
 		request: new Request('https://example.com/settings', { method: 'POST', body: form })
-	} as unknown as SettingsActionEvent;
+	});
+}
+
+function asTestEvent<Target>() {
+	return <Source>(value: Source): Target => {
+		// oxlint-disable-next-line anti-slop/no-chained-type-assertions -- Partial RequestEvent fixture containing every field exercised by this integration test.
+		return value as unknown as Target;
+	};
 }
 
 function createAuthenticatedRequest(userId: string) {

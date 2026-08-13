@@ -16,4 +16,6 @@ function createDatabase() {
 
 // SvelteKit imports server modules while analysing the application during a build.
 // The database is initialized normally when the built server starts.
-export const db = (building ? undefined : createDatabase()) as ReturnType<typeof createDatabase>;
+export const db =
+	// SAFETY: request handlers cannot access this export during SvelteKit's analysis-only build phase.
+	(building ? undefined : createDatabase()) as ReturnType<typeof createDatabase>;

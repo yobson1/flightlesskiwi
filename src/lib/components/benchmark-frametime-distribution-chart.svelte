@@ -18,6 +18,9 @@
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
 	} from '$lib/benchmark-echart';
+	import type { DefaultLabelFormatterCallbackParams } from 'echarts';
+
+	type EChartValue = DefaultLabelFormatterCallbackParams['value'];
 
 	interface Props {
 		runs: BenchmarkChartRun[];
@@ -54,7 +57,7 @@
 			tooltip: {
 				...baseOption.tooltip,
 				...getBenchmarkEChartPlotTooltip(theme),
-				valueFormatter: (value: unknown) =>
+				valueFormatter: (value: EChartValue) =>
 					typeof value === 'number' ? formatMetricValue(value, '%') : String(value)
 			},
 			xAxis: {

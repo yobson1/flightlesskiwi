@@ -8,6 +8,7 @@
 		MIN_USERNAME_LENGTH
 	} from '$lib/auth-constants';
 	import { authFormRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { formDataFromSubmitEvent } from '$lib/client/forms';
 	import AuthCard from '$lib/components/auth-card.svelte';
 	import AuthSidePanel from '$lib/components/auth-side-panel.svelte';
 	import OAuthProviderButtons from '$lib/components/oauth-provider-buttons.svelte';
@@ -42,8 +43,7 @@
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
-		const form = event.currentTarget as HTMLFormElement;
-		const formData = new FormData(form);
+		const formData = formDataFromSubmitEvent(event);
 		message = '';
 		if (formData.get('password') !== formData.get('confirm-password')) {
 			message = 'Passwords do not match';

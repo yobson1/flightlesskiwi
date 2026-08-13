@@ -98,7 +98,7 @@
 		url.searchParams.delete('oauth_error');
 		url.searchParams.delete('oauth_connected');
 		url.searchParams.delete('oauth_provider');
-		replaceState(resolve(`${url.pathname}${url.search}${url.hash}` as '/'), page.state);
+		replaceHistoryURL(url);
 	}
 
 	function readOAuthErrorMessage(url: URL): string | null {
@@ -258,8 +258,15 @@
 		if (!browser) return;
 		const url = new SvelteURL(window.location.href);
 		url.hash = view === null ? returnHash : authModalHash(view);
-		replaceState(resolve(`${url.pathname}${url.search}${url.hash}` as '/'), page.state);
+		replaceHistoryURL(url);
 		if (view === null) returnHash = '';
+	}
+
+	function replaceHistoryURL(url: SvelteURL) {
+		const path =
+			// SAFETY: this value is the current application pathname with only its query and hash changed.
+			`${url.pathname}${url.search}${url.hash}` as '/';
+		replaceState(resolve(path), page.state);
 	}
 </script>
 

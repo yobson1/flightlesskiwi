@@ -3,7 +3,10 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import Search from '$lib/components/search.svelte';
 	import { constructImageUrl } from '$lib/igdb';
-	import type { GameSearchResult } from '$lib/types/game';
+	import { gameSearchResultsSchema, type GameSearchResult } from '$lib/types/game';
+	import * as v from 'valibot';
+
+	const gameSearchErrorSchema = v.object({ error: v.string() });
 
 	interface Props {
 		onSelected?: (gameId: number, game: GameSearchResult) => void;
@@ -16,11 +19,14 @@
 
 	async function searchGames(query: string, signal: AbortSignal) {
 		const response = await fetch(resolve('/api/game/search/[query]', { query }), { signal });
-		const data = await response.json();
+		const data: unknown = await response.json();
 		if (!response.ok) {
-			throw new Error(data.error || `Failed to search games (${response.status})`);
+			const error = v.safeParse(gameSearchErrorSchema, data);
+			throw new Error(
+				error.success ? error.output.error : `Failed to search games (${response.status})`
+			);
 		}
-		return data as GameSearchResult[];
+		return v.parse(gameSearchResultsSchema, data);
 	}
 
 	function initializeImageLoadingStates(_: string, games: GameSearchResult[]) {

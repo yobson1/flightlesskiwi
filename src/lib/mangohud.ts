@@ -17,6 +17,10 @@ interface MangoHudMetricColumn {
 	values: Array<number | null>;
 }
 
+interface MangoHudParseState {
+	metricColumns: MangoHudMetricColumn[] | null;
+}
+
 export function parseMangoHudSystemInfo(csv: string): BenchmarkSystemInfo | null {
 	const records: string[][] = [];
 	visitCsvRecords(csv, 2, (record) => {
@@ -74,7 +78,7 @@ function parseMangoHudCsv(
 ): { systemInfo: BenchmarkSystemInfo; data: BenchmarkData } | null {
 	const systemRecords: string[][] = [];
 	let systemInfo: BenchmarkSystemInfo | null = null;
-	let metricColumns: MangoHudMetricColumn[] | null = null;
+	const parseState: MangoHudParseState = { metricColumns: null };
 	let parsedValues: Array<number | null> = [];
 	let elapsedIndex = -1;
 	let frametimeIndex = -1;
@@ -92,27 +96,27 @@ function parseMangoHudCsv(
 			return;
 		}
 
-		if (metricColumns === null) {
+		if (parseState.metricColumns === null) {
 			const headers = record.map(normalizeHeader);
 			if (!headers.includes('fps') && !headers.includes('frametime')) return;
 
 			elapsedIndex = headers.indexOf('elapsed');
 			frametimeIndex = headers.indexOf('frametime');
 			const seenMetrics = new Set<string>();
-			metricColumns = [];
+			parseState.metricColumns = [];
 			for (const [index, key] of headers.entries()) {
 				if (!v.is(benchmarkMetricKeySchema, key) || seenMetrics.has(key)) continue;
 				seenMetrics.add(key);
-				metricColumns.push({ key, index, values: [] });
+				parseState.metricColumns.push({ key, index, values: [] });
 			}
-			if (metricColumns.length === 0) return false;
-			parsedValues = new Array<number | null>(metricColumns.length);
+			if (parseState.metricColumns.length === 0) return false;
+			parsedValues = new Array<number | null>(parseState.metricColumns.length);
 			return;
 		}
 
 		let hasMetricValue = false;
-		for (let index = 0; index < metricColumns.length; index++) {
-			const value = parseNumber(record[metricColumns[index]!.index]);
+		for (let index = 0; index < parseState.metricColumns.length; index++) {
+			const value = parseNumber(record[parseState.metricColumns[index]!.index]);
 			parsedValues[index] = value;
 			if (value !== null) hasMetricValue = true;
 		}
@@ -135,12 +139,12 @@ function parseMangoHudCsv(
 
 		timeSeconds.push(sampleTime);
 		previousTime = sampleTime;
-		for (let index = 0; index < metricColumns.length; index++) {
-			metricColumns[index]!.values.push(parsedValues[index] ?? null);
+		for (let index = 0; index < parseState.metricColumns.length; index++) {
+			parseState.metricColumns[index]!.values.push(parsedValues[index] ?? null);
 		}
 	});
 
-	const completedMetricColumns = metricColumns as MangoHudMetricColumn[] | null;
+	const completedMetricColumns = parseState.metricColumns;
 	if (systemInfo === null || completedMetricColumns === null || timeSeconds.length === 0) {
 		return null;
 	}

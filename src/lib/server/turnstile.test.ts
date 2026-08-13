@@ -10,21 +10,21 @@ mock.module('$app/env/private', () => ({
 
 const { verifyTurnstileToken } = await import('./turnstile');
 
-function siteverifyResponse(result: unknown): typeof fetch {
-	return (async () => Response.json(result)) as unknown as typeof fetch;
+function siteverifyResponse<Result>(result: Result) {
+	return async () => Response.json(result);
 }
 
 describe('Turnstile server validation', () => {
 	test('accepts a successful response for the configured action and hostname', async () => {
 		let request: Request | undefined;
-		const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
+		const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
 			request = new Request(input, init);
 			return Response.json({
 				success: true,
 				action: TURNSTILE_ACTION,
 				hostname: 'app.example'
 			});
-		}) as typeof fetch;
+		};
 
 		expect(await verifyTurnstileToken('valid-token', '192.0.2.1', fetcher)).toBe(true);
 		expect(request?.url).toBe('https://challenges.cloudflare.com/turnstile/v0/siteverify');
@@ -48,27 +48,23 @@ describe('Turnstile server validation', () => {
 
 	test('fails closed for missing tokens and unavailable or malformed verification responses', async () => {
 		let requests = 0;
-		const unavailable = (async () => {
+		const unavailable = async () => {
 			requests++;
 			throw new Error('unavailable');
-		}) as unknown as typeof fetch;
+		};
 
 		expect(await verifyTurnstileToken(null, '192.0.2.1', unavailable)).toBe(false);
 		expect(requests).toBe(0);
 		expect(await verifyTurnstileToken('token', '192.0.2.1', unavailable)).toBe(false);
 		expect(requests).toBe(1);
 		expect(
-			await verifyTurnstileToken(
-				'token',
-				'192.0.2.1',
-				(async () => new Response('not json')) as unknown as typeof fetch
-			)
+			await verifyTurnstileToken('token', '192.0.2.1', async () => new Response('not json'))
 		).toBe(false);
 		expect(
 			await verifyTurnstileToken(
 				'token',
 				'192.0.2.1',
-				(async () => new Response(null, { status: 503 })) as unknown as typeof fetch
+				async () => new Response(null, { status: 503 })
 			)
 		).toBe(false);
 	});

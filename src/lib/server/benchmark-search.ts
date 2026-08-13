@@ -46,12 +46,12 @@ const {
 
 export { flushBenchmarkSearchQueue, prepareBenchmarkSearch, queueBenchmarksForSearch };
 
-const syncGlobal = globalThis as typeof globalThis & {
-	flightlesskiwiBenchmarkSearchSync?: Promise<void>;
-};
+declare global {
+	var flightlesskiwiBenchmarkSearchSync: Promise<void> | undefined;
+}
 
 export function startBenchmarkSearchSync() {
-	if (syncGlobal.flightlesskiwiBenchmarkSearchSync) return;
+	if (globalThis.flightlesskiwiBenchmarkSearchSync) return;
 
 	const sync = prepareBenchmarkSearch()
 		.then(() => undefined)
@@ -59,12 +59,12 @@ export function startBenchmarkSearchSync() {
 			warn('Meilisearch is unavailable; benchmark search indexing will retry on restart', cause);
 		})
 		.finally(() => {
-			if (syncGlobal.flightlesskiwiBenchmarkSearchSync === sync) {
-				delete syncGlobal.flightlesskiwiBenchmarkSearchSync;
+			if (globalThis.flightlesskiwiBenchmarkSearchSync === sync) {
+				globalThis.flightlesskiwiBenchmarkSearchSync = undefined;
 			}
 		});
 
-	syncGlobal.flightlesskiwiBenchmarkSearchSync = sync;
+	globalThis.flightlesskiwiBenchmarkSearchSync = sync;
 }
 
 async function getSearchDocuments(benchmarkIds: string[]) {

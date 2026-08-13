@@ -46,10 +46,8 @@ export async function authRequest(
 	} finally {
 		if (token) resetAuthTurnstile();
 	}
-	const data = await readResponse(response);
 	if (!response.ok) {
-		const errorResult = v.safeParse(authAPIErrorResponseSchema, data);
-		const error = errorResult.success ? errorResult.output : null;
+		const error = await readResponse(response, authAPIErrorResponseSchema);
 		throw new AuthAPIError(
 			error?.message || response.statusText || 'Authentication request failed',
 			{
@@ -59,11 +57,11 @@ export async function authRequest(
 			}
 		);
 	}
-	const result = v.safeParse(authAPIResponseSchema, data);
-	if (!result.success) {
+	const result = await readResponse(response, authAPIResponseSchema);
+	if (result === null) {
 		throw new AuthAPIError('Invalid authentication response', {});
 	}
-	return result.output;
+	return result;
 }
 
 export async function authFormRequest(
@@ -74,17 +72,23 @@ export async function authFormRequest(
 	return authRequest(endpoint, { ...init, method: 'POST', body: formData });
 }
 
-async function readResponse(response: Response): Promise<unknown> {
+async function readResponse<
+	const Schema extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>
+>(response: Response, schema: Schema): Promise<v.InferOutput<Schema> | null> {
+	let data: unknown;
 	const contentType = response.headers.get('content-type');
 	if (contentType?.includes('application/json')) {
 		try {
-			return await response.json();
+			data = await response.json();
 		} catch {
 			return null;
 		}
+	} else {
+		const message = await response.text();
+		data = message ? { message } : null;
 	}
-	const message = await response.text();
-	return message ? { message } : null;
+	const result = v.safeParse(schema, data);
+	return result.success ? result.output : null;
 }
 
 export function computeResendAvailableAt(
