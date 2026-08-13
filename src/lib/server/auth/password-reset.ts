@@ -236,7 +236,8 @@ export interface PasswordResetSessionWithTokenAndCode extends Omit<
 }
 
 export type PasswordResetSessionValidationResult =
-	{ session: PasswordResetSession; user: AuthUser } | { session: null; user: null };
+	| { session: PasswordResetSession; user: AuthUser }
+	| { session: null; user: null };
 
 export type PasswordResetStage = 'request' | 'email-code' | 'two-factor' | 'password';
 

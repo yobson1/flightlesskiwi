@@ -83,25 +83,23 @@ conventional_commits = true
 filter_unconventional = false
 require_conventional = false
 split_commits = false
-commit_preprocessors = [
-  { pattern = '.*', replace_command = 'typos --write-changes -' }
-]
+commit_preprocessors = [{ pattern = '.*', replace_command = 'typos --write-changes -' }]
 protect_breaking_commits = false
 commit_parsers = [
-  { message = "^chore\\(release\\):", skip = true },
-  { message = "^chore\\(deps.*\\)", skip = true },
-  { message = "^Merge branch '.*'", skip = true },
-  { message = "^feat", group = "<!-- 0 -->🚀 Features" },
-  { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
-  { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
-  { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
-  { message = "^perf", group = "<!-- 4 -->⚡ Performance" },
-  { message = "^style", group = "<!-- 5 -->🎨 Styling" },
-  { message = "^test", group = "<!-- 6 -->🧪 Testing" },
-  { message = "^chore|^ci", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
-  { message = "^security", group = "<!-- 8 -->🛡️ Security" },
-  { message = "^revert", group = "<!-- 9 -->◀️ Revert" },
-  { message = ".*", group = "<!-- 10 -->💼 Other" }
+	{ message = "^chore\\(release\\):", skip = true },
+	{ message = "^chore\\(deps.*\\)", skip = true },
+	{ message = "^Merge branch '.*'", skip = true },
+	{ message = "^feat", group = "<!-- 0 -->🚀 Features" },
+	{ message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+	{ message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
+	{ message = "^doc", group = "<!-- 3 -->📚 Documentation" },
+	{ message = "^perf", group = "<!-- 4 -->⚡ Performance" },
+	{ message = "^style", group = "<!-- 5 -->🎨 Styling" },
+	{ message = "^test", group = "<!-- 6 -->🧪 Testing" },
+	{ message = "^chore|^ci", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
+	{ message = "^security", group = "<!-- 8 -->🛡️ Security" },
+	{ message = "^revert", group = "<!-- 9 -->◀️ Revert" },
+	{ message = ".*", group = "<!-- 10 -->💼 Other" }
 ]
 filter_commits = true
 fail_on_unmatched_commit = false

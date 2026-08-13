@@ -6,17 +6,95 @@
 	"tab_size": 4,
 	"hard_tabs": true,
 	"languages": {
+		"CSS": {
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [{ "language_server": { "name": "oxfmt" } }]
+		},
+		"JavaScript": {
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [
+				{ "language_server": { "name": "oxfmt" } },
+				{ "code_action": "source.fixAll.oxc" }
+			]
+		},
 		"YAML": {
-			"tab_size": 2
+			"tab_size": 2,
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [{ "language_server": { "name": "oxfmt" } }]
 		},
 		"JSON": {
-			"tab_size": 2
+			"tab_size": 2,
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [{ "language_server": { "name": "oxfmt" } }]
 		},
 		"JSONC": {
-			"tab_size": 2
+			"tab_size": 2,
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [{ "language_server": { "name": "oxfmt" } }]
+		},
+		"Svelte": {
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [
+				{ "language_server": { "name": "oxfmt" } },
+				{ "code_action": "source.fixAll.oxc" }
+			]
+		},
+		"TOML": {
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [{ "language_server": { "name": "oxfmt" } }]
+		},
+		"TypeScript": {
+			"format_on_save": "on",
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": [
+				{ "language_server": { "name": "oxfmt" } },
+				{ "code_action": "source.fixAll.oxc" }
+			]
 		}
 	},
 	"lsp": {
+		"oxfmt": {
+			"initialization_options": {
+				"settings": {
+					"fmt.configPath": null,
+					"run": "onSave"
+				}
+			}
+		},
+		"oxlint": {
+			"initialization_options": {
+				"settings": {
+					"configPath": null,
+					"run": "onType",
+					"disableNestedConfig": false,
+					"fixKind": "safe_fix",
+					"unusedDisableDirectives": "deny"
+				}
+			}
+		},
 		"vscode-css-language-server": {
 			"settings": {
 				"css": {

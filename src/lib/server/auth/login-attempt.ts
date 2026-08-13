@@ -162,4 +162,5 @@ export interface LoginAttempt {
 }
 
 type LoginAttemptValidationResult =
-	{ attempt: LoginAttempt; user: AuthUser } | { attempt: null; user: null };
+	| { attempt: LoginAttempt; user: AuthUser }
+	| { attempt: null; user: null };

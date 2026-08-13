@@ -226,4 +226,5 @@ export interface Session {
 }
 
 export type SessionValidationResult =
-	{ session: Session; user: AuthUser } | { session: null; user: null };
+	| { session: Session; user: AuthUser }
+	| { session: null; user: null };
