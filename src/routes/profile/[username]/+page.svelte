@@ -19,6 +19,20 @@
 	let loadingMore = $state(false);
 	let loadMoreFailed = $state(false);
 	let hasMore = $derived(nextCursor !== null && !loadMoreFailed);
+	let loadedUsername = initialPage.profile.username;
+	let benchmarkListVersion = 0;
+
+	$effect.pre(() => {
+		const username = data.profile.username;
+		if (username === loadedUsername) return;
+
+		loadedUsername = username;
+		benchmarkListVersion += 1;
+		benchmarks = [...data.benchmarks];
+		nextCursor = data.nextCursor;
+		loadingMore = false;
+		loadMoreFailed = false;
+	});
 
 	function mapBenchmarkDates(page: BenchmarkPageResponse) {
 		return page.benchmarks.map((benchmark) => ({
@@ -29,29 +43,34 @@
 
 	async function loadMore() {
 		if (loadingMore || nextCursor === null) return;
+		const cursor = nextCursor;
+		const username = data.profile.username;
+		const requestedListVersion = benchmarkListVersion;
 		loadingMore = true;
 		loadMoreFailed = false;
 
 		try {
 			const searchParams = new SvelteURLSearchParams({
-				before: nextCursor.createdAt.toString(),
-				before_id: nextCursor.id
+				before: cursor.createdAt.toString(),
+				before_id: cursor.id
 			});
 			const endpoint = resolve('/api/profiles/[username]/benchmarks', {
-				username: data.profile.username
+				username
 			});
 			const response = await fetch(`${endpoint}?${searchParams}`);
 			if (!response.ok) throw new Error('Unable to load more benchmarks');
 
 			const result = v.safeParse(benchmarkPageResponseSchema, await response.json());
 			if (!result.success) throw new Error('Invalid benchmark page response');
+			if (requestedListVersion !== benchmarkListVersion) return;
 			benchmarks = [...benchmarks, ...mapBenchmarkDates(result.output)];
 			nextCursor = result.output.nextCursor;
 		} catch (cause) {
+			if (requestedListVersion !== benchmarkListVersion) return;
 			loadMoreFailed = true;
 			toast.error(cause instanceof Error ? cause.message : 'Unable to load more benchmarks');
 		} finally {
-			loadingMore = false;
+			if (requestedListVersion === benchmarkListVersion) loadingMore = false;
 		}
 	}
 </script>
@@ -84,12 +103,14 @@
 		</div>
 
 		{#if benchmarks.length > 0}
-			<BenchmarkList
-				{benchmarks}
-				onLoadMore={loadMore}
-				{hasMore}
-				viewportLabel={`${data.profile.username}'s benchmarks`}
-			/>
+			{#key data.profile.username}
+				<BenchmarkList
+					{benchmarks}
+					onLoadMore={loadMore}
+					{hasMore}
+					viewportLabel={`${data.profile.username}'s benchmarks`}
+				/>
+			{/key}
 			{#if loadMoreFailed}
 				<p class="text-center text-sm text-muted-foreground">
 					Couldn’t load more benchmarks.
