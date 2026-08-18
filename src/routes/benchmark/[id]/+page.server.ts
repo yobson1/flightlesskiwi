@@ -1,6 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
-import { error as logError } from '$lib/logger';
+import { error as logError, info } from '$lib/logger';
 import { requireVerifiedSession } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
 import { parseBenchmarkRun } from '$lib/server/benchmark-run';
@@ -118,6 +118,7 @@ export const actions: Actions = {
 			logError(`Failed to delete benchmark ${event.params.id}`, cause);
 			return fail(500, { message: 'The benchmark could not be deleted. Please try again.' });
 		}
+		info(`Deleted benchmark ${event.params.id}`);
 
 		try {
 			await deleteBenchmarkFiles(fileIds);

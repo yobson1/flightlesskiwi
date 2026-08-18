@@ -1,6 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { and, eq, inArray } from 'drizzle-orm';
-import { error as logError, warn } from '$lib/logger';
+import { error as logError, info, warn } from '$lib/logger';
 import { getClientIP, requireVerifiedPage, requireVerifiedSession } from '$lib/server/auth/api';
 import { deleteBenchmarkFiles, writeBenchmarkFiles } from '$lib/server/benchmark-files';
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
@@ -252,10 +252,14 @@ export const actions: Actions = {
 				removedFileIds
 			);
 		}
+		info(`Edited benchmark ${benchmark.id}`);
 
 		if (removedFileIds.length > 0) {
 			try {
 				await deleteBenchmarkFiles(removedFileIds);
+				info(
+					`Deleted ${removedFileIds.length} benchmark ${removedFileIds.length === 1 ? 'upload' : 'uploads'} while editing benchmark ${benchmark.id}`
+				);
 			} catch (cause) {
 				logError(`Failed to clean up removed files for benchmark ${benchmark.id}`, cause);
 			}
