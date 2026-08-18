@@ -11,7 +11,6 @@
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import UserRoundIcon from '@lucide/svelte/icons/user-round';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { getAuthModal } from '$lib/auth-modal';
@@ -23,6 +22,7 @@
 		MIN_USERNAME_LENGTH,
 		TOTP_CODE_LENGTH_WORD
 	} from '$lib/auth-constants';
+	import Blobatar from '$lib/components/blobatar.svelte';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import OAuthProviderIcon from '$lib/components/oauth-provider-icon.svelte';
@@ -60,6 +60,7 @@
 	let replaceRecoveryCodeOpen = $state(false);
 	let deleteAccountOpen = $state(false);
 	let deleteAccountConfirmation = $state('');
+	let username = $derived(data.user.username);
 	const oauthConnectionRemovable = $derived(
 		canRemoveOAuthConnection(data.user.hasPassword, data.user.oauthProviders.length)
 	);
@@ -243,7 +244,7 @@
 				<Card.Header>
 					<div class="flex items-center gap-3">
 						<div class="flex size-10 items-center justify-center rounded-lg bg-muted">
-							<UserRoundIcon class="size-5" />
+							<Blobatar name={username} size={32} animate="always" />
 						</div>
 						<div>
 							<Card.Title>Profile</Card.Title>
@@ -263,7 +264,7 @@
 								<Input
 									id="settings-username"
 									name="username"
-									value={data.user.username}
+									bind:value={username}
 									autocomplete="username"
 									minlength={MIN_USERNAME_LENGTH}
 									maxlength={MAX_USERNAME_LENGTH}

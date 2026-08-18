@@ -19,6 +19,7 @@
         "@tailwindcss/vite": "^4.3.3",
         "apicalypse": "^1.0.5",
         "bits-ui": "^2.18.1",
+        "blobatar": "^0.2.0",
         "clsx": "^2.1.1",
         "cronstrue": "^3.24.0",
         "drizzle-orm": "^0.45.2",
@@ -451,6 +452,8 @@
     "better-sqlite3": ["better-sqlite3@13.0.3", "", { "dependencies": { "node-addon-api": "^8.0.0" } }, "sha512-RbOBxmLBG8uvFUc15X9+9SFemKcQ0WBuISBVkpuiaUB2qblC8UWlHEjdWVoZ8AdhSwmoEgsiXKfopX0CQxaACQ=="],
 
     "bits-ui": ["bits-ui@2.18.1", "", { "dependencies": { "@floating-ui/core": "^1.7.1", "@floating-ui/dom": "^1.7.1", "esm-env": "^1.1.2", "runed": "^0.35.1", "svelte-toolbelt": "^0.10.6", "tabbable": "^6.2.0" }, "peerDependencies": { "@internationalized/date": "^3.8.1", "svelte": "^5.33.0" } }, "sha512-KkemzKFH4T3gt3H+P86JcnAWExjByv/6vlwjm/BoCwTPHu03yiCdxbghdJLvFReQTe0acCAiRcKfmixxD6XvlA=="],
+
+    "blobatar": ["blobatar@0.2.0", "", { "peerDependencies": { "react": ">=18" }, "optionalPeers": ["react"] }, "sha512-TL4blQf9fu+EzsFEKMjh7PVORnf42G9HdpaXzdLR9dTHcMSYJWEj5fPeLhsXTN5YFCNstZaRAQRAWyhW8lRAdw=="],
 
     "buffer-from": ["buffer-from@1.1.2", "", {}, "sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ=="],
 

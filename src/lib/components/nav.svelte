@@ -10,8 +10,11 @@
 	import { invalidateAll } from '$app/navigation';
 	import { getAuthModal } from '$lib/auth-modal';
 	import { authRequest } from '$lib/client/auth-api';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import Blobatar from '$lib/components/blobatar.svelte';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import type { ClientAuthState } from '$lib/types/auth';
+	import { cn } from '$lib/utils.js';
 
 	interface Props {
 		auth: ClientAuthState | null;
@@ -29,22 +32,37 @@
 
 <div class="flex items-center gap-1.5">
 	{#if auth}
-		<span class="hidden max-w-36 truncate px-2 text-sm text-muted-foreground md:inline">
-			{auth.user.username}
-		</span>
 		<Button href="/benchmark/new">
 			<UploadIcon />
 			<span class="hidden sm:inline">Upload benchmark</span>
 			<span class="sr-only sm:hidden">Upload benchmark</span>
 		</Button>
-		<Button href="/settings" variant="ghost" size="icon" aria-label="Settings">
-			<SettingsIcon />
-		</Button>
-		<Button variant="outline" onclick={logout}>
-			<LogOutIcon />
-			<span class="hidden sm:inline">Logout</span>
-			<span class="sr-only sm:hidden">Logout</span>
-		</Button>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class={cn(buttonVariants({ variant: 'outline' }), 'gap-2 py-0 pr-2 pl-1')}
+				aria-label={`Open user menu for ${auth.user.username}`}
+			>
+				<Blobatar name={auth.user.username} size={24} alt="" />
+				<span class="hidden max-w-36 truncate text-muted-foreground sm:inline">
+					{auth.user.username}
+				</span>
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Item>
+					{#snippet child({ props })}
+						<a {...props} href="/settings">
+							<SettingsIcon />
+							Settings
+						</a>
+					{/snippet}
+				</DropdownMenu.Item>
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item onSelect={() => void logout()}>
+					<LogOutIcon />
+					Logout
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	{:else}
 		<Button variant="ghost" onclick={() => void authModal.open('login')}>
 			<UserKeyIcon />
