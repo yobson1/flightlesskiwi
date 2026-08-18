@@ -11,6 +11,28 @@ export interface PublicBenchmarkCursor {
 	id: string;
 }
 
+export function parsePublicBenchmarkCursor(
+	searchParams: URLSearchParams
+): PublicBenchmarkCursor | undefined | false {
+	const createdAtValue = searchParams.get('before');
+	const id = searchParams.get('before_id');
+	if (createdAtValue === null && id === null) return undefined;
+	if (createdAtValue === null || id === null) return false;
+
+	const createdAt = Number(createdAtValue);
+	if (!Number.isSafeInteger(createdAt) || createdAt <= 0 || id.length === 0 || id.length > 100) {
+		return false;
+	}
+
+	return { createdAt, id };
+}
+
+interface PublicBenchmarkPageOptions {
+	cursor?: PublicBenchmarkCursor;
+	gameId?: number;
+	userId?: string;
+}
+
 export interface BenchmarkRunMetadata {
 	cpus: Set<string>;
 	gpus: Set<string>;
@@ -87,7 +109,8 @@ export async function getBenchmarkRunMetadata(benchmarkIds: string[]) {
 	return benchmarkMetadata;
 }
 
-export async function getPublicBenchmarksPage(cursor?: PublicBenchmarkCursor, gameId?: number) {
+export async function getPublicBenchmarksPage(options: PublicBenchmarkPageOptions = {}) {
+	const { cursor, gameId, userId } = options;
 	const cursorCondition = cursor
 		? or(
 				lt(benchmarkResult.createdAt, new Date(cursor.createdAt)),
@@ -112,7 +135,11 @@ export async function getPublicBenchmarksPage(cursor?: PublicBenchmarkCursor, ga
 		.innerJoin(game, eq(benchmarkResult.gameId, game.id))
 		.leftJoin(gameName, and(eq(gameName.gameId, game.id), eq(gameName.isPrimary, true)))
 		.where(
-			and(cursorCondition, gameId === undefined ? undefined : eq(benchmarkResult.gameId, gameId))
+			and(
+				cursorCondition,
+				gameId === undefined ? undefined : eq(benchmarkResult.gameId, gameId),
+				userId === undefined ? undefined : eq(benchmarkResult.userId, userId)
+			)
 		)
 		.orderBy(desc(benchmarkResult.createdAt), desc(benchmarkResult.id))
 		.limit(PUBLIC_BENCHMARK_PAGE_SIZE + 1)

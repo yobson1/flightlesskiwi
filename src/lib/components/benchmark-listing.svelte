@@ -29,10 +29,15 @@
 </script>
 
 <div class="pb-3">
-	<a
-		href={resolve('/benchmark/[id]', { id: benchmark.id })}
-		class="group flex gap-4 rounded-xl border bg-card p-3 text-card-foreground transition-colors hover:bg-accent/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+	<div
+		class="group relative flex gap-4 rounded-xl border bg-card p-3 text-card-foreground transition-colors hover:bg-accent/50"
 	>
+		<a
+			href={resolve('/benchmark/[id]', { id: benchmark.id })}
+			class="absolute inset-0 rounded-xl focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+		>
+			<span class="sr-only">View {benchmark.title}</span>
+		</a>
 		{#if benchmark.coverImgId}
 			<img
 				src={constructImageUrl(benchmark.coverImgId, 'cover_small')}
@@ -83,8 +88,16 @@
 				<time datetime={benchmark.createdAt.toISOString()}>
 					{dateFormatter.format(benchmark.createdAt)}
 				</time>
-				<p>by {benchmark.username}</p>
+				<p class="relative z-10">
+					by
+					<a
+						href={resolve('/profile/[username]', { username: benchmark.username })}
+						class="font-medium hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+					>
+						{benchmark.username}
+					</a>
+				</p>
 			</div>
 		</div>
-	</a>
+	</div>
 </div>

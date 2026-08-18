@@ -4,10 +4,12 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import UploadIcon from '@lucide/svelte/icons/upload';
+	import UserIcon from '@lucide/svelte/icons/user';
 	import UserKeyIcon from '@lucide/svelte/icons/user-key';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import { toggleMode } from 'mode-watcher';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { getAuthModal } from '$lib/auth-modal';
 	import { authRequest } from '$lib/client/auth-api';
 	import Blobatar from '$lib/components/blobatar.svelte';
@@ -48,6 +50,14 @@
 				</span>
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end">
+				<DropdownMenu.Item>
+					{#snippet child({ props })}
+						<a {...props} href={resolve('/profile/[username]', { username: auth.user.username })}>
+							<UserIcon />
+							Profile
+						</a>
+					{/snippet}
+				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					{#snippet child({ props })}
 						<a {...props} href="/settings">

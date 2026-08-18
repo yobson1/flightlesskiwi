@@ -1,9 +1,8 @@
 <script lang="ts">
 	import FilterIcon from '@lucide/svelte/icons/list-filter';
 	import XIcon from '@lucide/svelte/icons/x';
-	import SvelteVirtualList from '@humanspeak/svelte-virtual-list';
 	import { resolve } from '$app/paths';
-	import BenchmarkListing from '$lib/components/benchmark-listing.svelte';
+	import BenchmarkList from '$lib/components/benchmark-list.svelte';
 	import GameSearch from '$lib/components/game-search.svelte';
 	import Search from '$lib/components/search.svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -263,30 +262,18 @@
 			<p class="text-sm text-muted-foreground">Loading benchmark results…</p>
 		</div>
 	{:else if benchmarks.length > 0}
-		<div class="relative left-1/2 min-h-80 w-screen flex-1 -translate-x-1/2">
-			{#key activeSearchQuery}
-				<SvelteVirtualList
-					items={benchmarks}
-					defaultEstimatedItemHeight={116}
-					onLoadMore={loadMore}
-					loadMoreThreshold={5}
-					{hasMore}
-					viewportLabel={activeSearchQuery
-						? 'Benchmark search results'
-						: selectedGame
-							? `${selectedGame.name} benchmarks`
-							: 'Recent benchmarks'}
-				>
-					{#snippet renderItem(benchmark)}
-						<div class="px-4">
-							<div class="mx-auto w-full max-w-7xl">
-								<BenchmarkListing {benchmark} />
-							</div>
-						</div>
-					{/snippet}
-				</SvelteVirtualList>
-			{/key}
-		</div>
+		{#key activeSearchQuery}
+			<BenchmarkList
+				{benchmarks}
+				onLoadMore={loadMore}
+				{hasMore}
+				viewportLabel={activeSearchQuery
+					? 'Benchmark search results'
+					: selectedGame
+						? `${selectedGame.name} benchmarks`
+						: 'Recent benchmarks'}
+			/>
+		{/key}
 		{#if loadMoreFailed}
 			<p class="text-center text-sm text-muted-foreground">
 				Couldn’t load more benchmarks.

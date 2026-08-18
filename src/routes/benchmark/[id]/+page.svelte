@@ -4,6 +4,7 @@
 	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import SvelteMarkdown, {
 		buildUnsupportedHTML,
 		defaultRenderers
@@ -99,7 +100,14 @@
 						<p class="text-sm font-medium text-primary">Benchmark result</p>
 						<h1 class="text-3xl font-bold tracking-tight">{data.benchmark.title}</h1>
 						<p class="mt-2 text-sm text-muted-foreground">
-							Uploaded by {data.benchmark.username} on
+							Uploaded by
+							<a
+								href={resolve('/profile/[username]', { username: data.benchmark.username })}
+								class="font-medium hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+							>
+								{data.benchmark.username}
+							</a>
+							on
 							<time datetime={data.benchmark.createdAt.toISOString()}>
 								{dateFormatter.format(data.benchmark.createdAt)}
 							</time>
