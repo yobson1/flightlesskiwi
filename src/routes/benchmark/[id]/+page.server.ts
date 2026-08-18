@@ -66,6 +66,7 @@ export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) 
 	return {
 		benchmark: publicBenchmark,
 		runs,
+		canEdit: locals.user?.id === userId,
 		canDelete: locals.user?.id === userId,
 		canonicalUrl: new URL(url.pathname, url.origin).href
 	};

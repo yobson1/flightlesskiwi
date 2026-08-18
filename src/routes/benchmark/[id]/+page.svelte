@@ -2,6 +2,7 @@
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import ExpandIcon from '@lucide/svelte/icons/expand';
 	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -118,6 +119,15 @@
 							<DownloadIcon />
 							Download
 						</Button>
+						{#if data.canEdit}
+							<Button
+								href={resolve('/benchmark/[id]/edit', { id: data.benchmark.id })}
+								variant="outline"
+							>
+								<PencilIcon />
+								Edit
+							</Button>
+						{/if}
 						{#if data.canDelete}
 							<AlertDialog.Root>
 								<AlertDialog.Trigger class="inline-flex">

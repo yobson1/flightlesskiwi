@@ -14,19 +14,60 @@
 
 	interface Props {
 		files?: FileList;
+		existingFiles?: ExistingBenchmarkFile[];
+		removedFileIds?: string[];
 		disabled?: boolean;
 		id?: string;
 		name?: string;
+	}
+
+	interface ExistingBenchmarkFile {
+		id: string;
+		originalName: string;
+		size: number;
+	}
+
+	interface DisplayBenchmarkFile {
+		key: string;
+		name: string;
+		size: number;
+		existingId?: string;
+		pendingIndex?: number;
 	}
 
 	const MAX_DISPLAY_BASENAME_LENGTH = 8;
 
 	let {
 		files = $bindable(),
+		existingFiles = [],
+		removedFileIds = $bindable([]),
 		disabled = false,
 		id = 'benchmark-files',
 		name = 'files'
 	}: Props = $props();
+
+	let displayedFiles = $derived.by(() => {
+		const removedIds = new Set(removedFileIds);
+		return [
+			...existingFiles
+				.filter((file) => !removedIds.has(file.id))
+				.map((file): DisplayBenchmarkFile => ({
+					key: `existing-${file.id}`,
+					name: file.originalName,
+					size: file.size,
+					existingId: file.id
+				})),
+			...Array.from(files ?? []).map((file, index): DisplayBenchmarkFile => ({
+				key: `pending-${file.name}-${file.size}-${file.lastModified}-${index}`,
+				name: file.name,
+				size: file.size,
+				pendingIndex: index
+			}))
+		];
+	});
+	let retainedExistingFileCount = $derived(
+		existingFiles.filter((file) => !removedFileIds.includes(file.id)).length
+	);
 
 	function removeFile(indexToRemove: number) {
 		if (!files) return;
@@ -36,6 +77,16 @@
 			if (index !== indexToRemove) remainingFiles.items.add(file);
 		}
 		files = remainingFiles.files;
+	}
+
+	function removeDisplayedFile(file: DisplayBenchmarkFile) {
+		if (file.existingId !== undefined) {
+			if (!removedFileIds.includes(file.existingId)) {
+				removedFileIds = [...removedFileIds, file.existingId];
+			}
+			return;
+		}
+		if (file.pendingIndex !== undefined) removeFile(file.pendingIndex);
 	}
 
 	function displayFileName(fileName: string) {
@@ -76,14 +127,17 @@
 			type="file"
 			accept=".csv,.json,text/csv,text/json,application/json"
 			multiple
-			required
+			required={retainedExistingFileCount === 0}
 			{disabled}
 			bind:files
 		/>
-		{#if files?.length}
+		{#each removedFileIds as removedFileId (removedFileId)}
+			<input type="hidden" name="removed_file_ids" value={removedFileId} />
+		{/each}
+		{#if displayedFiles.length}
 			<Tooltip.Provider>
-				<ul class="mt-3 flex flex-wrap gap-2" aria-label="Selected benchmark files">
-					{#each Array.from(files) as file, index (`${file.name}-${file.size}-${file.lastModified}-${index}`)}
+				<ul class="mt-3 flex flex-wrap gap-2" aria-label="Benchmark files">
+					{#each displayedFiles as file (file.key)}
 						{@const displayedName = displayFileName(file.name)}
 						<li
 							class="relative flex size-24 shrink-0 flex-col items-center justify-center rounded-md border bg-muted/30 p-2 text-center"
@@ -94,7 +148,7 @@
 								size="icon-xs"
 								class="absolute top-1 right-1"
 								aria-label={`Remove ${file.name}`}
-								onclick={() => removeFile(index)}
+								onclick={() => removeDisplayedFile(file)}
 								{disabled}
 							>
 								<XIcon />

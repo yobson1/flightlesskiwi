@@ -1,48 +1,24 @@
 import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import {
-	MAX_BENCHMARK_DESCRIPTION_LENGTH,
-	MAX_BENCHMARK_FILES,
-	MAX_BENCHMARK_FILE_NAME_LENGTH,
-	MAX_BENCHMARK_FILE_SIZE,
-	MAX_BENCHMARK_TITLE_LENGTH,
-	MAX_BENCHMARK_TOTAL_SIZE,
-	formatFileSize
-} from '$lib/benchmark';
-import { getCapFrameXRunCount } from '$lib/capframex';
 import { error as logError, warn } from '$lib/logger';
 import { getClientIP, requireVerifiedPage, requireVerifiedSession } from '$lib/server/auth/api';
 import { generateSecureRandomString } from '$lib/server/auth/utils';
 import { deleteBenchmarkFiles, writeBenchmarkFiles } from '$lib/server/benchmark-files';
-import { parseBenchmarkRun } from '$lib/server/benchmark-run';
 import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
+import {
+	createBenchmarkFileRows,
+	parseBenchmarkFiles,
+	parseBenchmarkValues,
+	validateAndParseBenchmarkFiles,
+	validateBenchmarkFiles,
+	validateBenchmarkValues
+} from '$lib/server/benchmark-submission';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game } from '$lib/server/db/schema';
 import { verifyTurnstileToken } from '$lib/server/turnstile';
 import { TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
 import { getMessage } from '$lib/utils';
 import type { Actions, PageServerLoad } from './$types';
-import * as v from 'valibot';
-
-const submittedValuesSchema = v.object({
-	gameId: v.fallback(
-		v.nullable(
-			v.pipe(
-				v.string(),
-				v.trim(),
-				v.nonEmpty(),
-				v.transform(Number),
-				v.safeInteger(),
-				v.minValue(1)
-			)
-		),
-		null
-	),
-	title: v.fallback(v.pipe(v.string(), v.trim()), ''),
-	description: v.fallback(v.pipe(v.string(), v.trim()), '')
-});
-const benchmarkFilesSchema = v.array(v.instance(File));
-type SubmittedValues = v.InferOutput<typeof submittedValuesSchema>;
 
 export const load: PageServerLoad = (event) => {
 	event.setHeaders({ 'cache-control': 'no-store' });
@@ -59,7 +35,7 @@ export const actions: Actions = {
 		}
 
 		const formData = await event.request.formData();
-		const values = parseValues(formData);
+		const values = parseBenchmarkValues(formData);
 		if (
 			!(await verifyTurnstileToken(
 				formData.get(TURNSTILE_RESPONSE_FIELD),
@@ -69,16 +45,14 @@ export const actions: Actions = {
 		) {
 			return fail(403, { message: 'Complete the verification challenge', values });
 		}
-		const validationMessage = validateValues(values);
+		const validationMessage = validateBenchmarkValues(values);
 		if (validationMessage) return fail(400, { message: validationMessage, values });
 
-		const rawFiles = formData.getAll('files');
-		const filesResult = v.safeParse(benchmarkFilesSchema, rawFiles);
-		if (!filesResult.success) {
+		const files = parseBenchmarkFiles(formData);
+		if (files === null) {
 			return fail(400, { message: 'Select valid benchmark files', values });
 		}
-		const files = filesResult.output;
-		const fileValidationMessage = validateFiles(files);
+		const fileValidationMessage = validateBenchmarkFiles(files);
 		if (fileValidationMessage) return fail(400, { message: fileValidationMessage, values });
 
 		const selectedGame = db
@@ -91,14 +65,8 @@ export const actions: Actions = {
 		}
 
 		const benchmarkId = generateSecureRandomString();
-		const fileRows = files.map((file) => ({
-			id: generateSecureRandomString(),
-			benchmarkId,
-			originalName: safeOriginalName(file.name),
-			size: file.size,
-			file
-		}));
-		const contentValidationMessage = await validateAndParseFiles(fileRows);
+		const fileRows = createBenchmarkFileRows(benchmarkId, files);
+		const contentValidationMessage = await validateAndParseBenchmarkFiles(fileRows);
 		if (contentValidationMessage) {
 			try {
 				await deleteBenchmarkFiles(fileRows.map(({ id }) => id));
@@ -107,11 +75,8 @@ export const actions: Actions = {
 			}
 			return fail(400, { message: contentValidationMessage, values });
 		}
-		let filesWritten = false;
-
 		try {
 			await writeBenchmarkFiles(fileRows);
-			filesWritten = true;
 
 			db.transaction((tx) => {
 				tx.insert(benchmarkResult)
@@ -126,9 +91,9 @@ export const actions: Actions = {
 					.run();
 				tx.insert(benchmarkFile)
 					.values(
-						fileRows.map(({ id, benchmarkId, originalName, size }) => ({
+						fileRows.map(({ id, benchmarkId: fileBenchmarkId, originalName, size }) => ({
 							id,
-							benchmarkId,
+							benchmarkId: fileBenchmarkId,
 							originalName,
 							size
 						}))
@@ -138,12 +103,10 @@ export const actions: Actions = {
 			});
 		} catch (cause) {
 			logError(`Failed to create benchmark ${benchmarkId}`, cause);
-			if (filesWritten) {
-				try {
-					await deleteBenchmarkFiles(fileRows.map(({ id }) => id));
-				} catch (cleanupCause) {
-					logError(`Failed to clean up files for benchmark ${benchmarkId}`, cleanupCause);
-				}
+			try {
+				await deleteBenchmarkFiles(fileRows.map(({ id }) => id));
+			} catch (cleanupCause) {
+				logError(`Failed to clean up files for benchmark ${benchmarkId}`, cleanupCause);
 			}
 			return fail(500, {
 				message: 'The benchmark could not be uploaded. Please try again.',
@@ -163,80 +126,3 @@ export const actions: Actions = {
 		};
 	}
 };
-
-function parseValues(formData: FormData): SubmittedValues {
-	return v.parse(submittedValuesSchema, {
-		gameId: formData.get('game_id'),
-		title: formData.get('title'),
-		description: formData.get('description')
-	});
-}
-
-function validateValues(values: SubmittedValues): string | null {
-	if (values.gameId === null) return 'Select a game from the search results';
-	if (!values.title) return 'Enter a title';
-	if (values.title.length > MAX_BENCHMARK_TITLE_LENGTH) {
-		return `Title must be ${MAX_BENCHMARK_TITLE_LENGTH} characters or fewer`;
-	}
-	if (values.description.length > MAX_BENCHMARK_DESCRIPTION_LENGTH) {
-		return `Description must be ${MAX_BENCHMARK_DESCRIPTION_LENGTH.toLocaleString()} characters or fewer`;
-	}
-	return null;
-}
-
-function validateFiles(files: File[]): string | null {
-	if (files.length === 0 || files.every((file) => file.size === 0 && file.name === '')) {
-		return 'Select at least one MangoHud or CapFrameX file';
-	}
-	if (files.length > MAX_BENCHMARK_FILES) {
-		return `Select no more than ${MAX_BENCHMARK_FILES} files`;
-	}
-
-	let totalSize = 0;
-	for (const file of files) {
-		const originalName = safeOriginalName(file.name);
-		if (!originalName || originalName.length > MAX_BENCHMARK_FILE_NAME_LENGTH) {
-			return `Each file name must be between 1 and ${MAX_BENCHMARK_FILE_NAME_LENGTH} characters`;
-		}
-		if (file.size === 0) return `${originalName} is empty`;
-		if (file.size > MAX_BENCHMARK_FILE_SIZE) {
-			return `${originalName} exceeds the ${formatFileSize(MAX_BENCHMARK_FILE_SIZE)} per-file limit`;
-		}
-		totalSize += file.size;
-	}
-
-	if (totalSize > MAX_BENCHMARK_TOTAL_SIZE) {
-		return `Files exceed the ${formatFileSize(MAX_BENCHMARK_TOTAL_SIZE)} total limit`;
-	}
-	return null;
-}
-
-async function validateAndParseFiles(
-	files: Array<{ id: string; originalName: string; file: File }>
-): Promise<string | null> {
-	for (const file of files) {
-		let contents: string;
-		try {
-			contents = await file.file.text();
-		} catch {
-			return `${file.originalName} could not be read`;
-		}
-
-		const benchmarkRun = await parseBenchmarkRun({
-			fileId: file.id,
-			contents,
-			label: file.originalName
-		});
-		if (benchmarkRun) continue;
-		const capFrameXRunCount = getCapFrameXRunCount(contents);
-		if (capFrameXRunCount !== null && capFrameXRunCount !== 1) {
-			return `${file.originalName} must contain exactly one CapFrameX run (found ${capFrameXRunCount})`;
-		}
-		return `${file.originalName} is not a supported MangoHud CSV or CapFrameX JSON benchmark`;
-	}
-	return null;
-}
-
-function safeOriginalName(fileName: string): string {
-	return fileName.split(/[/\\]/).at(-1)?.trim() ?? '';
-}
