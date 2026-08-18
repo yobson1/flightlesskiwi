@@ -45,6 +45,7 @@
 		id = 'benchmark-files',
 		name = 'files'
 	}: Props = $props();
+	let fileInput = $state<HTMLInputElement | null>(null);
 
 	let displayedFiles = $derived.by(() => {
 		const removedIds = new Set(removedFileIds);
@@ -76,8 +77,30 @@
 		for (const [index, file] of Array.from(files).entries()) {
 			if (index !== indexToRemove) remainingFiles.items.add(file);
 		}
-		files = remainingFiles.files;
+		setFiles(remainingFiles.files);
 	}
+
+	function addFiles(event: Event) {
+		if (!(event.currentTarget instanceof HTMLInputElement)) return;
+
+		const accumulatedFiles = new DataTransfer();
+		for (const file of Array.from(files ?? [])) accumulatedFiles.items.add(file);
+		for (const file of Array.from(event.currentTarget.files ?? [])) {
+			accumulatedFiles.items.add(file);
+		}
+		setFiles(accumulatedFiles.files);
+	}
+
+	function setFiles(nextFiles: FileList) {
+		files = nextFiles;
+		if (fileInput) fileInput.files = nextFiles;
+	}
+
+	$effect(() => {
+		if (!fileInput) return;
+		if (files === undefined) fileInput.value = '';
+		else if (fileInput.files !== files) fileInput.files = files;
+	});
 
 	function removeDisplayedFile(file: DisplayBenchmarkFile) {
 		if (file.existingId !== undefined) {
@@ -122,6 +145,7 @@
 			</div>
 		</div>
 		<Input
+			bind:ref={fileInput}
 			{id}
 			{name}
 			type="file"
@@ -129,7 +153,7 @@
 			multiple
 			required={retainedExistingFileCount === 0}
 			{disabled}
-			bind:files
+			onchange={addFiles}
 		/>
 		{#each removedFileIds as removedFileId (removedFileId)}
 			<input type="hidden" name="removed_file_ids" value={removedFileId} />
