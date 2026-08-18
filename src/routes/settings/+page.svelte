@@ -244,7 +244,7 @@
 				<Card.Header>
 					<div class="flex items-center gap-3">
 						<div class="flex size-10 items-center justify-center rounded-lg bg-muted">
-							<Blobatar name={username} size={32} animate="always" />
+							<Blobatar name={username} size={32} animate="always" reactOnClick />
 						</div>
 						<div>
 							<Card.Title>Profile</Card.Title>
