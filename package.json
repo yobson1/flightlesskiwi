@@ -13,7 +13,9 @@
 	},
 	"type": "module",
 	"scripts": {
-		"dev": "bun --bun vite dev",
+		"dev": "bun run --parallel dev:app dev:search",
+		"dev:app": "bun --bun vite dev",
+		"dev:search": "meilisearch",
 		"build": "bun --bun vite build",
 		"build:binary": "bun run build && cp -R drizzle build/drizzle && cd build && bun build --compile ../scripts/compile-entry.ts --asset ./client --asset ./drizzle --outfile ../flightlesskiwi",
 		"preview": "bun --bun vite preview",
