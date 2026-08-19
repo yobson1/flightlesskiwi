@@ -19,7 +19,7 @@
         "@tailwindcss/vite": "^4.3.3",
         "apicalypse": "^1.0.5",
         "bits-ui": "^2.18.1",
-        "blobatar": "^1.0.0",
+        "blobatar": "^2.0.0",
         "clsx": "^2.1.1",
         "cronstrue": "^3.24.0",
         "drizzle-orm": "^0.45.2",
@@ -48,7 +48,7 @@
         "@internationalized/date": "^3.12.3",
         "@oxlint/plugins": "1.79.0",
         "@rsvelte/fmt": "^0.7.11",
-        "@rsvelte/lint": "^0.10.16",
+        "@rsvelte/lint": "^0.10.17",
         "@rsvelte/svelte-check": "^0.5.19",
         "@types/node": "^26.2.0",
         "@types/nodemailer": "^8.0.1",
@@ -319,17 +319,17 @@
 
     "@rsvelte/fmt-win32-x64-msvc": ["@rsvelte/fmt-win32-x64-msvc@0.7.11", "", { "os": "win32", "cpu": "x64" }, "sha512-UiynWt+MHGtudPiDDSZrXvccN0MkS10uTtg2Rzas6niKQUQrjhBsPTbqjmrlf0S3xnCaLz4+J4uC8tuPORGZrw=="],
 
-    "@rsvelte/lint": ["@rsvelte/lint@0.10.16", "", { "optionalDependencies": { "@rsvelte/lint-darwin-arm64": "^0.10.16", "@rsvelte/lint-darwin-x64": "^0.10.16", "@rsvelte/lint-linux-arm64-gnu": "^0.10.16", "@rsvelte/lint-linux-x64-gnu": "^0.10.16", "@rsvelte/lint-win32-x64-msvc": "^0.10.16" }, "bin": { "rsvelte-lint": "bin/rsvelte-lint" } }, "sha512-ld66s+BpxeQ7OxAlDPBd4tpZ3+z/NNb7D3/pt07VFT0eTfmRnyiXG0ZF0VNWSlm9N/Sh9bFG2xbFZHkx9Quu6w=="],
+    "@rsvelte/lint": ["@rsvelte/lint@0.10.17", "", { "optionalDependencies": { "@rsvelte/lint-darwin-arm64": "^0.10.17", "@rsvelte/lint-darwin-x64": "^0.10.17", "@rsvelte/lint-linux-arm64-gnu": "^0.10.17", "@rsvelte/lint-linux-x64-gnu": "^0.10.17", "@rsvelte/lint-win32-x64-msvc": "^0.10.17" }, "bin": { "rsvelte-lint": "bin/rsvelte-lint" } }, "sha512-V79c4pOiULftWcLw/QgVo/nHqzAcrTqcOGDRaS0zKedFmpjqXKUzF1+L+o4MzaG2myRCipfqThsn6QdIz9G/uw=="],
 
-    "@rsvelte/lint-darwin-arm64": ["@rsvelte/lint-darwin-arm64@0.10.16", "", { "os": "darwin", "cpu": "arm64" }, "sha512-4woxKTkQK8PSqYrPIl2u7ts0pa4BrW9OhPzZcJ9xkprIT8iVzF+cY84yg4U7GSbqf3CVrGDcHjDGz5WpovPxwQ=="],
+    "@rsvelte/lint-darwin-arm64": ["@rsvelte/lint-darwin-arm64@0.10.17", "", { "os": "darwin", "cpu": "arm64" }, "sha512-9jF+F8lVeMrdslX+PCLA6SJ8tvoJS6+EmvE/Blpy6oXoTeyVBBQfdmyJ7n0stpUq4jSzhyCDqLe9WvjypzgOgg=="],
 
-    "@rsvelte/lint-darwin-x64": ["@rsvelte/lint-darwin-x64@0.10.16", "", { "os": "darwin", "cpu": "x64" }, "sha512-iNHDHvp1mmvVUEmeeEUKzJBcGyrq68uO6OAe0FQCHBRHZEUpKrirk9VIyeShzyYTSgM3yiPh9U08EdhfukoR0g=="],
+    "@rsvelte/lint-darwin-x64": ["@rsvelte/lint-darwin-x64@0.10.17", "", { "os": "darwin", "cpu": "x64" }, "sha512-ljPf928/diSFjggZb1+JI6aGjEa/UBXgXwzEMWzpzUQqrK3Wlg2xHDjzhkE4Lqc/7sUid+cVfMWowG+PeA385Q=="],
 
-    "@rsvelte/lint-linux-arm64-gnu": ["@rsvelte/lint-linux-arm64-gnu@0.10.16", "", { "os": "linux", "cpu": "arm64" }, "sha512-BnDxseAEY9vPAQrA44N9iU4wta63O5Kqy60Vr/a5VIN9nhezLikhGtGZOFf06kRv8qDTMDajL8az0ogdR+q1YQ=="],
+    "@rsvelte/lint-linux-arm64-gnu": ["@rsvelte/lint-linux-arm64-gnu@0.10.17", "", { "os": "linux", "cpu": "arm64" }, "sha512-4z3FEkVfrZji5pqdGM7mh4qVZWyfWDfEjkbZ0/V83xAPKjmtACl+IxWqbmQBIBbkZpbwkXykVtwN+MPbUxoYpg=="],
 
-    "@rsvelte/lint-linux-x64-gnu": ["@rsvelte/lint-linux-x64-gnu@0.10.16", "", { "os": "linux", "cpu": "x64" }, "sha512-CO/2tBBhcGxfNqkI9vBspSY226d8JIRF9yN0m1oEC52I2zWSSF3eYHh640JVRa9r6bDmp9n/cBR4nDK0OqjKpw=="],
+    "@rsvelte/lint-linux-x64-gnu": ["@rsvelte/lint-linux-x64-gnu@0.10.17", "", { "os": "linux", "cpu": "x64" }, "sha512-lnoAS2oCIRR04JSCtvuYvw6mqrzaxUy7rx11icFmKl3+DxgDhEK87f/Xn8wOI/n7XMipmLzphx7uuuzUKqNYYA=="],
 
-    "@rsvelte/lint-win32-x64-msvc": ["@rsvelte/lint-win32-x64-msvc@0.10.16", "", { "os": "win32", "cpu": "x64" }, "sha512-mrhqWYGw5hhzJV/Ky0K9ct/sZO6IKf0HcLO2p//7sRbS+bJHGvLbxv5Heu/e45M1ECpwOyHvNHjYq5Mbpq2j8g=="],
+    "@rsvelte/lint-win32-x64-msvc": ["@rsvelte/lint-win32-x64-msvc@0.10.17", "", { "os": "win32", "cpu": "x64" }, "sha512-iuoMv4NJDWCJfJzQ7w2kJBwPsu/xmdUsClxPnIFbtaCJDwRBZ8H134bFzGGrKzo9QTpK6LgKrMf0DHixH/Qe6A=="],
 
     "@rsvelte/svelte-check": ["@rsvelte/svelte-check@0.5.19", "", { "optionalDependencies": { "@rsvelte/svelte-check-darwin-arm64": "^0.5.19", "@rsvelte/svelte-check-darwin-x64": "^0.5.19", "@rsvelte/svelte-check-linux-arm64-gnu": "^0.5.19", "@rsvelte/svelte-check-linux-x64-gnu": "^0.5.19", "@rsvelte/svelte-check-win32-x64-msvc": "^0.5.19" }, "bin": { "rsvelte-check": "bin/svelte-check.cjs" } }, "sha512-yyfsx36kAkiSZTBevGK2MIA9waleL2PFlIfsJUgZentQsPGK7aTriKFsIzcWV59VC9GJuPwerTlmyulpP5fQRg=="],
 
@@ -453,7 +453,7 @@
 
     "bits-ui": ["bits-ui@2.18.1", "", { "dependencies": { "@floating-ui/core": "^1.7.1", "@floating-ui/dom": "^1.7.1", "esm-env": "^1.1.2", "runed": "^0.35.1", "svelte-toolbelt": "^0.10.6", "tabbable": "^6.2.0" }, "peerDependencies": { "@internationalized/date": "^3.8.1", "svelte": "^5.33.0" } }, "sha512-KkemzKFH4T3gt3H+P86JcnAWExjByv/6vlwjm/BoCwTPHu03yiCdxbghdJLvFReQTe0acCAiRcKfmixxD6XvlA=="],
 
-    "blobatar": ["blobatar@1.0.0", "", { "peerDependencies": { "react": ">=18" }, "optionalPeers": ["react"] }, "sha512-Xl122ZzoiW18Z5sLDHwcZXtHGCQwB1hN9LyUYEdjqBLJltk8h0Ap//1RWq612eABNLE957tii3aBP7hzeRXdsQ=="],
+    "blobatar": ["blobatar@2.0.0", "", { "peerDependencies": { "react": ">=18" }, "optionalPeers": ["react"] }, "sha512-46STsjELfKv5hnnRYsWKgN1vlWFkaewSkwnqRRnptCD+LwxejfyXs1lYwek4fkwAtGrXabmJHP4fpzDxjnqAEg=="],
 
     "buffer-from": ["buffer-from@1.1.2", "", {}, "sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ=="],
 
