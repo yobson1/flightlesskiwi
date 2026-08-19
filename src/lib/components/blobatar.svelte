@@ -3,10 +3,8 @@
 	// Blobatar only exposes animated rendering through its React adapter. Keep this private
 	// renderer dependency isolated here until it provides a framework-neutral entry point.
 	import { _parts } from '../../../node_modules/blobatar/src/blobatar.ts';
-	import type { Animate, BlobatarOptions } from 'blobatar';
+	import type { Animate, BlobatarOptions, Expression } from 'blobatar';
 	import * as expressions from 'blobatar/expression';
-	import type { Expression } from 'blobatar/expression';
-	import { gen2 } from 'blobatar/generation';
 	import { blobatarUri } from 'blobatar/uri';
 	import { onDestroy } from 'svelte';
 	import type { HTMLImgAttributes, SVGAttributes } from 'svelte/elements';
@@ -40,7 +38,6 @@
 	let {
 		ref = $bindable(null),
 		name,
-		generation = gen2,
 		size,
 		background,
 		palette,
@@ -62,7 +59,6 @@
 	let reactionRelease: ReturnType<typeof setTimeout> | undefined;
 	let shownExpression = $derived(reactionExpression ?? expression);
 	let options = $derived({
-		generation,
 		size,
 		background,
 		palette,
