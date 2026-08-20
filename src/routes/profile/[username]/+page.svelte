@@ -1,26 +1,40 @@
 <script lang="ts">
+	import { pushState, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page as appPage } from '$app/state';
+	import {
+		BenchmarkPageCache,
+		normalizeBenchmarkPage,
+		type BenchmarkPagination,
+		type LoadedBenchmarkPage
+	} from '$lib/client/benchmark-page-cache.svelte';
 	import BenchmarkList from '$lib/components/benchmark-list.svelte';
 	import Blobatar from '$lib/components/blobatar.svelte';
 	import {
 		benchmarkPageResponseSchema,
 		type BenchmarkPageResponse
 	} from '$lib/types/benchmark-api';
-	import { untrack } from 'svelte';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
-	import { toast } from 'svelte-sonner';
+	import { onDestroy, untrack } from 'svelte';
+	import { SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { PageProps } from './$types';
 	import * as v from 'valibot';
 
 	let { data }: PageProps = $props();
 	const initialPage = untrack(() => data);
-	let benchmarks = $state([...initialPage.benchmarks]);
-	let nextCursor = $state(initialPage.nextCursor);
-	let loadingMore = $state(false);
-	let loadMoreFailed = $state(false);
-	let hasMore = $derived(nextCursor !== null && !loadMoreFailed);
+	const initialPagination = requirePagination(initialPage.pagination);
 	let loadedUsername = initialPage.profile.username;
-	let benchmarkListVersion = 0;
+	let benchmarkListVersion = $state(0);
+	let listInitialPage = $state(initialPagination.page);
+	const benchmarkPages = new BenchmarkPageCache(
+		{
+			benchmarks: [...initialPage.benchmarks],
+			pagination: initialPagination
+		},
+		fetchProfileBenchmarkPage
+	);
+	let requestedPage = $derived(Math.min(readURLPage(), benchmarkPages.pagination.totalPages));
+
+	onDestroy(() => benchmarkPages.destroy());
 
 	$effect.pre(() => {
 		const username = data.profile.username;
@@ -28,50 +42,51 @@
 
 		loadedUsername = username;
 		benchmarkListVersion += 1;
-		benchmarks = [...data.benchmarks];
-		nextCursor = data.nextCursor;
-		loadingMore = false;
-		loadMoreFailed = false;
+		const pagination = requirePagination(data.pagination);
+		listInitialPage = pagination.page;
+		benchmarkPages.reset(
+			{
+				benchmarks: [...data.benchmarks],
+				pagination
+			},
+			fetchProfileBenchmarkPage
+		);
 	});
 
-	function mapBenchmarkDates(page: BenchmarkPageResponse) {
-		return page.benchmarks.map((benchmark) => ({
-			...benchmark,
-			createdAt: new Date(benchmark.createdAt)
-		}));
+	async function fetchProfileBenchmarkPage(
+		pageNumber: number,
+		signal: AbortSignal
+	): Promise<LoadedBenchmarkPage> {
+		const username = data.profile.username;
+		const searchParams = new SvelteURLSearchParams({ page: pageNumber.toString() });
+		const endpoint = resolve('/api/profiles/[username]/benchmarks', { username });
+		const response = await fetch(`${endpoint}?${searchParams}`, { signal });
+		if (!response.ok) throw new Error('Unable to load benchmark page');
+		const result = v.safeParse(benchmarkPageResponseSchema, await response.json());
+		if (!result.success) throw new Error('Invalid benchmark page response');
+		return normalizeBenchmarkPage(result.output);
 	}
 
-	async function loadMore() {
-		if (loadingMore || nextCursor === null) return;
-		const cursor = nextCursor;
-		const username = data.profile.username;
-		const requestedListVersion = benchmarkListVersion;
-		loadingMore = true;
-		loadMoreFailed = false;
+	function handlePageChange(pageNumber: number, reason: 'control' | 'scroll') {
+		const url = new SvelteURL(window.location.href);
+		if (pageNumber === 1) url.searchParams.delete('page');
+		else url.searchParams.set('page', pageNumber.toString());
+		// SAFETY: this is the current application pathname with only its query changed.
+		const href = resolve(`${url.pathname}${url.search}` as '/');
+		if (reason === 'control') pushState(href, appPage.state);
+		else replaceState(href, appPage.state);
+	}
 
-		try {
-			const searchParams = new SvelteURLSearchParams({
-				before: cursor.createdAt.toString(),
-				before_id: cursor.id
-			});
-			const endpoint = resolve('/api/profiles/[username]/benchmarks', {
-				username
-			});
-			const response = await fetch(`${endpoint}?${searchParams}`);
-			if (!response.ok) throw new Error('Unable to load more benchmarks');
+	function readURLPage() {
+		const value = appPage.url.searchParams.get('page');
+		if (value === null) return 1;
+		const parsed = Number(value);
+		return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
+	}
 
-			const result = v.safeParse(benchmarkPageResponseSchema, await response.json());
-			if (!result.success) throw new Error('Invalid benchmark page response');
-			if (requestedListVersion !== benchmarkListVersion) return;
-			benchmarks = [...benchmarks, ...mapBenchmarkDates(result.output)];
-			nextCursor = result.output.nextCursor;
-		} catch (cause) {
-			if (requestedListVersion !== benchmarkListVersion) return;
-			loadMoreFailed = true;
-			toast.error(cause instanceof Error ? cause.message : 'Unable to load more benchmarks');
-		} finally {
-			if (requestedListVersion === benchmarkListVersion) loadingMore = false;
-		}
+	function requirePagination(pagination: BenchmarkPageResponse['pagination']): BenchmarkPagination {
+		if (pagination === null) throw new Error('Missing benchmark pagination metadata');
+		return pagination;
 	}
 </script>
 
@@ -102,23 +117,24 @@
 			</p>
 		</div>
 
-		{#if benchmarks.length > 0}
-			{#key data.profile.username}
+		{#if benchmarkPages.pagination.totalCount > 0}
+			{#key `${data.profile.username}:${benchmarkListVersion}`}
 				<BenchmarkList
-					{benchmarks}
-					onLoadMore={loadMore}
-					{hasMore}
+					benchmarks={[]}
+					pagination={{
+						benchmarks: benchmarkPages.benchmarks,
+						indices: benchmarkPages.indices,
+						initialPage: listInitialPage,
+						pageSize: benchmarkPages.pagination.pageSize,
+						requestedPage,
+						totalCount: benchmarkPages.pagination.totalCount,
+						totalPages: benchmarkPages.pagination.totalPages,
+						loadPageWindow: (pageNumber) => benchmarkPages.loadPageWindow(pageNumber),
+						onPageChange: handlePageChange
+					}}
 					viewportLabel={`${data.profile.username}'s benchmarks`}
 				/>
 			{/key}
-			{#if loadMoreFailed}
-				<p class="text-center text-sm text-muted-foreground">
-					Couldn’t load more benchmarks.
-					<button type="button" class="font-medium text-primary hover:underline" onclick={loadMore}>
-						Try again
-					</button>
-				</p>
-			{/if}
 		{:else}
 			<div class="rounded-xl border border-dashed p-8 text-center">
 				<h2 class="font-semibold">No benchmarks yet</h2>

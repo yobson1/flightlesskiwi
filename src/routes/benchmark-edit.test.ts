@@ -30,6 +30,7 @@ mock.module('$lib/server/benchmark-run', () => ({
 		contents?.startsWith('valid') ? { source: 'mangohud' } : null
 }));
 mock.module('$lib/server/benchmark-files', () => ({
+	readBenchmarkFilePrefix: async () => '',
 	deleteBenchmarkFiles: async (fileIds: string[]) => {
 		deletedFileBatches.push([...fileIds]);
 	},

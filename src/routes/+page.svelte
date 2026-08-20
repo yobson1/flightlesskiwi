@@ -1,7 +1,16 @@
 <script lang="ts">
 	import FilterIcon from '@lucide/svelte/icons/list-filter';
 	import XIcon from '@lucide/svelte/icons/x';
+	import { invalidateAll, pushState, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page as appPage } from '$app/state';
+	import {
+		BenchmarkPageCache,
+		normalizeBenchmarkPage,
+		type BenchmarkListing,
+		type BenchmarkPagination,
+		type LoadedBenchmarkPage
+	} from '$lib/client/benchmark-page-cache.svelte';
 	import BenchmarkList from '$lib/components/benchmark-list.svelte';
 	import GameSearch from '$lib/components/game-search.svelte';
 	import Search from '$lib/components/search.svelte';
@@ -16,33 +25,54 @@
 	} from '$lib/types/benchmark-api';
 	import type { GameSearchResult } from '$lib/types/game';
 	import { onDestroy, untrack } from 'svelte';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import { SvelteMap, SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import type { PageProps } from './$types';
 	import * as v from 'valibot';
 
 	let { data }: PageProps = $props();
 	const initialPage = untrack(() => data);
-	let benchmarks = $state([...initialPage.benchmarks]);
-	let browsedBenchmarks = $state([...initialPage.benchmarks]);
-	let nextCursor = $state(initialPage.nextCursor);
-	let loadingMore = $state(false);
-	let loadMoreFailed = $state(false);
+	const initialPagination = requirePagination(initialPage.pagination);
+	let searchResults = $state<BenchmarkListing[]>([]);
 	let activeSearchQuery = $state('');
-	let selectedGame = $state<GameSearchResult | null>(null);
+	let selectedGame = $state<GameSearchResult | null>(initialPage.selectedGame);
 	let gameFilterOpen = $state(false);
 	let loadingGameFilter = $state(false);
 	let benchmarkSearchKey = $state(0);
 	let filterController: AbortController | undefined;
-	let benchmarkListVersion = 0;
-	let hasMore = $derived(
-		activeSearchQuery.length === 0 && nextCursor !== null && !loadMoreFailed && !loadingGameFilter
+	let benchmarkListVersion = $state(0);
+	let listInitialPage = $state(initialPagination.page);
+	const knownGames = new SvelteMap<number, GameSearchResult>();
+	if (initialPage.selectedGame)
+		knownGames.set(initialPage.selectedGame.id, initialPage.selectedGame);
+	const benchmarkPages = new BenchmarkPageCache(
+		{
+			benchmarks: [...initialPage.benchmarks],
+			pagination: initialPagination
+		},
+		fetchActiveBenchmarkPage
+	);
+	let requestedPage = $derived(
+		Math.min(readURLPositiveInteger('page') ?? 1, benchmarkPages.pagination.totalPages)
 	);
 
-	type Benchmark = (typeof benchmarks)[number];
-	onDestroy(() => filterController?.abort());
+	onDestroy(() => {
+		filterController?.abort();
+		benchmarkPages.destroy();
+	});
 
-	async function searchBenchmarks(query: string, signal: AbortSignal): Promise<Benchmark[]> {
+	$effect(() => {
+		const urlGameId = readURLPositiveInteger('game_id') ?? null;
+		if (urlGameId === (selectedGame?.id ?? null) || loadingGameFilter) return;
+		const restoredGame = urlGameId === null ? null : knownGames.get(urlGameId);
+		if (urlGameId !== null && !restoredGame) {
+			void invalidateAll();
+			return;
+		}
+		void applyGameFilter(restoredGame ?? null, false, readURLPositiveInteger('page') ?? 1);
+	});
+
+	async function searchBenchmarks(query: string, signal: AbortSignal): Promise<BenchmarkListing[]> {
 		const searchParams = new SvelteURLSearchParams();
 		if (selectedGame) searchParams.set('game_id', selectedGame.id.toString());
 		const searchSuffix = searchParams.size > 0 ? `?${searchParams}` : '';
@@ -61,74 +91,75 @@
 		}
 		const result = v.safeParse(benchmarkSearchResponseSchema, data);
 		if (!result.success) throw new Error('Invalid benchmark search response');
-		return mapBenchmarkDates({ benchmarks: result.output, nextCursor: null });
+		return mapBenchmarkDates(result.output);
 	}
 
-	function setSearchResults(query: string, results: Benchmark[]) {
+	function setSearchResults(query: string, results: BenchmarkListing[]) {
 		activeSearchQuery = query;
-		benchmarks = results;
-		loadMoreFailed = false;
+		searchResults = results;
 	}
 
 	function setActiveSearchQuery(query: string) {
-		if (activeSearchQuery.length === 0 && query.length > 0) {
-			browsedBenchmarks = [...benchmarks];
-		}
 		activeSearchQuery = query;
 	}
 
 	function resetBenchmarkList() {
 		activeSearchQuery = '';
-		benchmarks = [...browsedBenchmarks];
-		loadMoreFailed = false;
+		searchResults = [];
 	}
 
-	function mapBenchmarkDates(page: BenchmarkPageResponse) {
-		return page.benchmarks.map((benchmark) => ({
+	function mapBenchmarkDates(benchmarks: BenchmarkPageResponse['benchmarks']) {
+		return benchmarks.map((benchmark) => ({
 			...benchmark,
 			createdAt: new Date(benchmark.createdAt)
 		}));
 	}
 
-	async function applyGameFilter(game: GameSearchResult | null) {
+	async function fetchBenchmarkPage(
+		pageNumber: number,
+		gameId: number | undefined,
+		signal: AbortSignal
+	): Promise<LoadedBenchmarkPage> {
+		const searchParams = new SvelteURLSearchParams({ page: pageNumber.toString() });
+		if (gameId !== undefined) searchParams.set('game_id', gameId.toString());
+		const response = await fetch(`${resolve('/api/benchmarks')}?${searchParams}`, { signal });
+		const responseData: unknown = await response.json();
+		if (!response.ok) {
+			const errorResult = v.safeParse(benchmarkAPIErrorSchema, responseData);
+			throw new Error(
+				errorResult.success && errorResult.output.message
+					? errorResult.output.message
+					: `Unable to load benchmark page (${response.status})`
+			);
+		}
+		const pageResult = v.safeParse(benchmarkPageResponseSchema, responseData);
+		if (!pageResult.success) throw new Error('Invalid benchmark page response');
+		return normalizeBenchmarkPage(pageResult.output);
+	}
+
+	function fetchActiveBenchmarkPage(pageNumber: number, signal: AbortSignal) {
+		return fetchBenchmarkPage(pageNumber, selectedGame?.id, signal);
+	}
+
+	async function applyGameFilter(game: GameSearchResult | null, updateURL = true, pageNumber = 1) {
 		filterController?.abort();
 		const controller = new AbortController();
 		filterController = controller;
-		benchmarkListVersion += 1;
-		selectedGame = game;
 		gameFilterOpen = false;
-		benchmarkSearchKey += 1;
-		activeSearchQuery = '';
-		benchmarks = [];
-		browsedBenchmarks = [];
-		nextCursor = null;
-		loadMoreFailed = false;
 		loadingGameFilter = true;
 
 		try {
-			const searchParams = new SvelteURLSearchParams();
-			if (game) searchParams.set('game_id', game.id.toString());
-			const suffix = searchParams.size > 0 ? `?${searchParams}` : '';
-			const response = await fetch(`${resolve('/api/benchmarks')}${suffix}`, {
-				signal: controller.signal
-			});
-			const data: unknown = await response.json();
-			if (!response.ok) {
-				const errorResult = v.safeParse(benchmarkAPIErrorSchema, data);
-				throw new Error(
-					errorResult.success && errorResult.output.message
-						? errorResult.output.message
-						: 'Unable to apply the game filter'
-				);
-			}
-			const pageResult = v.safeParse(benchmarkPageResponseSchema, data);
-			if (!pageResult.success) throw new Error('Invalid benchmark page response');
-			const page = pageResult.output;
-			if (controller.signal.aborted || activeSearchQuery) return;
-
-			benchmarks = mapBenchmarkDates(page);
-			browsedBenchmarks = [...benchmarks];
-			nextCursor = page.nextCursor;
+			const loadedPage = await fetchBenchmarkPage(pageNumber, game?.id, controller.signal);
+			if (controller.signal.aborted) return;
+			if (game) knownGames.set(game.id, game);
+			selectedGame = game;
+			benchmarkPages.reset(loadedPage, fetchActiveBenchmarkPage);
+			listInitialPage = loadedPage.pagination.page;
+			benchmarkListVersion += 1;
+			benchmarkSearchKey += 1;
+			activeSearchQuery = '';
+			searchResults = [];
+			if (updateURL) updateFilterURL(game);
 		} catch (cause) {
 			if (cause instanceof Error && cause.name === 'AbortError') return;
 			toast.error(cause instanceof Error ? cause.message : 'Unable to apply the game filter');
@@ -144,34 +175,38 @@
 		void applyGameFilter(game);
 	}
 
-	async function loadMore() {
-		if (loadingMore || loadingGameFilter || nextCursor === null || activeSearchQuery) return;
-		const requestedListVersion = benchmarkListVersion;
-		loadingMore = true;
-		loadMoreFailed = false;
+	function handlePageChange(pageNumber: number, reason: 'control' | 'scroll') {
+		const url = new SvelteURL(window.location.href);
+		if (pageNumber === 1) url.searchParams.delete('page');
+		else url.searchParams.set('page', pageNumber.toString());
+		// SAFETY: this is the current application pathname with only its query changed.
+		const href = resolve(`${url.pathname}${url.search}` as '/');
+		if (reason === 'control') pushState(href, appPage.state);
+		else replaceState(href, appPage.state);
+	}
 
-		try {
-			const searchParams = new SvelteURLSearchParams({
-				before: nextCursor.createdAt.toString(),
-				before_id: nextCursor.id
-			});
-			if (selectedGame) searchParams.set('game_id', selectedGame.id.toString());
-			const response = await fetch(`${resolve('/api/benchmarks')}?${searchParams}`);
-			if (!response.ok) throw new Error('Unable to load more benchmarks');
+	function updateFilterURL(game: GameSearchResult | null) {
+		const url = new SvelteURL(window.location.href);
+		url.searchParams.delete('page');
+		if (game) url.searchParams.set('game_id', game.id.toString());
+		else url.searchParams.delete('game_id');
+		// SAFETY: this is the current application pathname with only its query changed.
+		replaceState(resolve(`${url.pathname}${url.search}` as '/'), appPage.state);
+	}
 
-			const pageResult = v.safeParse(benchmarkPageResponseSchema, await response.json());
-			if (!pageResult.success) throw new Error('Invalid benchmark page response');
-			const page = pageResult.output;
-			if (activeSearchQuery || requestedListVersion !== benchmarkListVersion) return;
-			benchmarks = [...benchmarks, ...mapBenchmarkDates(page)];
-			browsedBenchmarks = [...benchmarks];
-			nextCursor = page.nextCursor;
-		} catch (cause) {
-			loadMoreFailed = true;
-			toast.error(cause instanceof Error ? cause.message : 'Unable to load more benchmarks');
-		} finally {
-			loadingMore = false;
-		}
+	function readURLPositiveInteger(name: string): number | null {
+		const value = appPage.url.searchParams.get(name);
+		if (value === null) return null;
+		const result = v.safeParse(
+			v.pipe(v.string(), v.regex(/^[1-9]\d*$/), v.transform(Number), v.safeInteger()),
+			value
+		);
+		return result.success ? result.output : null;
+	}
+
+	function requirePagination(pagination: BenchmarkPageResponse['pagination']): BenchmarkPagination {
+		if (pagination === null) throw new Error('Missing benchmark pagination metadata');
+		return pagination;
 	}
 </script>
 
@@ -261,12 +296,23 @@
 		<div class="rounded-xl border border-dashed p-8 text-center">
 			<p class="text-sm text-muted-foreground">Loading benchmark results…</p>
 		</div>
-	{:else if benchmarks.length > 0}
-		{#key activeSearchQuery}
+	{:else if activeSearchQuery ? searchResults.length > 0 : benchmarkPages.pagination.totalCount > 0}
+		{#key `${activeSearchQuery}:${benchmarkListVersion}`}
 			<BenchmarkList
-				{benchmarks}
-				onLoadMore={loadMore}
-				{hasMore}
+				benchmarks={activeSearchQuery ? searchResults : []}
+				pagination={activeSearchQuery
+					? undefined
+					: {
+							benchmarks: benchmarkPages.benchmarks,
+							indices: benchmarkPages.indices,
+							initialPage: listInitialPage,
+							pageSize: benchmarkPages.pagination.pageSize,
+							requestedPage,
+							totalCount: benchmarkPages.pagination.totalCount,
+							totalPages: benchmarkPages.pagination.totalPages,
+							loadPageWindow: (pageNumber) => benchmarkPages.loadPageWindow(pageNumber),
+							onPageChange: handlePageChange
+						}}
 				viewportLabel={activeSearchQuery
 					? 'Benchmark search results'
 					: selectedGame
@@ -274,14 +320,6 @@
 						: 'Recent benchmarks'}
 			/>
 		{/key}
-		{#if loadMoreFailed}
-			<p class="text-center text-sm text-muted-foreground">
-				Couldn’t load more benchmarks.
-				<button type="button" class="font-medium text-primary hover:underline" onclick={loadMore}>
-					Try again
-				</button>
-			</p>
-		{/if}
 	{:else}
 		<div class="rounded-xl border border-dashed p-8 text-center">
 			{#if activeSearchQuery}

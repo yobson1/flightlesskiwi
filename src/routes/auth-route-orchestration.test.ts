@@ -47,7 +47,9 @@ mock.module('$lib/server/auth/oauth', () => ({
 	}
 }));
 mock.module('$lib/server/benchmark-files', () => ({
-	deleteBenchmarkFiles: async () => {}
+	readBenchmarkFilePrefix: async () => '',
+	deleteBenchmarkFiles: async () => {},
+	writeBenchmarkFiles: async () => {}
 }));
 mock.module('$lib/server/benchmark-search', () => ({
 	flushBenchmarkSearchQueue: async () => {},

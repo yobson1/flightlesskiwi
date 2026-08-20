@@ -46,6 +46,10 @@ const {
 
 export { flushGameSearchQueue, prepareGameSearch, queueGamesForSearch };
 
+export function getGameSearchResult(gameId: number): GameSearchResult | null {
+	return getDocuments([gameId]).at(0) ?? null;
+}
+
 function getDocuments(gameIds: number[]) {
 	const rows = db
 		.select({

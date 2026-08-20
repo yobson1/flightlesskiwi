@@ -1,14 +1,45 @@
-import { and, asc, desc, eq, inArray, lt, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, lt, or } from 'drizzle-orm';
 import { parseBenchmarkSystemInfo } from '$lib/benchmark-run';
 import { readBenchmarkFilePrefix } from '$lib/server/benchmark-files';
 import { db } from '$lib/server/db';
 import { benchmarkFile, benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
+import * as v from 'valibot';
 
 export const PUBLIC_BENCHMARK_PAGE_SIZE = 30;
 
 export interface PublicBenchmarkCursor {
 	createdAt: number;
 	id: string;
+}
+
+const positiveIntegerSearchParamSchema = v.pipe(
+	v.string(),
+	v.regex(/^[1-9]\d*$/),
+	v.transform(Number),
+	v.safeInteger(),
+	v.minValue(1)
+);
+
+function parsePositiveIntegerSearchParam(
+	searchParams: URLSearchParams,
+	name: string
+): number | undefined | false {
+	const value = searchParams.get(name);
+	if (value === null) return undefined;
+	const result = v.safeParse(positiveIntegerSearchParamSchema, value);
+	return result.success ? result.output : false;
+}
+
+export function parsePublicBenchmarkPage(
+	searchParams: URLSearchParams
+): number | undefined | false {
+	return parsePositiveIntegerSearchParam(searchParams, 'page');
+}
+
+export function parsePublicBenchmarkGameId(
+	searchParams: URLSearchParams
+): number | undefined | false {
+	return parsePositiveIntegerSearchParam(searchParams, 'game_id');
 }
 
 export function parsePublicBenchmarkCursor(
@@ -30,6 +61,7 @@ export function parsePublicBenchmarkCursor(
 interface PublicBenchmarkPageOptions {
 	cursor?: PublicBenchmarkCursor;
 	gameId?: number;
+	page?: number;
 	userId?: string;
 }
 
@@ -110,7 +142,16 @@ export async function getBenchmarkRunMetadata(benchmarkIds: string[]) {
 }
 
 export async function getPublicBenchmarksPage(options: PublicBenchmarkPageOptions = {}) {
-	const { cursor, gameId, userId } = options;
+	const { cursor, gameId, page = 1, userId } = options;
+	const filterCondition = and(
+		gameId === undefined ? undefined : eq(benchmarkResult.gameId, gameId),
+		userId === undefined ? undefined : eq(benchmarkResult.userId, userId)
+	);
+	const totalCount =
+		db.select({ totalCount: count() }).from(benchmarkResult).where(filterCondition).get()
+			?.totalCount ?? 0;
+	const totalPages = Math.max(1, Math.ceil(totalCount / PUBLIC_BENCHMARK_PAGE_SIZE));
+	const resolvedPage = Math.min(page, totalPages);
 	const cursorCondition = cursor
 		? or(
 				lt(benchmarkResult.createdAt, new Date(cursor.createdAt)),
@@ -121,7 +162,7 @@ export async function getPublicBenchmarksPage(options: PublicBenchmarkPageOption
 			)
 		: undefined;
 
-	const rows = db
+	const query = db
 		.select({
 			id: benchmarkResult.id,
 			title: benchmarkResult.title,
@@ -134,18 +175,17 @@ export async function getPublicBenchmarksPage(options: PublicBenchmarkPageOption
 		.innerJoin(user, eq(benchmarkResult.userId, user.id))
 		.innerJoin(game, eq(benchmarkResult.gameId, game.id))
 		.leftJoin(gameName, and(eq(gameName.gameId, game.id), eq(gameName.isPrimary, true)))
-		.where(
-			and(
-				cursorCondition,
-				gameId === undefined ? undefined : eq(benchmarkResult.gameId, gameId),
-				userId === undefined ? undefined : eq(benchmarkResult.userId, userId)
-			)
-		)
+		.where(and(cursorCondition, filterCondition))
 		.orderBy(desc(benchmarkResult.createdAt), desc(benchmarkResult.id))
-		.limit(PUBLIC_BENCHMARK_PAGE_SIZE + 1)
-		.all();
+		.$dynamic();
+	const rows = cursor
+		? query.limit(PUBLIC_BENCHMARK_PAGE_SIZE + 1).all()
+		: query
+				.limit(PUBLIC_BENCHMARK_PAGE_SIZE)
+				.offset((resolvedPage - 1) * PUBLIC_BENCHMARK_PAGE_SIZE)
+				.all();
 
-	const hasMore = rows.length > PUBLIC_BENCHMARK_PAGE_SIZE;
+	const hasMore = cursor ? rows.length > PUBLIC_BENCHMARK_PAGE_SIZE : resolvedPage < totalPages;
 	const pageRows = hasMore ? rows.slice(0, PUBLIC_BENCHMARK_PAGE_SIZE) : rows;
 	const runMetadata = await getBenchmarkRunMetadata(pageRows.map(({ id }) => id));
 	const benchmarks = pageRows.map((benchmark) => {
@@ -166,6 +206,14 @@ export async function getPublicBenchmarksPage(options: PublicBenchmarkPageOption
 						createdAt: lastBenchmark.createdAt.getTime(),
 						id: lastBenchmark.id
 					}
-				: null
+				: null,
+		pagination: cursor
+			? null
+			: {
+					page: resolvedPage,
+					pageSize: PUBLIC_BENCHMARK_PAGE_SIZE,
+					totalCount,
+					totalPages
+				}
 	};
 }

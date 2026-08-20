@@ -20,6 +20,14 @@ export const benchmarkPageResponseSchema = v.object({
 			createdAt: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
 			id: v.string()
 		})
+	),
+	pagination: v.nullable(
+		v.object({
+			page: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+			pageSize: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+			totalCount: v.pipe(v.number(), v.safeInteger(), v.minValue(0)),
+			totalPages: v.pipe(v.number(), v.safeInteger(), v.minValue(1))
+		})
 	)
 });
 
