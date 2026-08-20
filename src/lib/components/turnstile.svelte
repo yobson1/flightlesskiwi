@@ -30,7 +30,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { TURNSTILE_ACTION } from '$lib/turnstile';
+	import { TURNSTILE_ACTION } from '#lib/turnstile.js';
 
 	interface Props {
 		siteKey?: string | null;

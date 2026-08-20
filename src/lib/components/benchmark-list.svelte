@@ -4,9 +4,9 @@
 	import { onMount, untrack } from 'svelte';
 	import type { SvelteMap } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
-	import BenchmarkPagination from '$lib/components/benchmark-pagination.svelte';
-	import BenchmarkListing from '$lib/components/benchmark-listing.svelte';
-	import type { BenchmarkListing as Benchmark } from '$lib/client/benchmark-page-cache.svelte';
+	import BenchmarkPagination from '#lib/components/benchmark-pagination.svelte';
+	import BenchmarkListing from '#lib/components/benchmark-listing.svelte';
+	import type { BenchmarkListing as Benchmark } from '#lib/client/benchmark-page-cache.svelte.js';
 
 	interface SparsePagination {
 		benchmarks: SvelteMap<number, Benchmark>;

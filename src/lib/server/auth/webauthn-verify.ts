@@ -5,7 +5,7 @@ import {
 	type AuthenticationResponseJSON
 } from '@simplewebauthn/server';
 import { decodeClientDataJSON } from '@simplewebauthn/server/helpers';
-import { decodeBase64url, encodeBase64url } from '$lib/encoding';
+import { decodeBase64url, encodeBase64url } from '#lib/encoding.js';
 import {
 	getPasskeyCredential,
 	getUserPasskeyCredential,
@@ -14,9 +14,9 @@ import {
 	updatePasskeyCounter,
 	WEBAUTHN_SUPPORTED_ALGORITHM_IDS,
 	type WebAuthnUserCredential
-} from '$lib/server/auth/webauthn';
-import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
-import { parseAuthenticationResponse, parseRegistrationResponse } from '$lib/webauthn-json';
+} from '#lib/server/auth/webauthn.js';
+import type { WebAuthnChallengePurpose } from '#lib/types/webauthn.js';
+import { parseAuthenticationResponse, parseRegistrationResponse } from '#lib/webauthn-json.js';
 
 export async function verifyWebAuthnAssertionRequest(
 	request: Request,

@@ -1,7 +1,7 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
-import { decodeBase64url, encodeBase64url } from '$lib/encoding';
-import { decryptToString, encryptString } from '$lib/server/auth/encryption';
+import { decodeBase64url, encodeBase64url } from '#lib/encoding.js';
+import { decryptToString, encryptString } from '#lib/server/auth/encryption.js';
 import * as v from 'valibot';
 
 const recoveryCodeCookieName = 'recovery_code_setup';

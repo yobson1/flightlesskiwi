@@ -1,9 +1,9 @@
-import { authError, authSuccess, verifyPasskeyRequest } from '$lib/server/auth/api';
+import { authError, authSuccess, verifyPasskeyRequest } from '#lib/server/auth/api.js';
 import {
 	getPasswordResetState,
 	setPasswordResetSessionAs2FAVerified,
 	validatePasswordResetSessionRequest
-} from '$lib/server/auth/password-reset';
+} from '#lib/server/auth/password-reset.js';
 import type { RequestEvent } from './$types';
 
 export async function POST(event: RequestEvent) {

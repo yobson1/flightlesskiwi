@@ -1,4 +1,4 @@
-import type { BenchmarkMetric, BenchmarkMetricKey, BenchmarkRun } from '$lib/benchmark-run';
+import type { BenchmarkMetric, BenchmarkMetricKey, BenchmarkRun } from '#lib/benchmark-run.js';
 import * as v from 'valibot';
 
 export interface BenchmarkChartRun {

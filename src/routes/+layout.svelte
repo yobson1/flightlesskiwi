@@ -1,14 +1,13 @@
 <script lang="ts">
 	import '../app.css';
 	import { browser, version } from '$app/env';
-	import { invalidateAll, replaceState } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount, untrack } from 'svelte';
 	import { SvelteURL } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import SimpleIconsGithub from '~icons/simple-icons/github';
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '#lib/assets/favicon.svg';
 	import {
 		authModalDataEndpoint,
 		authModalDataMethod,
@@ -16,26 +15,27 @@
 		parseAuthModalHash,
 		provideAuthModal,
 		type AuthModalOpenOptions
-	} from '$lib/auth-modal';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { configureAuthTurnstile } from '$lib/client/auth-turnstile';
-	import { setupNavigationCursor } from '$lib/client/navigation-cursor';
-	import AuthModal from '$lib/components/auth-modal.svelte';
-	import Nav from '$lib/components/nav.svelte';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Toaster } from '$lib/components/ui/sonner/index.js';
-	import Wordmark from '$lib/components/wordmark.svelte';
-	import type { AuthAPIResponse, AuthModalView, ClientAuthState } from '$lib/types/auth';
+	} from '#lib/auth-modal.js';
+	import { authRequest, AuthAPIError } from '#lib/client/auth-api.js';
+	import { configureAuthTurnstile } from '#lib/client/auth-turnstile.js';
+	import { setupNavigationCursor } from '#lib/client/navigation-cursor.js';
+	import AuthModal from '#lib/components/auth-modal.svelte';
+	import Nav from '#lib/components/nav.svelte';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import { Toaster } from '#lib/components/ui/sonner/index.js';
+	import Wordmark from '#lib/components/wordmark.svelte';
+	import type { AuthAPIResponse, AuthModalView, ClientAuthState } from '#lib/types/auth.js';
 	import {
 		getOAuthErrorMessage,
 		getOAuthProviderName,
 		parseOAuthErrorCode,
 		parseOAuthProvider
-	} from '$lib/types/oauth';
+	} from '#lib/types/oauth.js';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutProps } from './$types';
 
 	type ModalSource = 'hash' | 'programmatic' | 'required';
+	type URLSearchReader = { searchParams: Pick<URLSearchParams, 'get'> };
 
 	let { children, data }: LayoutProps = $props();
 	const initialView = untrack(() => requiredAuthModal(data.auth));
@@ -101,14 +101,14 @@
 		replaceHistoryURL(url);
 	}
 
-	function readOAuthErrorMessage(url: URL): string | null {
+	function readOAuthErrorMessage(url: URLSearchReader): string | null {
 		const code = parseOAuthErrorCode(url.searchParams.get('oauth_error'));
 		if (code === null) return null;
 		const provider = parseOAuthProvider(url.searchParams.get('oauth_provider'));
 		return getOAuthErrorMessage(code, provider);
 	}
 
-	function readOAuthConnectedMessage(url: URL): string | null {
+	function readOAuthConnectedMessage(url: URLSearchReader): string | null {
 		const provider = parseOAuthProvider(url.searchParams.get('oauth_connected'));
 		return provider !== null
 			? `${getOAuthProviderName(provider)} connected as a sign-in method.`
@@ -210,7 +210,7 @@
 	async function handleComplete(next: AuthModalView | null) {
 		const completedView = authView;
 		const continuation = modalOptions.onComplete;
-		await invalidateAll();
+		await refreshAll();
 		if (
 			completedView === 'reauth' &&
 			next === null &&
@@ -263,10 +263,8 @@
 	}
 
 	function replaceHistoryURL(url: SvelteURL) {
-		const path =
-			// SAFETY: this value is the current application pathname with only its query and hash changed.
-			`${url.pathname}${url.search}${url.hash}` as '/';
-		replaceState(resolve(path), page.state);
+		// This is the current application URL with only its query and hash changed.
+		void goto(url, { shallow: true, replace: true, state: page.state });
 	}
 </script>
 
@@ -296,12 +294,18 @@
 		<Separator />
 		<div class="mx-auto flex w-full max-w-7xl items-center justify-between p-4">
 			<div class="flex items-center gap-2">
-				<p>&copy; {currentYear} flightlesskiwi <span class="text-xs">v{version}</span></p>
+				<p>
+					© {currentYear} flightlesskiwi
+					<span class="text-xs">v{version}</span>
+				</p>
 			</div>
 			<nav class="flex items-center gap-4" aria-label="Footer">
-				<a href="/privacy" class="text-sm transition-colors hover:text-foreground"> Privacy </a>
-				<a href="/status" class="text-sm transition-colors hover:text-foreground"> Status </a>
-				<a href="/help" class="text-sm transition-colors hover:text-foreground"> About </a>
+				<a href="/privacy" class="text-sm transition-colors hover:text-foreground">Privacy</a>
+
+				<a href="/status" class="text-sm transition-colors hover:text-foreground">Status</a>
+
+				<a href="/help" class="text-sm transition-colors hover:text-foreground">About</a>
+
 				<a
 					href="https://github.com/yobson1/flightlesskiwi"
 					target="_blank"

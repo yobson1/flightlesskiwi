@@ -1,19 +1,19 @@
-import { error as logError } from '$lib/logger';
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '$lib/auth-constants';
-import { createSessionAndSetCookie } from '$lib/server/auth';
-import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
+import { error as logError } from '#lib/logger.js';
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '#lib/auth-constants.js';
+import { createSessionAndSetCookie } from '#lib/server/auth.js';
+import { authError, authSuccess, getClientIP } from '#lib/server/auth/api.js';
 import {
 	checkCodeEmailSendRateLimit,
 	CodeEmailRateLimitError,
 	getCodeEmailSendRetryAfterSeconds,
 	sendVerificationEmail
-} from '$lib/server/auth/email';
+} from '#lib/server/auth/email.js';
 import {
 	createEmailVerificationRequest,
 	setEmailVerificationRequestCookie
-} from '$lib/server/auth/email-verification';
-import { verifyPasswordStrength } from '$lib/server/auth/password';
-import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
+} from '#lib/server/auth/email-verification.js';
+import { verifyPasswordStrength } from '#lib/server/auth/password.js';
+import { RefillingTokenBucket } from '#lib/server/auth/rate-limit.js';
 import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
@@ -22,7 +22,7 @@ import {
 	normalizeEmail,
 	verifyEmailInput,
 	verifyUsernameInput
-} from '$lib/server/auth/user';
+} from '#lib/server/auth/user.js';
 import type { RequestEvent } from './$types';
 import * as v from 'valibot';
 

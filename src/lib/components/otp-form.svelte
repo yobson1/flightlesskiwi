@@ -11,19 +11,19 @@
 		MAX_RECOVERY_CODE_LENGTH,
 		TOTP_CODE_LENGTH,
 		TOTP_CODE_LENGTH_WORD
-	} from '$lib/auth-constants';
-	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
-	import { formDataFromSubmitEvent } from '$lib/client/forms';
-	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
-	import ResendCodeButton from '$lib/components/resend-code-button.svelte';
+	} from '#lib/auth-constants.js';
+	import { authRequest, AuthAPIError, computeResendAvailableAt } from '#lib/client/auth-api.js';
+	import { formDataFromSubmitEvent } from '#lib/client/forms.js';
+	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '#lib/client/webauthn.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as InputOTP from '#lib/components/ui/input-otp/index.js';
+	import ResendCodeButton from '#lib/components/resend-code-button.svelte';
 	import type { ComponentProps } from 'svelte';
-	import type { AuthModalView } from '$lib/types/auth';
+	import type { AuthModalView } from '#lib/types/auth.js';
 
 	interface Props extends ComponentProps<typeof Card.Root> {
 		kind?: 'email' | 'login-2fa' | 'password-reset';

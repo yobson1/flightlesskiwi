@@ -9,10 +9,10 @@ import {
 	WEBAUTHN_ORIGIN
 } from '$app/env/private';
 import type { RequestEvent } from '@sveltejs/kit';
-import { decodeBase64url, encodeBase64url } from '$lib/encoding';
-import { decryptToString, encryptString } from '$lib/server/auth/encryption';
-import * as oauth from '$lib/server/oauth';
-import { OAUTH_PROVIDERS, type OAuthErrorCode, type OAuthProvider } from '$lib/types/oauth';
+import { decodeBase64url, encodeBase64url } from '#lib/encoding.js';
+import { decryptToString, encryptString } from '#lib/server/auth/encryption.js';
+import * as oauth from '#lib/server/oauth.js';
+import { OAUTH_PROVIDERS, type OAuthErrorCode, type OAuthProvider } from '#lib/types/oauth.js';
 import * as v from 'valibot';
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;

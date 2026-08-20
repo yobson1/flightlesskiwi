@@ -4,16 +4,16 @@
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import QRCode from 'qrcode';
-	import { TOTP_CODE_LENGTH, TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { formDataFromSubmitEvent } from '$lib/client/forms';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
-	import { cn } from '$lib/utils.js';
-	import type { AuthModalView } from '$lib/types/auth';
+	import { TOTP_CODE_LENGTH, TOTP_CODE_LENGTH_WORD } from '#lib/auth-constants.js';
+	import { authRequest, AuthAPIError } from '#lib/client/auth-api.js';
+	import { formDataFromSubmitEvent } from '#lib/client/forms.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as InputOTP from '#lib/components/ui/input-otp/index.js';
+	import { cn } from '#lib/utils.js';
+	import type { AuthModalView } from '#lib/types/auth.js';
 
 	interface Props {
 		keyURI: string;

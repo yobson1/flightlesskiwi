@@ -1,18 +1,18 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { eq } from 'drizzle-orm';
-import * as schema from '$lib/server/db/schema';
-import { createTestDatabase } from '$lib/server/test-db';
+import * as schema from '#lib/server/db/schema.js';
+import { createTestDatabase } from '#lib/server/test-db.js';
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
 
 mock.module('$app/env', () => ({ dev: true }));
-mock.module('$lib/server/db', () => ({ db: testDb }));
-mock.module('$lib/server/auth/email', () => ({ EMAIL_CODE_TTL_MS: 10 * 60 * 1000 }));
-mock.module('$lib/server/auth/encryption', () => ({
+mock.module('#lib/server/db/index.js', () => ({ db: testDb }));
+mock.module('#lib/server/auth/email.js', () => ({ EMAIL_CODE_TTL_MS: 10 * 60 * 1000 }));
+mock.module('#lib/server/auth/encryption.js', () => ({
 	hashAuthCode: (code: string) => Buffer.from(code)
 }));
-mock.module('$lib/server/auth/utils', () => ({
+mock.module('#lib/server/auth/utils.js', () => ({
 	constantTimeEqual: (left: Uint8Array, right: Uint8Array) =>
 		Buffer.from(left).equals(Buffer.from(right)),
 	generateRandomOTP: () => 'ABC123',

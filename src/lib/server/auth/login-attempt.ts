@@ -1,15 +1,15 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
 import { eq, lt } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { loginAttempt as loginAttemptTable } from '$lib/server/db/schema';
-import { getUserById, type AuthUser } from '$lib/server/auth/user';
+import { db } from '#lib/server/db/index.js';
+import { loginAttempt as loginAttemptTable } from '#lib/server/db/schema.js';
+import { getUserById, type AuthUser } from '#lib/server/auth/user.js';
 import {
 	constantTimeEqual,
 	generateSecureRandomString,
 	hashSecret,
 	parseTwoPartToken
-} from '$lib/server/auth/utils';
+} from '#lib/server/auth/utils.js';
 
 const LOGIN_ATTEMPT_TTL_MS = 5 * 60 * 1000;
 const cookieName = 'login_attempt';

@@ -8,13 +8,13 @@ import {
 	type PublicKeyCredentialRequestOptionsJSON,
 	type RegistrationResponseJSON
 } from '@simplewebauthn/browser';
-import { decodeBase64url } from '$lib/encoding';
+import { decodeBase64url } from '#lib/encoding.js';
 import {
 	fetchPasskeyAuthenticatorMetadata,
 	formatAAGUID
-} from '$lib/passkey-authenticator-metadata';
-import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
-import { parseAuthenticationOptions } from '$lib/webauthn-json';
+} from '#lib/passkey-authenticator-metadata.js';
+import type { WebAuthnChallengePurpose } from '#lib/types/webauthn.js';
+import { parseAuthenticationOptions } from '#lib/webauthn-json.js';
 import * as v from 'valibot';
 
 const webAuthnCancellationSchema = v.pipe(

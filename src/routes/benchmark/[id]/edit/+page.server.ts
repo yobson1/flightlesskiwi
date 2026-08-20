@@ -1,9 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { and, eq, inArray } from 'drizzle-orm';
-import { error as logError, info, warn } from '$lib/logger';
-import { getClientIP, requireVerifiedPage, requireVerifiedSession } from '$lib/server/auth/api';
-import { deleteBenchmarkFiles, writeBenchmarkFiles } from '$lib/server/benchmark-files';
-import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
+import { error as logError, info, warn } from '#lib/logger.js';
+import { getClientIP, requireVerifiedPage, requireVerifiedSession } from '#lib/server/auth/api.js';
+import { deleteBenchmarkFiles, writeBenchmarkFiles } from '#lib/server/benchmark-files.js';
+import {
+	flushBenchmarkSearchQueue,
+	queueBenchmarksForSearch
+} from '#lib/server/benchmark-search.js';
 import {
 	createBenchmarkFileRows,
 	parseBenchmarkFiles,
@@ -13,12 +16,12 @@ import {
 	validateBenchmarkValues,
 	type BenchmarkSubmittedValues,
 	type StoredBenchmarkFileSummary
-} from '$lib/server/benchmark-submission';
-import { db } from '$lib/server/db';
-import { benchmarkFile, benchmarkResult, game } from '$lib/server/db/schema';
-import { verifyTurnstileToken } from '$lib/server/turnstile';
-import { TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
-import { getMessage } from '$lib/utils';
+} from '#lib/server/benchmark-submission.js';
+import { db } from '#lib/server/db/index.js';
+import { benchmarkFile, benchmarkResult, game } from '#lib/server/db/schema.js';
+import { verifyTurnstileToken } from '#lib/server/turnstile.js';
+import { TURNSTILE_RESPONSE_FIELD } from '#lib/turnstile.js';
+import { getMessage } from '#lib/utils.js';
 import type { Actions, PageServerLoad } from './$types';
 import * as v from 'valibot';
 

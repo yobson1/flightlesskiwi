@@ -1,8 +1,8 @@
 import { and, asc, count, desc, eq, inArray, lt, or } from 'drizzle-orm';
-import { parseBenchmarkSystemInfo } from '$lib/benchmark-run';
-import { readBenchmarkFilePrefix } from '$lib/server/benchmark-files';
-import { db } from '$lib/server/db';
-import { benchmarkFile, benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
+import { parseBenchmarkSystemInfo } from '#lib/benchmark-run.js';
+import { readBenchmarkFilePrefix } from '#lib/server/benchmark-files.js';
+import { db } from '#lib/server/db/index.js';
+import { benchmarkFile, benchmarkResult, game, gameName, user } from '#lib/server/db/schema.js';
 import * as v from 'valibot';
 
 export const PUBLIC_BENCHMARK_PAGE_SIZE = 30;

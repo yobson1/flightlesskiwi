@@ -3,8 +3,8 @@
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import MoreHorizontalIcon from '@lucide/svelte/icons/more-horizontal';
 	import { tick } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Pagination from '$lib/components/ui/pagination';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Pagination from '#lib/components/ui/pagination/index.js';
 
 	interface Props {
 		count: number;

@@ -1,7 +1,7 @@
-import { db } from '$lib/server/db';
-import { game, gameName } from '$lib/server/db/schema';
-import { createMeilisearchIndex } from '$lib/server/meilisearch';
-import type { GameSearchResult } from '$lib/types/game';
+import { db } from '#lib/server/db/index.js';
+import { game, gameName } from '#lib/server/db/schema.js';
+import { createMeilisearchIndex } from '#lib/server/meilisearch.js';
+import type { GameSearchResult } from '#lib/types/game.js';
 import { eq, inArray } from 'drizzle-orm';
 
 const INDEX_NAME = 'games';

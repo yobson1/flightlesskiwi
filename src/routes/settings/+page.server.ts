@@ -1,28 +1,31 @@
 import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { decodeBase64, encodeBase64 } from '$lib/encoding';
+import { decodeBase64, encodeBase64 } from '#lib/encoding.js';
 import {
 	MAX_PASSWORD_LENGTH,
 	MAX_USERNAME_LENGTH,
 	MIN_PASSWORD_LENGTH,
 	MIN_USERNAME_LENGTH
-} from '$lib/auth-constants';
-import { error as logError, warn } from '$lib/logger';
-import { fetchPasskeyAuthenticatorMetadata } from '$lib/passkey-authenticator-metadata';
+} from '#lib/auth-constants.js';
+import { error as logError, warn } from '#lib/logger.js';
+import { fetchPasskeyAuthenticatorMetadata } from '#lib/passkey-authenticator-metadata.js';
 import {
 	createSessionAndSetCookie,
 	deleteSessionTokenCookie,
 	hasRecentReauthentication
-} from '$lib/server/auth';
-import { requireVerifiedPage } from '$lib/server/auth/api';
-import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
-import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
+} from '#lib/server/auth.js';
+import { requireVerifiedPage } from '#lib/server/auth/api.js';
+import { deleteBenchmarkFiles } from '#lib/server/benchmark-files.js';
+import {
+	flushBenchmarkSearchQueue,
+	queueBenchmarksForSearch
+} from '#lib/server/benchmark-search.js';
 import {
 	checkCodeEmailSendRateLimit,
 	CodeEmailRateLimitError,
 	getCodeEmailSendRetryAfterSeconds,
 	sendVerificationEmail
-} from '$lib/server/auth/email';
+} from '#lib/server/auth/email.js';
 import {
 	cancelEmailChangeVerificationRequest,
 	createEmailChangeVerificationRequest,
@@ -30,15 +33,15 @@ import {
 	getUserEmailVerificationRequest,
 	setUserEmailAsUnverified,
 	setEmailVerificationRequestCookie
-} from '$lib/server/auth/email-verification';
-import { verifyPasswordStrength } from '$lib/server/auth/password';
+} from '#lib/server/auth/email-verification.js';
+import { verifyPasswordStrength } from '#lib/server/auth/password.js';
 import {
 	deletePasswordResetSessionTokenCookie,
 	invalidateUserPasswordResetSessions
-} from '$lib/server/auth/password-reset';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { deletePendingRecoveryCodeCookie } from '$lib/server/auth/recovery-code';
-import { deleteUserTOTP, deleteTOTPSetupCookie, totpUpdateBucket } from '$lib/server/auth/totp';
+} from '#lib/server/auth/password-reset.js';
+import { ExpiringTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { deletePendingRecoveryCodeCookie } from '#lib/server/auth/recovery-code.js';
+import { deleteUserTOTP, deleteTOTPSetupCookie, totpUpdateBucket } from '#lib/server/auth/totp.js';
 import {
 	checkEmailAvailability,
 	checkUsernameAvailability,
@@ -51,16 +54,19 @@ import {
 	updateUserUsername,
 	verifyEmailInput,
 	verifyUsernameInput
-} from '$lib/server/auth/user';
-import { deleteUserPasskeyCredential, getUserPasskeyCredentials } from '$lib/server/auth/webauthn';
-import { revokeOAuthTokens } from '$lib/server/auth/oauth';
-import { db } from '$lib/server/db';
-import { benchmarkFile, benchmarkResult, user as userTable } from '$lib/server/db/schema';
+} from '#lib/server/auth/user.js';
+import {
+	deleteUserPasskeyCredential,
+	getUserPasskeyCredentials
+} from '#lib/server/auth/webauthn.js';
+import { revokeOAuthTokens } from '#lib/server/auth/oauth.js';
+import { db } from '#lib/server/db/index.js';
+import { benchmarkFile, benchmarkResult, user as userTable } from '#lib/server/db/schema.js';
 import {
 	getOAuthProviderAuthorizationSettingsURL,
 	getOAuthProviderName,
 	parseOAuthProvider
-} from '$lib/types/oauth';
+} from '#lib/types/oauth.js';
 import type { Actions, RequestEvent } from './$types';
 import * as v from 'valibot';
 

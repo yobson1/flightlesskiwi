@@ -6,8 +6,8 @@
 		STUTTER_FACTOR,
 		stripFileExtension,
 		type BenchmarkChartRun
-	} from '$lib/benchmark-chart';
-	import BenchmarkPieChart from '$lib/components/benchmark-pie-chart.svelte';
+	} from '#lib/benchmark-chart.js';
+	import BenchmarkPieChart from '#lib/components/benchmark-pie-chart.svelte';
 
 	interface Props {
 		run: BenchmarkChartRun;

@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { getPublicBenchmarksPage, parsePublicBenchmarkPage } from '$lib/server/benchmarks';
-import { getPublicProfile } from '$lib/server/profiles';
+import { getPublicBenchmarksPage, parsePublicBenchmarkPage } from '#lib/server/benchmarks.js';
+import { getPublicProfile } from '#lib/server/profiles.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, url }) => {

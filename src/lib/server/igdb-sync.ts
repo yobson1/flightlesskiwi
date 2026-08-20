@@ -1,10 +1,10 @@
-import { error, info, warn } from '$lib/logger';
-import { igdb, invalidateIgdbAccessToken } from '$lib/server/igdb';
-import type { IgdbImportProgress, IgdbImportStatus } from '$lib/igdb';
-import { igdbGamesSchema, type Game as IGDBGame } from '$lib/types/igdb';
-import { GameSource, WebsiteCategory } from '$lib/enums/igdb';
+import { error, info, warn } from '#lib/logger.js';
+import { igdb, invalidateIgdbAccessToken } from '#lib/server/igdb.js';
+import type { IgdbImportProgress, IgdbImportStatus } from '#lib/igdb.js';
+import { igdbGamesSchema, type Game as IGDBGame } from '#lib/types/igdb.js';
+import { GameSource, WebsiteCategory } from '#lib/enums/igdb.js';
 import { IGDB_IMPORT_CRON, IGDB_IMPORT_TIME_ZONE } from '$app/env/private';
-import { db } from '$lib/server/db';
+import { db } from '#lib/server/db/index.js';
 import {
 	game,
 	involvedCompany,
@@ -17,13 +17,16 @@ import {
 	gameName,
 	benchmarkResult,
 	STORES
-} from '$lib/server/db/schema';
+} from '#lib/server/db/schema.js';
 import {
 	flushGameSearchQueue,
 	prepareGameSearch,
 	queueGamesForSearch
-} from '$lib/server/game-search';
-import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
+} from '#lib/server/game-search.js';
+import {
+	flushBenchmarkSearchQueue,
+	queueBenchmarksForSearch
+} from '#lib/server/benchmark-search.js';
 import { sleep } from 'bun';
 import { inArray, sql } from 'drizzle-orm';
 import * as v from 'valibot';

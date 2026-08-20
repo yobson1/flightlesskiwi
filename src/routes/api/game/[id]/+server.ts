@@ -1,9 +1,8 @@
-import { json } from '@sveltejs/kit';
-import { debug, error } from '$lib/logger';
-import { db } from '$lib/server/db';
-import LRUCache from '$lib/lrucache';
+import { debug, error } from '#lib/logger.js';
+import { db } from '#lib/server/db/index.js';
+import LRUCache from '#lib/lrucache.js';
 import type { RequestHandler } from './$types';
-import type { FullGame } from '$lib/server/db/schema';
+import type { FullGame } from '#lib/server/db/schema.js';
 
 // each game is about 0.5-2KB in size
 const gameCache = new LRUCache<number, FullGame>(1000);
@@ -12,14 +11,14 @@ export const GET: RequestHandler = ({ params }) => {
 	const gameID = Number(params.id);
 
 	if (!gameID) {
-		return json({ error: 'Game ID is required' }, { status: 400 });
+		return Response.json({ error: 'Game ID is required' }, { status: 400 });
 	}
 
 	try {
 		const cachedGame = gameCache.get(gameID);
 		if (cachedGame) {
 			debug(`Cache hit for game ID ${gameID}`);
-			return json(cachedGame);
+			return Response.json(cachedGame);
 		}
 		debug(`Cache miss for game ID ${gameID}`);
 
@@ -51,7 +50,7 @@ export const GET: RequestHandler = ({ params }) => {
 			.sync();
 
 		if (!gameResult) {
-			return json({ error: 'Game not found' }, { status: 404 });
+			return Response.json({ error: 'Game not found' }, { status: 404 });
 		}
 
 		const sizeInBytes = new Blob([JSON.stringify(gameResult)]).size;
@@ -60,9 +59,12 @@ export const GET: RequestHandler = ({ params }) => {
 		debug(`Size of game data for ID ${gameID}: ${sizeInKB}KB`);
 
 		gameCache.set(gameID, gameResult);
-		return json(gameResult);
+		return Response.json(gameResult);
 	} catch (err) {
 		error(`Failed to fetch game ID ${gameID}:`, err);
-		return json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+		return Response.json(
+			{ error: err instanceof Error ? err.message : String(err) },
+			{ status: 500 }
+		);
 	}
 };

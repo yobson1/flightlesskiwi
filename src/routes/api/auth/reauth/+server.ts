@@ -1,10 +1,10 @@
-import { TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
-import { rotateSessionAfterReauthentication } from '$lib/server/auth';
-import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
-import { parsePasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { parseTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
-import { getUserPasswordHash } from '$lib/server/auth/user';
+import { TOTP_CODE_LENGTH_WORD } from '#lib/auth-constants.js';
+import { rotateSessionAfterReauthentication } from '#lib/server/auth.js';
+import { authError, authSuccess, requireVerifiedSession } from '#lib/server/auth/api.js';
+import { parsePasswordInput, verifyPasswordHash } from '#lib/server/auth/password.js';
+import { ExpiringTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { parseTOTPCode, verifyUserTOTP } from '#lib/server/auth/totp.js';
+import { getUserPasswordHash } from '#lib/server/auth/user.js';
 import type { RequestEvent } from './$types';
 
 const reauthenticationBucket = new ExpiringTokenBucket<string>('settings-reauth', 5, 15 * 60);

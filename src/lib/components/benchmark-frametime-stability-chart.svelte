@@ -5,8 +5,8 @@
 		getBenchmarkRunMetric,
 		stripFileExtension,
 		type BenchmarkChartRun
-	} from '$lib/benchmark-chart';
-	import BenchmarkHorizontalBarChart from '$lib/components/benchmark-horizontal-bar-chart.svelte';
+	} from '#lib/benchmark-chart.js';
+	import BenchmarkHorizontalBarChart from '#lib/components/benchmark-horizontal-bar-chart.svelte';
 
 	interface Props {
 		benchmarkId: string;

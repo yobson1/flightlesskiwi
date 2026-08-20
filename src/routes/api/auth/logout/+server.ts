@@ -1,6 +1,6 @@
-import { deleteSessionTokenCookie, invalidateSession } from '$lib/server/auth';
-import { authSuccess } from '$lib/server/auth/api';
-import { deletePendingRecoveryCodeCookie } from '$lib/server/auth/recovery-code';
+import { deleteSessionTokenCookie, invalidateSession } from '#lib/server/auth.js';
+import { authSuccess } from '#lib/server/auth/api.js';
+import { deletePendingRecoveryCodeCookie } from '#lib/server/auth/recovery-code.js';
 import type { RequestEvent } from './$types';
 
 export function POST(event: RequestEvent) {

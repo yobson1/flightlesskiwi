@@ -1,5 +1,5 @@
 import { CONTACT_EMAIL } from '$app/env/private';
-import { hasTurnstileConfiguration } from '$lib/server/turnstile';
+import { hasTurnstileConfiguration } from '#lib/server/turnstile.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = () => ({

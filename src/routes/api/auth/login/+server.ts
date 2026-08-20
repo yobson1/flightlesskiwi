@@ -1,21 +1,21 @@
-import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
-import { parseRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
+import { authError, authSuccess, getClientIP } from '#lib/server/auth/api.js';
+import { parseRecoveryCode, verifyUserRecoveryCode } from '#lib/server/auth/2fa.js';
 import {
 	consumeLoginAttemptRequest,
 	invalidateLoginAttemptRequest,
 	validateLoginAttemptRequest
-} from '$lib/server/auth/login-attempt';
-import { completeLogin, completeLoginFirstFactor } from '$lib/server/auth/login';
-import { hashPassword, parsePasswordInput, verifyPasswordHash } from '$lib/server/auth/password';
-import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { parseTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
+} from '#lib/server/auth/login-attempt.js';
+import { completeLogin, completeLoginFirstFactor } from '#lib/server/auth/login.js';
+import { hashPassword, parsePasswordInput, verifyPasswordHash } from '#lib/server/auth/password.js';
+import { ExpiringTokenBucket, RefillingTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { parseTOTPCode, verifyUserTOTP } from '#lib/server/auth/totp.js';
 import {
 	getUserById,
 	getUserFromEmail,
 	getUserPasswordHash,
 	normalizeEmail,
 	verifyEmailInput
-} from '$lib/server/auth/user';
+} from '#lib/server/auth/user.js';
 import type { RequestEvent } from './$types';
 import * as v from 'valibot';
 

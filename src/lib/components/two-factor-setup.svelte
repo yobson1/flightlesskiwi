@@ -2,11 +2,11 @@
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
-	import { TOTP_CODE_LENGTH_WORD } from '$lib/auth-constants';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import type { AuthModalView } from '$lib/types/auth';
+	import { TOTP_CODE_LENGTH_WORD } from '#lib/auth-constants.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import type { AuthModalView } from '#lib/types/auth.js';
 
 	interface Props {
 		registeredPasskey: boolean;

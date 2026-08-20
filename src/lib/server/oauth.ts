@@ -1,5 +1,5 @@
 import * as client from 'openid-client';
-import { encodeBase64 } from '$lib/encoding';
+import { encodeBase64 } from '#lib/encoding.js';
 import * as v from 'valibot';
 
 type TokenResponse = Awaited<ReturnType<typeof client.authorizationCodeGrant>>;

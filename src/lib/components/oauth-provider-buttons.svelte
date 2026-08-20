@@ -1,8 +1,8 @@
 <script lang="ts">
-	import OAuthProviderIcon from '$lib/components/oauth-provider-icon.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { getOAuthProviderName, type OAuthProvider } from '$lib/types/oauth';
+	import OAuthProviderIcon from '#lib/components/oauth-provider-icon.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { getOAuthProviderName, type OAuthProvider } from '#lib/types/oauth.js';
 
 	interface Props {
 		providers: OAuthProvider[];

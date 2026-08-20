@@ -1,7 +1,7 @@
 import { eq, lt } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { authRateLimit } from '$lib/server/db/schema';
-import { encodeHashedSecret } from '$lib/server/auth/utils';
+import { db } from '#lib/server/db/index.js';
+import { authRateLimit } from '#lib/server/db/schema.js';
+import { encodeHashedSecret } from '#lib/server/auth/utils.js';
 
 export class RefillingTokenBucket<Key> {
 	constructor(

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
 	import {
@@ -7,13 +7,13 @@
 		normalizeBenchmarkPage,
 		type BenchmarkPagination,
 		type LoadedBenchmarkPage
-	} from '$lib/client/benchmark-page-cache.svelte';
-	import BenchmarkList from '$lib/components/benchmark-list.svelte';
-	import Blobatar from '$lib/components/blobatar.svelte';
+	} from '#lib/client/benchmark-page-cache.svelte.js';
+	import BenchmarkList from '#lib/components/benchmark-list.svelte';
+	import Blobatar from '#lib/components/blobatar.svelte';
 	import {
 		benchmarkPageResponseSchema,
 		type BenchmarkPageResponse
-	} from '$lib/types/benchmark-api';
+	} from '#lib/types/benchmark-api.js';
 	import { onDestroy, untrack } from 'svelte';
 	import { SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { PageProps } from './$types';
@@ -69,9 +69,8 @@
 		const url = new SvelteURL(window.location.href);
 		if (pageNumber === 1) url.searchParams.delete('page');
 		else url.searchParams.set('page', pageNumber.toString());
-		// SAFETY: this is the current application pathname with only its query changed.
-		const href = resolve(`${url.pathname}${url.search}` as '/');
-		replaceState(href, appPage.state);
+		// This is the current application URL with only its query changed.
+		void goto(url, { shallow: true, replace: true, state: appPage.state });
 	}
 
 	function requirePagination(pagination: BenchmarkPageResponse['pagination']): BenchmarkPagination {

@@ -2,7 +2,7 @@ import apicalypse from 'apicalypse';
 import type { ApicalypseConfig } from 'apicalypse';
 import { version } from '$app/env';
 import { IGDB_CLIENT_ID, IGDB_CLIENT_SECRET } from '$app/env/private';
-import { info } from '$lib/logger';
+import { info } from '#lib/logger.js';
 import * as v from 'valibot';
 
 const REQUEST_TIMEOUT_MS = 15_000;

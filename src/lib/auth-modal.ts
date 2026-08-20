@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import { authModalViewSchema, type AuthAPIResponse, type AuthModalView } from '$lib/types/auth';
+import { authModalViewSchema, type AuthAPIResponse, type AuthModalView } from '#lib/types/auth.js';
 import * as v from 'valibot';
 
 const AUTH_MODAL_CONTEXT = Symbol('auth-modal');

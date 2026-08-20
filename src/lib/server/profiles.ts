@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { db } from '#lib/server/db/index.js';
+import { user } from '#lib/server/db/schema.js';
 
 export function getPublicProfile(username: string) {
 	return (

@@ -1,13 +1,16 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
-import { error as logError, info } from '$lib/logger';
-import { requireVerifiedSession } from '$lib/server/auth/api';
-import { deleteBenchmarkFiles } from '$lib/server/benchmark-files';
-import { parseBenchmarkRun } from '$lib/server/benchmark-run';
-import { flushBenchmarkSearchQueue, queueBenchmarksForSearch } from '$lib/server/benchmark-search';
-import { db } from '$lib/server/db';
-import { benchmarkFile, benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
-import { getMessage } from '$lib/utils';
+import { error as logError, info } from '#lib/logger.js';
+import { requireVerifiedSession } from '#lib/server/auth/api.js';
+import { deleteBenchmarkFiles } from '#lib/server/benchmark-files.js';
+import { parseBenchmarkRun } from '#lib/server/benchmark-run.js';
+import {
+	flushBenchmarkSearchQueue,
+	queueBenchmarksForSearch
+} from '#lib/server/benchmark-search.js';
+import { db } from '#lib/server/db/index.js';
+import { benchmarkFile, benchmarkResult, game, gameName, user } from '#lib/server/db/schema.js';
+import { getMessage } from '#lib/utils.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) => {

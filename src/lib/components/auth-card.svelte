@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { getAuthTurnstile } from '$lib/auth-turnstile-context';
-	import Turnstile from '$lib/components/turnstile.svelte';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import { cn } from '$lib/utils.js';
+	import { getAuthTurnstile } from '#lib/auth-turnstile-context.js';
+	import Turnstile from '#lib/components/turnstile.svelte';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { cn } from '#lib/utils.js';
 	import type { ComponentProps, Snippet } from 'svelte';
 
 	type Props = ComponentProps<typeof Card.Root> & {

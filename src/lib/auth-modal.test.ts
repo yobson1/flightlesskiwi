@@ -4,8 +4,8 @@ import {
 	authModalDataMethod,
 	authModalHash,
 	parseAuthModalHash
-} from '$lib/auth-modal';
-import { AUTH_MODAL_VIEWS } from '$lib/types/auth';
+} from '#lib/auth-modal.js';
+import { AUTH_MODAL_VIEWS } from '#lib/types/auth.js';
 
 describe('auth modal fragments', () => {
 	test('round-trips every supported view', () => {

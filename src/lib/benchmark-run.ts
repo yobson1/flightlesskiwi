@@ -1,6 +1,6 @@
-import { parseMangoHudBenchmarkRun, parseMangoHudSystemInfo } from '$lib/mangohud';
-import { parseCapFrameXBenchmarkRun, parseCapFrameXSystemInfo } from '$lib/capframex';
-import type { BenchmarkRun, BenchmarkSystemInfo } from '$lib/benchmark-run-model';
+import { parseMangoHudBenchmarkRun, parseMangoHudSystemInfo } from '#lib/mangohud.js';
+import { parseCapFrameXBenchmarkRun, parseCapFrameXSystemInfo } from '#lib/capframex.js';
+import type { BenchmarkRun, BenchmarkSystemInfo } from '#lib/benchmark-run-model.js';
 
 export {
 	BENCHMARK_METRIC_KEYS,
@@ -13,7 +13,7 @@ export {
 	type BenchmarkRun,
 	type BenchmarkSource,
 	type BenchmarkSystemInfo
-} from '$lib/benchmark-run-model';
+} from '#lib/benchmark-run-model.js';
 
 export function parseBenchmarkContents(contents: string): BenchmarkRun | null {
 	if (looksLikeJson(contents)) return parseCapFrameXBenchmarkRun(contents);

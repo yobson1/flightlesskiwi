@@ -1,4 +1,4 @@
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '$lib/auth-constants';
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '#lib/auth-constants.js';
 import * as v from 'valibot';
 
 const passwordInputSchema = v.pipe(v.string(), v.nonEmpty(), v.maxLength(MAX_PASSWORD_LENGTH));

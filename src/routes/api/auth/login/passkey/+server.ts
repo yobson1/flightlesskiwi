@@ -1,13 +1,13 @@
-import { createSessionAndSetCookie } from '$lib/server/auth';
-import { authError, authSuccess, getClientIP, verifyPasskeyRequest } from '$lib/server/auth/api';
-import { completeLogin } from '$lib/server/auth/login';
+import { createSessionAndSetCookie } from '#lib/server/auth.js';
+import { authError, authSuccess, getClientIP, verifyPasskeyRequest } from '#lib/server/auth/api.js';
+import { completeLogin } from '#lib/server/auth/login.js';
 import {
 	consumeLoginAttemptRequest,
 	invalidateLoginAttemptRequest,
 	validateLoginAttemptRequest
-} from '$lib/server/auth/login-attempt';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { getUserById } from '$lib/server/auth/user';
+} from '#lib/server/auth/login-attempt.js';
+import { ExpiringTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { getUserById } from '#lib/server/auth/user.js';
 import type { RequestEvent } from './$types';
 
 const assertionBucket = new ExpiringTokenBucket<string>('passkey-login-ip', 10, 10 * 60);

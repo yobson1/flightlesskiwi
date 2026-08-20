@@ -1,12 +1,12 @@
-import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
-import { hashRecoveryCode } from '$lib/server/auth/password';
+import { authError, authSuccess, requireVerifiedSession } from '#lib/server/auth/api.js';
+import { hashRecoveryCode } from '#lib/server/auth/password.js';
 import {
 	deletePendingRecoveryCodeCookie,
 	getPendingRecoveryCode,
 	setPendingRecoveryCodeCookie
-} from '$lib/server/auth/recovery-code';
-import { generateRandomRecoveryCode } from '$lib/server/auth/utils';
-import { setUserRecoveryCodeHash } from '$lib/server/auth/user';
+} from '#lib/server/auth/recovery-code.js';
+import { generateRandomRecoveryCode } from '#lib/server/auth/utils.js';
+import { setUserRecoveryCodeHash } from '#lib/server/auth/user.js';
 import type { RequestEvent } from './$types';
 
 export function POST(event: RequestEvent) {

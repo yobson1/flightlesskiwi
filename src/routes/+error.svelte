@@ -2,12 +2,12 @@
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import HouseIcon from '@lucide/svelte/icons/house';
 	import { page } from '$app/state';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import ShaderRenderer from '$lib/components/shader-renderer.svelte';
-	import fragShaderSource from '$lib/shaders/isovalues/frag.glsl?raw';
-	import vertShaderSource from '$lib/shaders/isovalues/vert.glsl?raw';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import ShaderRenderer from '#lib/components/shader-renderer.svelte';
+	import fragShaderSource from '#lib/shaders/isovalues/frag.glsl?raw';
+	import vertShaderSource from '#lib/shaders/isovalues/vert.glsl?raw';
 
 	const title = $derived(page.error?.message ?? 'Request failed');
 	const errorCodeLabel = $derived(title.toUpperCase().replaceAll(' ', '_'));

@@ -1,6 +1,6 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
-import { MAX_EMAIL_LENGTH, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH } from '$lib/auth-constants';
-import { db } from '$lib/server/db';
+import { MAX_EMAIL_LENGTH, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH } from '#lib/auth-constants.js';
+import { db } from '#lib/server/db/index.js';
 import {
 	emailVerificationRequest,
 	loginAttempt,
@@ -9,12 +9,12 @@ import {
 	session,
 	totpCredential,
 	user as userTable
-} from '$lib/server/db/schema';
-import { decryptToString, encryptString } from '$lib/server/auth/encryption';
-import { hashPassword, hashRecoveryCode } from '$lib/server/auth/password';
-import { generateRandomRecoveryCode, generateSecureRandomString } from '$lib/server/auth/utils';
-import type { OAuthTokenSet, OAuthUserProfile } from '$lib/server/oauth';
-import { canRemoveOAuthConnection, type OAuthProvider } from '$lib/types/oauth';
+} from '#lib/server/db/schema.js';
+import { decryptToString, encryptString } from '#lib/server/auth/encryption.js';
+import { hashPassword, hashRecoveryCode } from '#lib/server/auth/password.js';
+import { generateRandomRecoveryCode, generateSecureRandomString } from '#lib/server/auth/utils.js';
+import type { OAuthTokenSet, OAuthUserProfile } from '#lib/server/oauth.js';
+import { canRemoveOAuthConnection, type OAuthProvider } from '#lib/types/oauth.js';
 import * as v from 'valibot';
 
 const emailInputSchema = v.pipe(

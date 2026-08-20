@@ -4,8 +4,8 @@ import {
 	deserializeParsedBenchmarkRun,
 	getParsedBenchmarkRunVersion,
 	serializeParsedBenchmarkRun
-} from '$lib/benchmark-run-cache';
-import type { BenchmarkRun } from '$lib/benchmark-run-model';
+} from '#lib/benchmark-run-cache.js';
+import type { BenchmarkRun } from '#lib/benchmark-run-model.js';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rename, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';

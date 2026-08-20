@@ -1,5 +1,5 @@
 import { base32nopad } from '@scure/base';
-import { EMAIL_CODE_LENGTH, RECOVERY_CODE_LENGTH } from '$lib/auth-constants';
+import { EMAIL_CODE_LENGTH, RECOVERY_CODE_LENGTH } from '#lib/auth-constants.js';
 
 export function generateSecureRandomString(): string {
 	const bytes = new Uint8Array(24);

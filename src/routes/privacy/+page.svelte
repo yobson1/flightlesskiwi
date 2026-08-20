@@ -6,7 +6,7 @@
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

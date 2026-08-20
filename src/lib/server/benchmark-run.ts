@@ -1,11 +1,11 @@
-import { parseBenchmarkContents, type BenchmarkRun } from '$lib/benchmark-run';
-import { debug, warn } from '$lib/logger';
+import { parseBenchmarkContents, type BenchmarkRun } from '#lib/benchmark-run.js';
+import { debug, warn } from '#lib/logger.js';
 import {
 	readBenchmarkFile,
 	readParsedBenchmarkFile,
 	writeParsedBenchmarkFile,
 	type ParsedBenchmarkFileResult
-} from '$lib/server/benchmark-files';
+} from '#lib/server/benchmark-files.js';
 
 interface ParseBenchmarkRunOptions {
 	fileId: string;

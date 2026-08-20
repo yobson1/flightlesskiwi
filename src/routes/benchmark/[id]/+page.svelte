@@ -4,22 +4,21 @@
 	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import SvelteMarkdown, {
 		buildUnsupportedHTML,
 		defaultRenderers
 	} from '@humanspeak/svelte-markdown';
-	import BenchmarkCharts from '$lib/components/benchmark-charts.svelte';
-	import BenchmarkRunCard from '$lib/components/benchmark-run-card.svelte';
-	import Game from '$lib/components/game.svelte';
-	import MarkdownPreview from '$lib/components/markdown-preview.svelte';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { constructImageUrl } from '$lib/igdb';
+	import BenchmarkCharts from '#lib/components/benchmark-charts.svelte';
+	import BenchmarkRunCard from '#lib/components/benchmark-run-card.svelte';
+	import Game from '#lib/components/game.svelte';
+	import MarkdownPreview from '#lib/components/markdown-preview.svelte';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { constructImageUrl } from '#lib/igdb.js';
 	import { toast } from 'svelte-sonner';
-	import { getMessage } from '$lib/utils';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import { getMessage } from '#lib/utils.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -28,21 +27,17 @@
 	let previewDescription = $derived(
 		`${data.benchmark.gameName ?? 'Game'} benchmark shared by ${data.benchmark.username}, with ${data.runs.length} recorded ${data.runs.length === 1 ? 'run' : 'runs'}.`
 	);
+
 	let previewImage = $derived(
 		data.benchmark.coverImgId ? constructImageUrl(data.benchmark.coverImgId, 'cover_big_2x') : null
 	);
+
 	let previewImageAlt = $derived(
 		data.benchmark.gameName ? `${data.benchmark.gameName} cover art` : 'Game cover art'
 	);
 
-	const dateFormatter = new Intl.DateTimeFormat('en', {
-		dateStyle: 'long',
-		timeZone: 'UTC'
-	});
-	const markdownRenderers = {
-		...defaultRenderers,
-		html: buildUnsupportedHTML()
-	};
+	const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'long', timeZone: 'UTC' });
+	const markdownRenderers = { ...defaultRenderers, html: buildUnsupportedHTML() };
 
 	const deleteSubmit: SubmitFunction = () => {
 		deleting = true;
@@ -175,10 +170,9 @@
 						size="icon-sm"
 						class="absolute top-0 right-3"
 						aria-label="Open description preview"
-						onclick={() => (descriptionPreviewOpen = true)}
+						onclick={() => (descriptionPreviewOpen = true)}><ExpandIcon /></Button
 					>
-						<ExpandIcon />
-					</Button>
+
 					<div
 						class="wrap-break-words prose prose-sm max-w-none pr-12 lg:h-full lg:overflow-y-auto lg:overscroll-contain lg:pr-14 dark:prose-invert"
 					>

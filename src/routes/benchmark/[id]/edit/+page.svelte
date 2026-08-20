@@ -1,5 +1,5 @@
 <script lang="ts">
-	import BenchmarkForm from '$lib/components/benchmark-form.svelte';
+	import BenchmarkForm from '#lib/components/benchmark-form.svelte';
 	import type { PageProps } from './$types';
 
 	let { form, data }: PageProps = $props();

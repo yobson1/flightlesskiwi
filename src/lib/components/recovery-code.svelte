@@ -4,11 +4,11 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { onMount } from 'svelte';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import type { AuthModalView } from '$lib/types/auth';
+	import { authRequest, AuthAPIError } from '#lib/client/auth-api.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import type { AuthModalView } from '#lib/types/auth.js';
 
 	interface Props {
 		onDone: (next: AuthModalView | null) => void | Promise<void>;

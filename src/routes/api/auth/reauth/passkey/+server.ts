@@ -1,11 +1,11 @@
-import { rotateSessionAfterReauthentication } from '$lib/server/auth';
+import { rotateSessionAfterReauthentication } from '#lib/server/auth.js';
 import {
 	authError,
 	authSuccess,
 	requireVerifiedSession,
 	verifyPasskeyRequest
-} from '$lib/server/auth/api';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
+} from '#lib/server/auth/api.js';
+import { ExpiringTokenBucket } from '#lib/server/auth/rate-limit.js';
 import type { RequestEvent } from './$types';
 
 const assertionBucket = new ExpiringTokenBucket<string>('settings-passkey-reauth', 5, 15 * 60);

@@ -1,25 +1,25 @@
 <script lang="ts">
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
-	import { MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH } from '$lib/auth-constants';
-	import { authFormRequest, authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { formDataFromSubmitEvent } from '$lib/client/forms';
+	import { MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH } from '#lib/auth-constants.js';
+	import { authFormRequest, authRequest, AuthAPIError } from '#lib/client/auth-api.js';
+	import { formDataFromSubmitEvent } from '#lib/client/forms.js';
 	import {
 		cancelWebAuthnCeremony,
 		createWebAuthnAssertion,
 		parseWebAuthnCancellation,
 		type WebAuthnAssertion
-	} from '$lib/client/webauthn';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import AuthSidePanel from '$lib/components/auth-side-panel.svelte';
-	import OAuthProviderButtons from '$lib/components/oauth-provider-buttons.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { cn } from '$lib/utils.js';
+	} from '#lib/client/webauthn.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import AuthSidePanel from '#lib/components/auth-side-panel.svelte';
+	import OAuthProviderButtons from '#lib/components/oauth-provider-buttons.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { cn } from '#lib/utils.js';
 	import { onMount, untrack } from 'svelte';
-	import type { AuthModalView } from '$lib/types/auth';
-	import type { OAuthProvider } from '$lib/types/oauth';
+	import type { AuthModalView } from '#lib/types/auth.js';
+	import type { OAuthProvider } from '#lib/types/oauth.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {

@@ -1,7 +1,7 @@
 import { building } from '$app/env';
 import { defineEnvVars } from '@sveltejs/kit/env';
 import * as v from 'valibot';
-import { decodeBase64 } from '$lib/encoding';
+import { decodeBase64 } from '#lib/encoding.js';
 
 const nonEmptyString = v.pipe(v.string(), v.nonEmpty());
 const requiredAtRuntime = building ? v.optional(nonEmptyString) : nonEmptyString;

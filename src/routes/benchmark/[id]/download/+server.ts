@@ -2,9 +2,9 @@ import { error } from '@sveltejs/kit';
 import { createGzip } from 'node:zlib';
 import { eq } from 'drizzle-orm';
 import { pack } from 'tar-stream';
-import { getBenchmarkFilePath } from '$lib/server/benchmark-files';
-import { db } from '$lib/server/db';
-import { benchmarkFile, benchmarkResult } from '$lib/server/db/schema';
+import { getBenchmarkFilePath } from '#lib/server/benchmark-files.js';
+import { db } from '#lib/server/db/index.js';
+import { benchmarkFile, benchmarkResult } from '#lib/server/db/schema.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params }) => {

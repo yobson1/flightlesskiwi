@@ -1,11 +1,11 @@
 <script lang="ts">
 	import ChartNoAxesCombinedIcon from '@lucide/svelte/icons/chart-no-axes-combined';
-	import ShaderRenderer from '$lib/components/shader-renderer.svelte';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import Wordmark from '$lib/components/wordmark.svelte';
-	import fragShaderSource from '$lib/shaders/isovalues/frag.glsl?raw';
-	import vertShaderSource from '$lib/shaders/isovalues/vert.glsl?raw';
-	import { cn, type WithElementRef } from '$lib/utils.js';
+	import ShaderRenderer from '#lib/components/shader-renderer.svelte';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import Wordmark from '#lib/components/wordmark.svelte';
+	import fragShaderSource from '#lib/shaders/isovalues/frag.glsl?raw';
+	import vertShaderSource from '#lib/shaders/isovalues/vert.glsl?raw';
+	import { cn, type WithElementRef } from '#lib/utils.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface Props extends WithElementRef<HTMLAttributes<HTMLDivElement>> {

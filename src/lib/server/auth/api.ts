@@ -1,16 +1,16 @@
-import { json, redirect, type RequestEvent } from '@sveltejs/kit';
-import { error as logError } from '$lib/logger';
-import { hasRecentReauthentication, type Session } from '$lib/server/auth';
-import type { AuthUser } from '$lib/server/auth/user';
-import type { WebAuthnUserCredential } from '$lib/server/auth/webauthn';
+import { redirect, type RequestEvent } from '@sveltejs/kit';
+import { error as logError } from '#lib/logger.js';
+import { hasRecentReauthentication, type Session } from '#lib/server/auth.js';
+import type { AuthUser } from '#lib/server/auth/user.js';
+import type { WebAuthnUserCredential } from '#lib/server/auth/webauthn.js';
 import {
 	verifyWebAuthnAssertionRequest,
 	WebAuthnAssertionRequestError
-} from '$lib/server/auth/webauthn-verify';
-import type { AuthAPIResponse, AuthModalView } from '$lib/types/auth';
-import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+} from '#lib/server/auth/webauthn-verify.js';
+import type { AuthAPIResponse, AuthModalView } from '#lib/types/auth.js';
+import type { WebAuthnChallengePurpose } from '#lib/types/webauthn.js';
 
-export { getClientIP } from '$lib/server/auth/client-ip';
+export { getClientIP } from '#lib/server/auth/client-ip.js';
 
 const noStoreHeaders = { 'cache-control': 'no-store' };
 
@@ -26,7 +26,7 @@ export type AuthGuardResult =
 type AuthSuccessData = Omit<AuthAPIResponse, 'next'>;
 
 export function authSuccess(next: AuthModalView | null, data: AuthSuccessData = {}): Response {
-	return json({ ...data, next }, { headers: noStoreHeaders });
+	return Response.json({ ...data, next }, { headers: noStoreHeaders });
 }
 
 export function authError(
@@ -38,7 +38,7 @@ export function authError(
 		retryAfterSeconds?: number;
 	} = {}
 ): Response {
-	return json({ message, ...options }, { status, headers: noStoreHeaders });
+	return Response.json({ message, ...options }, { status, headers: noStoreHeaders });
 }
 
 export async function verifyPasskeyRequest(

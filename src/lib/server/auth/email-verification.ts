@@ -1,15 +1,18 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { emailVerificationRequest as requestTable, user as userTable } from '$lib/server/db/schema';
-import { EMAIL_CODE_TTL_MS } from '$lib/server/auth/email';
-import { hashAuthCode } from '$lib/server/auth/encryption';
+import { db } from '#lib/server/db/index.js';
+import {
+	emailVerificationRequest as requestTable,
+	user as userTable
+} from '#lib/server/db/schema.js';
+import { EMAIL_CODE_TTL_MS } from '#lib/server/auth/email.js';
+import { hashAuthCode } from '#lib/server/auth/encryption.js';
 import {
 	constantTimeEqual,
 	generateRandomOTP,
 	generateSecureRandomString
-} from '$lib/server/auth/utils';
+} from '#lib/server/auth/utils.js';
 
 const cookieName = 'email_verification';
 

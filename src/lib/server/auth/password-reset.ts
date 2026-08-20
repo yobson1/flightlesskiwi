@@ -1,7 +1,7 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { db } from '#lib/server/db/index.js';
 import {
 	loginAttempt,
 	passkeyCredential,
@@ -9,18 +9,18 @@ import {
 	session as authSession,
 	totpCredential,
 	user as userTable
-} from '$lib/server/db/schema';
-import { EMAIL_CODE_TTL_MS } from '$lib/server/auth/email';
-import { hashAuthCode } from '$lib/server/auth/encryption';
-import { hashPassword } from '$lib/server/auth/password';
-import { getUserById, type AuthUser } from '$lib/server/auth/user';
+} from '#lib/server/db/schema.js';
+import { EMAIL_CODE_TTL_MS } from '#lib/server/auth/email.js';
+import { hashAuthCode } from '#lib/server/auth/encryption.js';
+import { hashPassword } from '#lib/server/auth/password.js';
+import { getUserById, type AuthUser } from '#lib/server/auth/user.js';
 import {
 	constantTimeEqual,
 	generateRandomOTP,
 	generateSecureRandomString,
 	hashSecret,
 	parseTwoPartToken
-} from '$lib/server/auth/utils';
+} from '#lib/server/auth/utils.js';
 
 const cookieName = 'password_reset_session';
 

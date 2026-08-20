@@ -1,14 +1,14 @@
+import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
 import { building } from '$app/env';
 import { ORIGIN } from '$app/env/private';
-import type { Handle, HandleServerError } from '@sveltejs/kit';
-import { error } from '$lib/logger';
-import * as auth from '$lib/server/auth';
-import { authError, getClientIP } from '$lib/server/auth/api';
-import { startBenchmarkSearchSync } from '$lib/server/benchmark-search';
-import { seedStores, startIgdbImportScheduler, startIgdbSync } from '$lib/server/igdb-sync';
-import { isCrossOriginAPIRequest } from '$lib/server/request-origin';
-import { verifyTurnstileToken } from '$lib/server/turnstile';
-import { requiresAuthTurnstile, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
+import { error } from '#lib/logger.js';
+import * as auth from '#lib/server/auth.js';
+import { authError, getClientIP } from '#lib/server/auth/api.js';
+import { startBenchmarkSearchSync } from '#lib/server/benchmark-search.js';
+import { seedStores, startIgdbImportScheduler, startIgdbSync } from '#lib/server/igdb-sync.js';
+import { isCrossOriginAPIRequest } from '#lib/server/request-origin.js';
+import { verifyTurnstileToken } from '#lib/server/turnstile.js';
+import { requiresAuthTurnstile, TURNSTILE_RESPONSE_FIELD } from '#lib/turnstile.js';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	if (isCrossOriginAPIRequest(event.request, event.url.pathname, new URL(ORIGIN!).origin)) {
@@ -45,11 +45,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handleError: HandleServerError = ({ error: cause, event, status, message }) => {
-	error(`Unhandled ${status} error for ${event.request.method} ${event.url.pathname}`, cause);
-	return {
-		message: status >= 500 ? 'An unexpected error occurred' : message
-	};
+export const handleError: HandleServerError = ({ error: cause, event, kind }) => {
+	if (kind === 'unknown') {
+		error(`Unhandled 500 error for ${event.request.method} ${event.url.pathname}`, cause);
+		return { message: 'An unexpected error occurred' };
+	}
+	if (cause.status >= 500) return { message: 'An unexpected error occurred' };
 };
 
 if (!building) {

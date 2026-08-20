@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
-import { TEST_PRIVATE_ENV } from '$lib/server/test-env';
+import { TEST_PRIVATE_ENV } from '#lib/server/test-env.js';
 
 mock.module('$app/env/private', () => TEST_PRIVATE_ENV);
 

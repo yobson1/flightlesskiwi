@@ -1,4 +1,4 @@
-import { getIgdbImportStatus } from '$lib/server/igdb-sync';
+import { getIgdbImportStatus } from '#lib/server/igdb-sync.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ depends, setHeaders }) => {

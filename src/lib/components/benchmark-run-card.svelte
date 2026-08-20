@@ -4,7 +4,7 @@
 	import GpuIcon from '@lucide/svelte/icons/gpu';
 	import LaptopIcon from '@lucide/svelte/icons/laptop';
 	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
-	import type { BenchmarkRun as ParsedBenchmarkRun } from '$lib/benchmark-run';
+	import type { BenchmarkRun as ParsedBenchmarkRun } from '#lib/benchmark-run.js';
 
 	interface BenchmarkRun {
 		originalName: string;

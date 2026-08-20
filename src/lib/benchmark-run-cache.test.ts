@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { createBenchmarkMetric, type BenchmarkRun } from '$lib/benchmark-run';
+import { createBenchmarkMetric, type BenchmarkRun } from '#lib/benchmark-run.js';
 import {
 	BENCHMARK_PARSER_VERSION,
 	deserializeParsedBenchmarkRun,
 	getParsedBenchmarkRunVersion,
 	serializeParsedBenchmarkRun
-} from '$lib/benchmark-run-cache';
+} from '#lib/benchmark-run-cache.js';
 
 const benchmarkRun: BenchmarkRun = {
 	source: 'mangohud',

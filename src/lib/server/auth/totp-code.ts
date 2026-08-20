@@ -1,5 +1,5 @@
 import { Secret, TOTP } from 'otpauth';
-import { TOTP_CODE_LENGTH } from '$lib/auth-constants';
+import { TOTP_CODE_LENGTH } from '#lib/auth-constants.js';
 
 const TOTP_INTERVAL_SECONDS = 30;
 

@@ -3,10 +3,10 @@
 	import SimpleIconsSteam from '~icons/simple-icons/steam';
 	import SimpleIconsItchdotio from '~icons/simple-icons/itchdotio';
 	import SimpleIconsEpicgames from '~icons/simple-icons/epicgames';
-	import type { FullGame } from '$lib/server/db/schema';
-	import { constructImageUrl } from '$lib/igdb';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import type { FullGame } from '#lib/server/db/schema.js';
+	import { constructImageUrl } from '#lib/igdb.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
 	import { onMount } from 'svelte';
 
 	const iconSize = '28px';

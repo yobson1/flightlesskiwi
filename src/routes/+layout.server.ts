@@ -1,6 +1,6 @@
-import { getUserEmailVerificationRequest } from '$lib/server/auth/email-verification';
-import { getTurnstileSiteKey } from '$lib/server/turnstile';
-import { getEnabledOAuthProviders } from '$lib/server/auth/oauth';
+import { getUserEmailVerificationRequest } from '#lib/server/auth/email-verification.js';
+import { getTurnstileSiteKey } from '#lib/server/turnstile.js';
+import { getEnabledOAuthProviders } from '#lib/server/auth/oauth.js';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = ({ locals }) => {

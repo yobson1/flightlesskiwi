@@ -5,7 +5,7 @@ import {
 	type BenchmarkMetricKey,
 	type BenchmarkRun,
 	type BenchmarkSystemInfo
-} from '$lib/benchmark-run-model';
+} from '#lib/benchmark-run-model.js';
 import * as v from 'valibot';
 
 const REQUIRED_SYSTEM_HEADERS = ['os', 'cpu', 'gpu', 'ram', 'kernel'] as const;

@@ -69,9 +69,9 @@
 		stripFileExtension,
 		type BenchmarkChartRun,
 		type MetricChartPoint
-	} from '$lib/benchmark-chart';
-	import type { BenchmarkMetric } from '$lib/benchmark-run';
-	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
+	} from '#lib/benchmark-chart.js';
+	import type { BenchmarkMetric } from '#lib/benchmark-run.js';
+	import BenchmarkChartCard from '#lib/components/benchmark-chart-card.svelte';
 	import {
 		getBenchmarkEChartAxis,
 		getBenchmarkEChartBaseOption,
@@ -81,7 +81,7 @@
 		getBenchmarkEChartZoomablePlotOption,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
-	} from '$lib/benchmark-echart';
+	} from '#lib/benchmark-echart.js';
 
 	interface Props {
 		runs: BenchmarkChartRun[];

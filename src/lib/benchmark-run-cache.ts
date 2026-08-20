@@ -5,7 +5,7 @@ import {
 	type BenchmarkRun,
 	type BenchmarkSource,
 	type BenchmarkSystemInfo
-} from '$lib/benchmark-run-model';
+} from '#lib/benchmark-run-model.js';
 import * as v from 'valibot';
 
 // Increment this whenever parser changes alter the normalized BenchmarkRun output.

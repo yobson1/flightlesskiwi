@@ -4,16 +4,16 @@
 		hasNonZeroMetricValues,
 		sortBenchmarkChartRunsByAverageFps,
 		type BenchmarkChartRun
-	} from '$lib/benchmark-chart';
-	import BenchmarkFpsSummaryChart from '$lib/components/benchmark-fps-summary-chart.svelte';
-	import BenchmarkFrametimeClassificationChart from '$lib/components/benchmark-frametime-classification-chart.svelte';
-	import BenchmarkFrametimeDistributionChart from '$lib/components/benchmark-frametime-distribution-chart.svelte';
-	import BenchmarkFrametimeStabilityChart from '$lib/components/benchmark-frametime-stability-chart.svelte';
-	import BenchmarkFrametimeVarianceChart from '$lib/components/benchmark-frametime-variance-chart.svelte';
-	import BenchmarkMetricAverageChart from '$lib/components/benchmark-metric-average-chart.svelte';
-	import BenchmarkMetricLineChart from '$lib/components/benchmark-metric-line-chart.svelte';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import type { BenchmarkMetric } from '$lib/benchmark-run';
+	} from '#lib/benchmark-chart.js';
+	import BenchmarkFpsSummaryChart from '#lib/components/benchmark-fps-summary-chart.svelte';
+	import BenchmarkFrametimeClassificationChart from '#lib/components/benchmark-frametime-classification-chart.svelte';
+	import BenchmarkFrametimeDistributionChart from '#lib/components/benchmark-frametime-distribution-chart.svelte';
+	import BenchmarkFrametimeStabilityChart from '#lib/components/benchmark-frametime-stability-chart.svelte';
+	import BenchmarkFrametimeVarianceChart from '#lib/components/benchmark-frametime-variance-chart.svelte';
+	import BenchmarkMetricAverageChart from '#lib/components/benchmark-metric-average-chart.svelte';
+	import BenchmarkMetricLineChart from '#lib/components/benchmark-metric-line-chart.svelte';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import type { BenchmarkMetric } from '#lib/benchmark-run.js';
 
 	interface Props {
 		benchmarkId: string;

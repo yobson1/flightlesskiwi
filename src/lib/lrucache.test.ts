@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
-import LRUCache from '$lib/lrucache';
+import LRUCache from '#lib/lrucache.js';
 
 describe('LRUCache', () => {
 	let cache: LRUCache<string, number>;

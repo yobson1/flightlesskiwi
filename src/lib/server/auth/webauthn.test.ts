@@ -5,10 +5,10 @@ import type {
 	VerifyRegistrationResponseOpts
 } from '@simplewebauthn/server';
 import { eq } from 'drizzle-orm';
-import { encodeBase64url } from '$lib/encoding';
-import * as schema from '$lib/server/db/schema';
-import { createTestDatabase } from '$lib/server/test-db';
-import { TEST_PRIVATE_ENV } from '$lib/server/test-env';
+import { encodeBase64url } from '#lib/encoding.js';
+import * as schema from '#lib/server/db/schema.js';
+import { createTestDatabase } from '#lib/server/test-db.js';
+import { TEST_PRIVATE_ENV } from '#lib/server/test-env.js';
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
@@ -59,7 +59,7 @@ const verifyRegistrationResponse = mock(async (options: VerifyRegistrationRespon
 const decodeClientDataJSON = mock(() => ({ crossOrigin }));
 
 mock.module('$app/env/private', () => TEST_PRIVATE_ENV);
-mock.module('$lib/server/db', () => ({ db: testDb }));
+mock.module('#lib/server/db/index.js', () => ({ db: testDb }));
 mock.module('@simplewebauthn/server', () => ({
 	verifyAuthenticationResponse,
 	verifyRegistrationResponse

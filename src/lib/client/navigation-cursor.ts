@@ -14,6 +14,7 @@ export function setupNavigationCursor(): void {
 	let completionTimer: number | undefined;
 
 	beforeNavigate((navigation) => {
+		if (navigation.shallow) return;
 		if (navigation.willUnload) return;
 
 		const cursorId = ++navigationCursorId;
@@ -43,7 +44,8 @@ export function setupNavigationCursor(): void {
 		};
 	});
 
-	afterNavigate(() => {
+	afterNavigate(({ shallow }) => {
+		if (shallow) return;
 		if (!navigationPending) return;
 
 		navigationPending = false;

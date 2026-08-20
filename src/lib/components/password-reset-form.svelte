@@ -11,19 +11,19 @@
 		MAX_EMAIL_LENGTH,
 		MAX_PASSWORD_LENGTH,
 		MIN_PASSWORD_LENGTH
-	} from '$lib/auth-constants';
-	import { authRequest, AuthAPIError, computeResendAvailableAt } from '$lib/client/auth-api';
-	import { formDataFromSubmitEvent } from '$lib/client/forms';
-	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import OTPForm from '$lib/components/otp-form.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
-	import ResendCodeButton from '$lib/components/resend-code-button.svelte';
-	import type { AuthAPIResponse, AuthModalView, PasswordResetStage } from '$lib/types/auth';
+	} from '#lib/auth-constants.js';
+	import { authRequest, AuthAPIError, computeResendAvailableAt } from '#lib/client/auth-api.js';
+	import { formDataFromSubmitEvent } from '#lib/client/forms.js';
+	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '#lib/client/webauthn.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import OTPForm from '#lib/components/otp-form.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as InputOTP from '#lib/components/ui/input-otp/index.js';
+	import ResendCodeButton from '#lib/components/resend-code-button.svelte';
+	import type { AuthAPIResponse, AuthModalView, PasswordResetStage } from '#lib/types/auth.js';
 
 	interface Props {
 		initialState?: AuthAPIResponse | null;

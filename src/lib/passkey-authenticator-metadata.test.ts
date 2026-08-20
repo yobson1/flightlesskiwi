@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
 	fetchPasskeyAuthenticatorMetadata,
 	formatAAGUID
-} from '$lib/passkey-authenticator-metadata';
+} from '#lib/passkey-authenticator-metadata.js';
 
 describe('passkey authenticator metadata', () => {
 	test('formats AAGUID bytes as a lowercase UUID', () => {

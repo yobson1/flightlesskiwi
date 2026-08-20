@@ -3,28 +3,28 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
 	import { untrack } from 'svelte';
-	import { provideAuthTurnstile } from '$lib/auth-turnstile-context';
+	import { provideAuthTurnstile } from '#lib/auth-turnstile-context.js';
 	import {
 		failAuthTurnstile,
 		setAuthTurnstileReset,
 		setAuthTurnstileToken
-	} from '$lib/client/auth-turnstile';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import LoginForm from '$lib/components/login-form.svelte';
-	import OTPForm from '$lib/components/otp-form.svelte';
-	import PasskeySetupForm from '$lib/components/passkey-setup-form.svelte';
-	import PasswordResetForm from '$lib/components/password-reset-form.svelte';
-	import ReauthenticationForm from '$lib/components/reauthentication-form.svelte';
-	import RecoveryCode from '$lib/components/recovery-code.svelte';
-	import SignupForm from '$lib/components/signup-form.svelte';
-	import TOTPSetupForm from '$lib/components/totp-setup-form.svelte';
-	import TwoFactorSetup from '$lib/components/two-factor-setup.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import { cn } from '$lib/utils.js';
-	import type { AuthAPIResponse, AuthModalView, ClientAuthState } from '$lib/types/auth';
-	import type { OAuthProvider } from '$lib/types/oauth';
-	import { parseRegistrationOptions } from '$lib/webauthn-json';
+	} from '#lib/client/auth-turnstile.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import LoginForm from '#lib/components/login-form.svelte';
+	import OTPForm from '#lib/components/otp-form.svelte';
+	import PasskeySetupForm from '#lib/components/passkey-setup-form.svelte';
+	import PasswordResetForm from '#lib/components/password-reset-form.svelte';
+	import ReauthenticationForm from '#lib/components/reauthentication-form.svelte';
+	import RecoveryCode from '#lib/components/recovery-code.svelte';
+	import SignupForm from '#lib/components/signup-form.svelte';
+	import TOTPSetupForm from '#lib/components/totp-setup-form.svelte';
+	import TwoFactorSetup from '#lib/components/two-factor-setup.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { cn } from '#lib/utils.js';
+	import type { AuthAPIResponse, AuthModalView, ClientAuthState } from '#lib/types/auth.js';
+	import type { OAuthProvider } from '#lib/types/oauth.js';
+	import { parseRegistrationOptions } from '#lib/webauthn-json.js';
 
 	interface Props {
 		view: AuthModalView | null;

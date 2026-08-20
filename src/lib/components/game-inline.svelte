@@ -1,7 +1,7 @@
 <script lang="ts">
 	import GamepadIcon from '@lucide/svelte/icons/gamepad-2';
-	import { constructImageUrl } from '$lib/igdb';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { constructImageUrl } from '#lib/igdb.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
 	import * as v from 'valibot';
 
 	const gameResponseSchema = v.object({

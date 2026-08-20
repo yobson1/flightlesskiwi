@@ -1,4 +1,4 @@
-import type { ImageSize } from '$lib/types/igdb';
+import type { ImageSize } from '#lib/types/igdb.js';
 
 export type IgdbImportPhase = 'preparing' | 'checking' | 'importing' | 'finalizing';
 

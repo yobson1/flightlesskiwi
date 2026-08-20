@@ -12,8 +12,8 @@
 	import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import { getAuthModal } from '$lib/auth-modal';
+	import { refreshAll } from '$app/navigation';
+	import { getAuthModal } from '#lib/auth-modal.js';
 	import {
 		MAX_EMAIL_LENGTH,
 		MAX_PASSWORD_LENGTH,
@@ -21,26 +21,26 @@
 		MIN_PASSWORD_LENGTH,
 		MIN_USERNAME_LENGTH,
 		TOTP_CODE_LENGTH_WORD
-	} from '$lib/auth-constants';
-	import Blobatar from '$lib/components/blobatar.svelte';
-	import * as Alert from '$lib/components/ui/alert/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import OAuthProviderIcon from '$lib/components/oauth-provider-icon.svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	} from '#lib/auth-constants.js';
+	import Blobatar from '#lib/components/blobatar.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
+	import OAuthProviderIcon from '#lib/components/oauth-provider-icon.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import {
 		canRemoveOAuthConnection,
 		getOAuthProviderAuthorizationSettingsURL,
 		getOAuthProviderName,
 		type OAuthProvider
-	} from '$lib/types/oauth';
-	import { getActionMessage } from '$lib/utils';
+	} from '#lib/types/oauth.js';
+	import { getActionMessage } from '#lib/utils.js';
 	import { tick } from 'svelte';
 	import type { PageProps, SubmitFunction } from './$types';
 	import * as v from 'valibot';
@@ -100,7 +100,7 @@
 				}
 				await update({
 					reset: result.type === 'success',
-					invalidateAll: result.type === 'success'
+					refreshAll: result.type === 'success'
 				});
 			};
 		};
@@ -122,7 +122,7 @@
 		void authModal.open('reauth', {
 			onComplete: async () => {
 				recentlyReauthenticated = true;
-				await invalidateAll();
+				await refreshAll();
 				toast.success('Identity confirmed');
 				window.setTimeout(continuation);
 			}

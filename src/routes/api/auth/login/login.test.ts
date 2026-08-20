@@ -9,10 +9,10 @@ import {
 	test
 } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
-import * as schema from '$lib/server/db/schema';
-import type { AuthUser } from '$lib/server/auth/user';
-import { createTestDatabase } from '$lib/server/test-db';
-import type { AuthAPIResponse, AuthModalView } from '$lib/types/auth';
+import * as schema from '#lib/server/db/schema.js';
+import type { AuthUser } from '#lib/server/auth/user.js';
+import { createTestDatabase } from '#lib/server/test-db.js';
+import type { AuthAPIResponse, AuthModalView } from '#lib/types/auth.js';
 import * as v from 'valibot';
 
 interface MockAuthErrorOptions {
@@ -46,8 +46,8 @@ function parseMockTOTPCode(value: unknown): string | null {
 }
 
 mock.module('$app/env', () => ({ dev: true }));
-mock.module('$lib/server/db', () => ({ db: testDb }));
-mock.module('$lib/server/auth/api', () => ({
+mock.module('#lib/server/db/index.js', () => ({ db: testDb }));
+mock.module('#lib/server/auth/api.js', () => ({
 	authError: (status: number, message: string, options: MockAuthErrorOptions = {}) =>
 		Response.json({ message, ...options }, { status }),
 	authSuccess: (next: AuthModalView | null, data: MockAuthSuccessData = {}) =>
@@ -60,20 +60,20 @@ mock.module('$lib/server/auth/api', () => ({
 			: { credential: { userId: passkeyUserId } };
 	}
 }));
-mock.module('$lib/server/auth/2fa', () => ({
+mock.module('#lib/server/auth/2fa.js', () => ({
 	parseRecoveryCode: () => null,
 	verifyUserRecoveryCode: async () => 'invalid'
 }));
-mock.module('$lib/server/auth/password', () => ({
+mock.module('#lib/server/auth/password.js', () => ({
 	hashPassword: async () => 'dummy-hash',
 	parsePasswordInput: parseMockPasswordInput,
 	verifyPasswordHash: async () => passwordValid
 }));
-mock.module('$lib/server/auth/totp', () => ({
+mock.module('#lib/server/auth/totp.js', () => ({
 	parseTOTPCode: parseMockTOTPCode,
 	verifyUserTOTP: () => totpVerification
 }));
-mock.module('$lib/server/auth/user', () => ({
+mock.module('#lib/server/auth/user.js', () => ({
 	getUserById: (userId: string) => (currentUser?.id === userId ? currentUser : null),
 	getUserFromEmail: (email: string) => (currentUser?.email === email ? currentUser : null),
 	getUserPasswordHash: (userId: string) =>

@@ -1,8 +1,8 @@
-import { getBenchmarkRunMetadata } from '$lib/server/benchmarks';
-import { warn } from '$lib/logger';
-import { db } from '$lib/server/db';
-import { benchmarkResult, game, gameName, user } from '$lib/server/db/schema';
-import { createMeilisearchIndex } from '$lib/server/meilisearch';
+import { getBenchmarkRunMetadata } from '#lib/server/benchmarks.js';
+import { warn } from '#lib/logger.js';
+import { db } from '#lib/server/db/index.js';
+import { benchmarkResult, game, gameName, user } from '#lib/server/db/schema.js';
+import { createMeilisearchIndex } from '#lib/server/meilisearch.js';
 import { and, eq, inArray } from 'drizzle-orm';
 
 const INDEX_NAME = 'benchmarks';

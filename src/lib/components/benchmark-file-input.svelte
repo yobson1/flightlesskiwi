@@ -6,11 +6,11 @@
 		MAX_BENCHMARK_FILE_SIZE,
 		MAX_BENCHMARK_TOTAL_SIZE,
 		formatFileSize
-	} from '$lib/benchmark';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	} from '#lib/benchmark.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 
 	interface Props {
 		files?: FileList;

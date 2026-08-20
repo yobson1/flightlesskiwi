@@ -2,19 +2,19 @@
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
-	import { MAX_PASSWORD_LENGTH, TOTP_CODE_LENGTH } from '$lib/auth-constants';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
-	import { formDataFromSubmitEvent } from '$lib/client/forms';
-	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '$lib/client/webauthn';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import OAuthProviderButtons from '$lib/components/oauth-provider-buttons.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
-	import type { AuthModalView, ClientAuthState } from '$lib/types/auth';
+	import { MAX_PASSWORD_LENGTH, TOTP_CODE_LENGTH } from '#lib/auth-constants.js';
+	import { authRequest, AuthAPIError } from '#lib/client/auth-api.js';
+	import { formDataFromSubmitEvent } from '#lib/client/forms.js';
+	import { createWebAuthnAssertion, parseWebAuthnCancellation } from '#lib/client/webauthn.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import OAuthProviderButtons from '#lib/components/oauth-provider-buttons.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as InputOTP from '#lib/components/ui/input-otp/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import type { AuthModalView, ClientAuthState } from '#lib/types/auth.js';
 
 	interface Props {
 		auth: ClientAuthState;

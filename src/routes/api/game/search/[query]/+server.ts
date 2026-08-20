@@ -1,16 +1,15 @@
-import { json } from '@sveltejs/kit';
-import { error } from '$lib/logger';
-import { searchGames } from '$lib/server/game-search';
+import { error } from '#lib/logger.js';
+import { searchGames } from '#lib/server/game-search.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const query = params.query.trim();
-		if (!query) return json([]);
+		if (!query) return Response.json([]);
 
-		return json(await searchGames(query));
+		return Response.json(await searchGames(query));
 	} catch (err) {
 		error(`Failed to search games for query "${params.query}"`, err);
-		return json({ error: 'Game search is temporarily unavailable' }, { status: 503 });
+		return Response.json({ error: 'Game search is temporarily unavailable' }, { status: 503 });
 	}
 };

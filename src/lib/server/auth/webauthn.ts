@@ -1,9 +1,9 @@
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
-import { decodeBase64url, encodeBase64url } from '$lib/encoding';
-import { db } from '$lib/server/db';
-import { passkeyCredential, webAuthnChallenge } from '$lib/server/db/schema';
-import { encodeHashedSecret } from '$lib/server/auth/utils';
-import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+import { decodeBase64url, encodeBase64url } from '#lib/encoding.js';
+import { db } from '#lib/server/db/index.js';
+import { passkeyCredential, webAuthnChallenge } from '#lib/server/db/schema.js';
+import { encodeHashedSecret } from '#lib/server/auth/utils.js';
+import type { WebAuthnChallengePurpose } from '#lib/types/webauthn.js';
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 export const WEBAUTHN_SUPPORTED_ALGORITHM_IDS = [-7, -257] as const;

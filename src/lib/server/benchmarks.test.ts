@@ -1,11 +1,11 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
-import * as schema from '$lib/server/db/schema';
-import { createTestDatabase } from '$lib/server/test-db';
+import * as schema from '#lib/server/db/schema.js';
+import { createTestDatabase } from '#lib/server/test-db.js';
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
 
-mock.module('$lib/server/db', () => ({ db: testDb }));
+mock.module('#lib/server/db/index.js', () => ({ db: testDb }));
 
 const {
 	PUBLIC_BENCHMARK_PAGE_SIZE,

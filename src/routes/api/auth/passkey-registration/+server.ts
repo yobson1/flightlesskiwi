@@ -1,21 +1,21 @@
 import { WEBAUTHN_RP_ID, WEBAUTHN_RP_NAME } from '$app/env/private';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
-import { error as logError } from '$lib/logger';
-import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
-import { encodeBase64url } from '$lib/encoding';
-import { rotateSessionFor2FAEnrollment } from '$lib/server/auth';
-import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
-import { hashSecret } from '$lib/server/auth/utils';
+import { error as logError } from '#lib/logger.js';
+import { MAX_PASSKEY_NAME_LENGTH } from '#lib/auth-constants.js';
+import { encodeBase64url } from '#lib/encoding.js';
+import { rotateSessionFor2FAEnrollment } from '#lib/server/auth.js';
+import { authError, authSuccess, requireVerifiedSession } from '#lib/server/auth/api.js';
+import { hashSecret } from '#lib/server/auth/utils.js';
 import {
 	createPasskeyCredential,
 	getUserPasskeyCredentials,
 	storeWebAuthnChallenge,
 	WEBAUTHN_SUPPORTED_ALGORITHM_IDS
-} from '$lib/server/auth/webauthn';
+} from '#lib/server/auth/webauthn.js';
 import {
 	verifyWebAuthnRegistration,
 	WebAuthnVerificationError
-} from '$lib/server/auth/webauthn-verify';
+} from '#lib/server/auth/webauthn-verify.js';
 import type { RequestEvent } from './$types';
 import * as v from 'valibot';
 

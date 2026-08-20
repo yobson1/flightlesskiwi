@@ -1,8 +1,8 @@
 <script lang="ts" generics="T">
 	import { onDestroy, type Snippet } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import { Input } from '$lib/components/ui/input';
-	import LineMdSearchTwotone from '$lib/components/icons/line-md-search-twotone.svelte';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import LineMdSearchTwotone from '#lib/components/icons/line-md-search-twotone.svelte';
 	import LineMdLoadingTwotoneLoop from '~icons/line-md/loading-twotone-loop';
 
 	interface Props {

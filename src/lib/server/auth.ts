@@ -1,15 +1,15 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
 import { and, eq, ne } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { session as sessionTable } from '$lib/server/db/schema';
-import { getUserById, type AuthUser } from '$lib/server/auth/user';
+import { db } from '#lib/server/db/index.js';
+import { session as sessionTable } from '#lib/server/db/schema.js';
+import { getUserById, type AuthUser } from '#lib/server/auth/user.js';
 import {
 	constantTimeEqual,
 	generateSecureRandomString,
 	hashSecret,
 	parseTwoPartToken
-} from '$lib/server/auth/utils';
+} from '#lib/server/auth/utils.js';
 
 const DAY_IN_MS = 1000 * 60 * 60 * 24;
 const INACTIVITY_TIMEOUT_MS = DAY_IN_MS * 30;

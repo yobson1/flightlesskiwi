@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test';
-import { TURNSTILE_ACTION } from '$lib/turnstile';
+import { TURNSTILE_ACTION } from '#lib/turnstile.js';
 import { TEST_PRIVATE_ENV } from './test-env';
 
 mock.module('$app/env/private', () => ({

@@ -1,16 +1,16 @@
 import { dev } from '$app/env';
 import type { RequestEvent } from '@sveltejs/kit';
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
-import { TOTP_CODE_LENGTH } from '$lib/auth-constants';
-import { decodeBase64url, encodeBase64url } from '$lib/encoding';
-import { db } from '$lib/server/db';
-import { totpCredential, user as userTable } from '$lib/server/db/schema';
-import { decrypt, encrypt } from '$lib/server/auth/encryption';
-import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { verifyTOTPKey } from '$lib/server/auth/totp-code';
+import { TOTP_CODE_LENGTH } from '#lib/auth-constants.js';
+import { decodeBase64url, encodeBase64url } from '#lib/encoding.js';
+import { db } from '#lib/server/db/index.js';
+import { totpCredential, user as userTable } from '#lib/server/db/schema.js';
+import { decrypt, encrypt } from '#lib/server/auth/encryption.js';
+import { ExpiringTokenBucket, RefillingTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { verifyTOTPKey } from '#lib/server/auth/totp-code.js';
 import * as v from 'valibot';
 
-export { createTOTPKeyURI, verifyTOTPKey } from '$lib/server/auth/totp-code';
+export { createTOTPKeyURI, verifyTOTPKey } from '#lib/server/auth/totp-code.js';
 
 const totpBucket = new ExpiringTokenBucket<string>('totp-verify', 5, 30 * 60);
 export const totpUpdateBucket = new RefillingTokenBucket<string>('totp-update', 3, 10 * 60);

@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { formatMetricValue } from '$lib/benchmark-chart';
+	import { formatMetricValue } from '#lib/benchmark-chart.js';
 	import type { DefaultLabelFormatterCallbackParams } from 'echarts';
-	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
+	import BenchmarkChartCard from '#lib/components/benchmark-chart-card.svelte';
 	import {
 		getBenchmarkEChartBaseOption,
 		getBenchmarkEChartLegend,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
-	} from '$lib/benchmark-echart';
+	} from '#lib/benchmark-echart.js';
 
 	type EChartValue = DefaultLabelFormatterCallbackParams['value'];
 

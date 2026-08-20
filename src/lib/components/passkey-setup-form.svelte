@@ -2,25 +2,25 @@
 	import FingerprintIcon from '@lucide/svelte/icons/fingerprint';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
-	import { MAX_PASSKEY_NAME_LENGTH } from '$lib/auth-constants';
-	import { authRequest, AuthAPIError } from '$lib/client/auth-api';
+	import { MAX_PASSKEY_NAME_LENGTH } from '#lib/auth-constants.js';
+	import { authRequest, AuthAPIError } from '#lib/client/auth-api.js';
 	import {
 		createWebAuthnRegistration,
 		parseWebAuthnCancellation,
 		type WebAuthnRegistration
-	} from '$lib/client/webauthn';
-	import AuthCard from '$lib/components/auth-card.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
+	} from '#lib/client/webauthn.js';
+	import AuthCard from '#lib/components/auth-card.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
 
 	interface Props {
 		options: PublicKeyCredentialCreationOptionsJSON;
 		onComplete?: (next: AuthModalView | null) => void | Promise<void>;
 	}
 
-	import type { AuthModalView } from '$lib/types/auth';
+	import type { AuthModalView } from '#lib/types/auth.js';
 
 	let { options, onComplete }: Props = $props();
 

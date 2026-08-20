@@ -11,8 +11,8 @@ import {
 	EMAIL_CODE_SEND_INTERVAL_SECONDS,
 	EMAIL_CODE_SEND_WINDOW_MAX,
 	EMAIL_CODE_SEND_WINDOW_SECONDS
-} from '$lib/auth-constants';
-import { ExpiringMultiWindowTokenBucket } from '$lib/server/auth/rate-limit';
+} from '#lib/auth-constants.js';
+import { ExpiringMultiWindowTokenBucket } from '#lib/server/auth/rate-limit.js';
 
 export const EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
 

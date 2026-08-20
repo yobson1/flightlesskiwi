@@ -1,9 +1,9 @@
 <script lang="ts">
 	import ImageDownIcon from '@lucide/svelte/icons/image-down';
-	import type { BenchmarkEChartOption, BenchmarkEChartTheme } from '$lib/benchmark-echart';
-	import BenchmarkEChart from '$lib/components/benchmark-echart.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { cn } from '$lib/utils';
+	import type { BenchmarkEChartOption, BenchmarkEChartTheme } from '#lib/benchmark-echart.js';
+	import BenchmarkEChart from '#lib/components/benchmark-echart.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		title: string;

@@ -1,8 +1,8 @@
 import { afterAll, afterEach, describe, expect, mock, setSystemTime, test } from 'bun:test';
-import { createTestDatabase } from '$lib/server/test-db';
+import { createTestDatabase } from '#lib/server/test-db.js';
 
 const testDatabase = await createTestDatabase();
-mock.module('$lib/server/db', () => ({ db: testDatabase.db }));
+mock.module('#lib/server/db/index.js', () => ({ db: testDatabase.db }));
 
 const { ExpiringMultiWindowTokenBucket } = await import('./rate-limit');
 

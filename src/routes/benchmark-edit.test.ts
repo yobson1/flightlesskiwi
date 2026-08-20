@@ -1,9 +1,9 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { isHttpError, isRedirect } from '@sveltejs/kit';
-import * as schema from '$lib/server/db/schema';
-import { createTestDatabase } from '$lib/server/test-db';
-import { TEST_PRIVATE_ENV } from '$lib/server/test-env';
-import { TURNSTILE_ACTION } from '$lib/turnstile';
+import * as schema from '#lib/server/db/schema.js';
+import { createTestDatabase } from '#lib/server/test-db.js';
+import { TEST_PRIVATE_ENV } from '#lib/server/test-env.js';
+import { TURNSTILE_ACTION } from '#lib/turnstile.js';
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
@@ -17,19 +17,19 @@ let failQueue = false;
 
 mock.module('$app/env', () => ({ building: false, dev: true }));
 mock.module('$app/env/private', () => TEST_PRIVATE_ENV);
-mock.module('$lib/server/db', () => ({ db: testDb }));
-mock.module('$lib/server/auth/encryption', () => ({
+mock.module('#lib/server/db/index.js', () => ({ db: testDb }));
+mock.module('#lib/server/auth/encryption.js', () => ({
 	encrypt: (value: Uint8Array) => Buffer.from(value),
 	encryptString: (value: string) => Buffer.from(value),
 	decrypt: (value: Uint8Array) => Buffer.from(value),
 	decryptToString: (value: Uint8Array) => Buffer.from(value).toString(),
 	hashAuthCode: (value: string) => Buffer.from(value)
 }));
-mock.module('$lib/server/benchmark-run', () => ({
+mock.module('#lib/server/benchmark-run.js', () => ({
 	parseBenchmarkRun: async ({ contents }: { contents?: string }) =>
 		contents?.startsWith('valid') ? { source: 'mangohud' } : null
 }));
-mock.module('$lib/server/benchmark-files', () => ({
+mock.module('#lib/server/benchmark-files.js', () => ({
 	readBenchmarkFilePrefix: async () => '',
 	deleteBenchmarkFiles: async (fileIds: string[]) => {
 		deletedFileBatches.push([...fileIds]);
@@ -41,7 +41,7 @@ mock.module('$lib/server/benchmark-files', () => ({
 		if (failWrites) throw new Error('write failed');
 	}
 }));
-mock.module('$lib/server/benchmark-search', () => ({
+mock.module('#lib/server/benchmark-search.js', () => ({
 	flushBenchmarkSearchQueue: async () => {
 		flushCount++;
 	},

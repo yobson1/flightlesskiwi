@@ -3,20 +3,19 @@
 	import SaveIcon from '@lucide/svelte/icons/save';
 	import ScanEyeIcon from '@lucide/svelte/icons/scan-eye';
 	import UploadIcon from '@lucide/svelte/icons/upload';
-	import { enhance } from '$app/forms';
-	import { MAX_BENCHMARK_DESCRIPTION_LENGTH, MAX_BENCHMARK_TITLE_LENGTH } from '$lib/benchmark';
-	import BenchmarkFileInput from '$lib/components/benchmark-file-input.svelte';
-	import GameInline from '$lib/components/game-inline.svelte';
-	import GameSearch from '$lib/components/game-search.svelte';
-	import MarkdownPreview from '$lib/components/markdown-preview.svelte';
-	import Turnstile from '$lib/components/turnstile.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { getMessage } from '$lib/utils';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import { enhance, type SubmitFunction } from '$app/forms';
+	import { MAX_BENCHMARK_DESCRIPTION_LENGTH, MAX_BENCHMARK_TITLE_LENGTH } from '#lib/benchmark.js';
+	import BenchmarkFileInput from '#lib/components/benchmark-file-input.svelte';
+	import GameInline from '#lib/components/game-inline.svelte';
+	import GameSearch from '#lib/components/game-search.svelte';
+	import MarkdownPreview from '#lib/components/markdown-preview.svelte';
+	import Turnstile from '#lib/components/turnstile.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import { getMessage } from '#lib/utils.js';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import * as v from 'valibot';
@@ -40,7 +39,6 @@
 		title: string;
 		description: string;
 	}
-
 	interface ExistingBenchmarkFile {
 		id: string;
 		originalName: string;
@@ -241,11 +239,9 @@
 								type="button"
 								variant="outline"
 								size="lg"
-								onclick={() => (descriptionPreviewOpen = true)}
+								onclick={() => (descriptionPreviewOpen = true)}><ScanEyeIcon />Preview</Button
 							>
-								<ScanEyeIcon />
-								Preview
-							</Button>
+
 							<Button
 								type="submit"
 								size="lg"

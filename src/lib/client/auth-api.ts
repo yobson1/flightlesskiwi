@@ -3,9 +3,9 @@ import {
 	authAPIResponseSchema,
 	type AuthAPIResponse,
 	type AuthModalView
-} from '$lib/types/auth';
-import { resetAuthTurnstile, takeAuthTurnstileToken } from '$lib/client/auth-turnstile';
-import { requiresAuthTurnstile, TURNSTILE_RESPONSE_FIELD } from '$lib/turnstile';
+} from '#lib/types/auth.js';
+import { resetAuthTurnstile, takeAuthTurnstileToken } from '#lib/client/auth-turnstile.js';
+import { requiresAuthTurnstile, TURNSTILE_RESPONSE_FIELD } from '#lib/turnstile.js';
 import * as v from 'valibot';
 
 export class AuthAPIError extends Error {

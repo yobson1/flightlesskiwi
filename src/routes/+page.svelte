@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FilterIcon from '@lucide/svelte/icons/list-filter';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { invalidateAll, replaceState } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
 	import {
@@ -10,20 +10,20 @@
 		type BenchmarkListing,
 		type BenchmarkPagination,
 		type LoadedBenchmarkPage
-	} from '$lib/client/benchmark-page-cache.svelte';
-	import BenchmarkList from '$lib/components/benchmark-list.svelte';
-	import GameSearch from '$lib/components/game-search.svelte';
-	import Search from '$lib/components/search.svelte';
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import * as Popover from '$lib/components/ui/popover';
-	import { constructImageUrl } from '$lib/igdb';
+	} from '#lib/client/benchmark-page-cache.svelte.js';
+	import BenchmarkList from '#lib/components/benchmark-list.svelte';
+	import GameSearch from '#lib/components/game-search.svelte';
+	import Search from '#lib/components/search.svelte';
+	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
+	import * as Popover from '#lib/components/ui/popover/index.js';
+	import { constructImageUrl } from '#lib/igdb.js';
 	import {
 		benchmarkAPIErrorSchema,
 		benchmarkPageResponseSchema,
 		benchmarkSearchResponseSchema,
 		type BenchmarkPageResponse
-	} from '$lib/types/benchmark-api';
-	import type { GameSearchResult } from '$lib/types/game';
+	} from '#lib/types/benchmark-api.js';
+	import type { GameSearchResult } from '#lib/types/game.js';
 	import { onDestroy, untrack } from 'svelte';
 	import { SvelteMap, SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
@@ -62,7 +62,7 @@
 		if (urlGameId === (selectedGame?.id ?? null) || loadingGameFilter) return;
 		const restoredGame = urlGameId === null ? null : knownGames.get(urlGameId);
 		if (urlGameId !== null && !restoredGame) {
-			void invalidateAll();
+			void refreshAll();
 			return;
 		}
 		void applyGameFilter(restoredGame ?? null, false, readURLPositiveInteger('page') ?? 1);
@@ -118,7 +118,7 @@
 	): Promise<LoadedBenchmarkPage> {
 		const searchParams = new SvelteURLSearchParams({ page: pageNumber.toString() });
 		if (gameId !== undefined) searchParams.set('game_id', gameId.toString());
-		const response = await fetch(`${resolve('/api/benchmarks')}?${searchParams}`, { signal });
+		const response = await fetch(`${resolve('api/benchmarks')}?${searchParams}`, { signal });
 		const responseData: unknown = await response.json();
 		if (!response.ok) {
 			const errorResult = v.safeParse(benchmarkAPIErrorSchema, responseData);
@@ -175,9 +175,8 @@
 		const url = new SvelteURL(window.location.href);
 		if (pageNumber === 1) url.searchParams.delete('page');
 		else url.searchParams.set('page', pageNumber.toString());
-		// SAFETY: this is the current application pathname with only its query changed.
-		const href = resolve(`${url.pathname}${url.search}` as '/');
-		replaceState(href, appPage.state);
+		// This is the current application URL with only its query changed.
+		void goto(url, { shallow: true, replace: true, state: appPage.state });
 	}
 
 	function updateFilterURL(game: GameSearchResult | null) {
@@ -185,8 +184,12 @@
 		url.searchParams.delete('page');
 		if (game) url.searchParams.set('game_id', game.id.toString());
 		else url.searchParams.delete('game_id');
-		// SAFETY: this is the current application pathname with only its query changed.
-		replaceState(resolve(`${url.pathname}${url.search}` as '/'), appPage.state);
+		// This is the current application URL with only its query changed.
+		void goto(url, {
+			shallow: true,
+			replace: true,
+			state: appPage.state
+		});
 	}
 
 	function readURLPositiveInteger(name: string): number | null {
@@ -240,10 +243,9 @@
 						size: 'icon'
 					})}
 					aria-label="Filter benchmarks by game"
-					title="Filter by game"
+					title="Filter by game"><FilterIcon /></Popover.Trigger
 				>
-					<FilterIcon />
-				</Popover.Trigger>
+
 				<Popover.Content align="end" class="w-[min(24rem,calc(100vw-2rem))]">
 					<Popover.Header>
 						<Popover.Title>Filter by game</Popover.Title>

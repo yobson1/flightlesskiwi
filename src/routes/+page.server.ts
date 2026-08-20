@@ -3,8 +3,8 @@ import {
 	getPublicBenchmarksPage,
 	parsePublicBenchmarkGameId,
 	parsePublicBenchmarkPage
-} from '$lib/server/benchmarks';
-import { getGameSearchResult } from '$lib/server/game-search';
+} from '#lib/server/benchmarks.js';
+import { getGameSearchResult } from '#lib/server/game-search.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ url }) => {

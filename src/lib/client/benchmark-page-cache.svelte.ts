@@ -1,4 +1,4 @@
-import type { BenchmarkPageResponse } from '$lib/types/benchmark-api';
+import type { BenchmarkPageResponse } from '#lib/types/benchmark-api.js';
 import { SvelteMap } from 'svelte/reactivity';
 
 export type BenchmarkListing = Omit<BenchmarkPageResponse['benchmarks'][number], 'createdAt'> & {

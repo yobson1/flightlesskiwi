@@ -6,10 +6,10 @@ import {
 	MAX_BENCHMARK_TITLE_LENGTH,
 	MAX_BENCHMARK_TOTAL_SIZE,
 	formatFileSize
-} from '$lib/benchmark';
-import { getCapFrameXRunCount } from '$lib/capframex';
-import { generateSecureRandomString } from '$lib/server/auth/utils';
-import { parseBenchmarkRun } from '$lib/server/benchmark-run';
+} from '#lib/benchmark.js';
+import { getCapFrameXRunCount } from '#lib/capframex.js';
+import { generateSecureRandomString } from '#lib/server/auth/utils.js';
+import { parseBenchmarkRun } from '#lib/server/benchmark-run.js';
 import * as v from 'valibot';
 
 const submittedValuesSchema = v.object({

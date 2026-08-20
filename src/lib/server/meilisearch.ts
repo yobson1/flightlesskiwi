@@ -1,7 +1,7 @@
 import { MEILI_HOST, MEILI_MASTER_KEY } from '$app/env/private';
-import { debug, info } from '$lib/logger';
-import { db } from '$lib/server/db';
-import { searchIndexQueue } from '$lib/server/db/schema';
+import { debug, info } from '#lib/logger.js';
+import { db } from '#lib/server/db/index.js';
+import { searchIndexQueue } from '#lib/server/db/schema.js';
 import { and, eq, sql } from 'drizzle-orm';
 import {
 	ErrorStatusCode,

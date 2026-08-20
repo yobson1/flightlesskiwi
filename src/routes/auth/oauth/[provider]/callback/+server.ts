@@ -1,22 +1,22 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
-import { error as logError } from '$lib/logger';
-import { hasRecentReauthentication, rotateSessionAfterReauthentication } from '$lib/server/auth';
-import { completeLoginFirstFactor } from '$lib/server/auth/login';
-import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
-import { OAuthCallbackError, validateOAuthCallback } from '$lib/server/auth/oauth';
+import { error as logError } from '#lib/logger.js';
+import { hasRecentReauthentication, rotateSessionAfterReauthentication } from '#lib/server/auth.js';
+import { completeLoginFirstFactor } from '#lib/server/auth/login.js';
+import { invalidateLoginAttemptRequest } from '#lib/server/auth/login-attempt.js';
+import { OAuthCallbackError, validateOAuthCallback } from '#lib/server/auth/oauth.js';
 import {
 	createOrLinkOAuthUser,
 	getUserFromOAuthAccount,
 	linkUserOAuthAccount,
 	updateUserOAuthAccountTokens
-} from '$lib/server/auth/user';
-import { formatOAuthError } from '$lib/server/oauth';
+} from '#lib/server/auth/user.js';
+import { formatOAuthError } from '#lib/server/oauth.js';
 import {
 	createOAuthConnectedRedirect,
 	createOAuthErrorRedirect,
 	parseOAuthProvider,
 	type OAuthErrorCode
-} from '$lib/types/oauth';
+} from '#lib/types/oauth.js';
 import type { RequestEvent } from './$types';
 
 export async function GET(event: RequestEvent) {
@@ -135,7 +135,7 @@ export async function GET(event: RequestEvent) {
 }
 
 function getOAuthDestination(
-	flow: import('$lib/server/auth/oauth').OAuthFlow,
+	flow: import('#lib/server/auth/oauth.js').OAuthFlow,
 	returnTo: string | null
 ): string {
 	return flow === 'login' ? (returnTo ?? '/#login') : (returnTo ?? '/settings');

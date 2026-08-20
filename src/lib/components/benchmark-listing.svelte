@@ -3,7 +3,7 @@
 	import GamepadIcon from '@lucide/svelte/icons/gamepad-2';
 	import GpuIcon from '@lucide/svelte/icons/gpu';
 	import { resolve } from '$app/paths';
-	import { constructImageUrl } from '$lib/igdb';
+	import { constructImageUrl } from '#lib/igdb.js';
 
 	interface BenchmarkListing {
 		id: string;

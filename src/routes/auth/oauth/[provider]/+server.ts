@@ -1,15 +1,15 @@
 import { redirect } from '@sveltejs/kit';
-import { error as logError } from '$lib/logger';
-import { hasRecentReauthentication } from '$lib/server/auth';
-import { getClientIP } from '$lib/server/auth/api';
-import { invalidateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
+import { error as logError } from '#lib/logger.js';
+import { hasRecentReauthentication } from '#lib/server/auth.js';
+import { getClientIP } from '#lib/server/auth/api.js';
+import { invalidateLoginAttemptRequest } from '#lib/server/auth/login-attempt.js';
 import {
 	createOAuthAuthorizationURL,
 	normalizeOAuthReturnTo,
 	OAuthConfigurationError
-} from '$lib/server/auth/oauth';
-import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { createOAuthErrorRedirect, parseOAuthProvider } from '$lib/types/oauth';
+} from '#lib/server/auth/oauth.js';
+import { RefillingTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { createOAuthErrorRedirect, parseOAuthProvider } from '#lib/types/oauth.js';
 import type { RequestEvent } from './$types';
 
 const authorizationBucket = new RefillingTokenBucket<string>('oauth-authorization-ip', 20, 60);

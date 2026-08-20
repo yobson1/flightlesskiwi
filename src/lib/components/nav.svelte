@@ -8,15 +8,15 @@
 	import UserKeyIcon from '@lucide/svelte/icons/user-key';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import { toggleMode } from 'mode-watcher';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { getAuthModal } from '$lib/auth-modal';
-	import { authRequest } from '$lib/client/auth-api';
-	import Blobatar from '$lib/components/blobatar.svelte';
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import type { ClientAuthState } from '$lib/types/auth';
-	import { cn } from '$lib/utils.js';
+	import { getAuthModal } from '#lib/auth-modal.js';
+	import { authRequest } from '#lib/client/auth-api.js';
+	import Blobatar from '#lib/components/blobatar.svelte';
+	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import type { ClientAuthState } from '#lib/types/auth.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		auth: ClientAuthState | null;
@@ -27,7 +27,7 @@
 
 	async function logout() {
 		await authRequest('/api/auth/logout', { method: 'POST' });
-		await invalidateAll();
+		await refreshAll();
 		await authModal.open('login');
 	}
 </script>

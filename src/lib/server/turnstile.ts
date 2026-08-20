@@ -1,5 +1,5 @@
 import { ORIGIN, TURNSTILE_SECRET, TURNSTILE_SITE_KEY } from '$app/env/private';
-import { TURNSTILE_ACTION } from '$lib/turnstile';
+import { TURNSTILE_ACTION } from '#lib/turnstile.js';
 import * as v from 'valibot';
 
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';

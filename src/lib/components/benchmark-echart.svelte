@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { scheduleBenchmarkChartTask } from '$lib/benchmark-chart-scheduler';
+	import { scheduleBenchmarkChartTask } from '#lib/benchmark-chart-scheduler.js';
 	import {
 		createBenchmarkEChart,
 		readBenchmarkEChartTheme,
 		type BenchmarkEChartInstance,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
-	} from '$lib/benchmark-echart';
-	import { cn } from '$lib/utils';
+	} from '#lib/benchmark-echart.js';
+	import { cn } from '#lib/utils.js';
 	import type { ElementEvent } from 'zrender';
 
 	interface Props {

@@ -2,7 +2,7 @@
 	import SimpleIconsDiscord from '~icons/simple-icons/discord';
 	import SimpleIconsGithub from '~icons/simple-icons/github';
 	import SimpleIconsTwitch from '~icons/simple-icons/twitch';
-	import type { OAuthProvider } from '$lib/types/oauth';
+	import type { OAuthProvider } from '#lib/types/oauth.js';
 
 	interface Props {
 		provider: OAuthProvider;

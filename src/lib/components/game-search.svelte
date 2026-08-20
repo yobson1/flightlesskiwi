@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import Search from '$lib/components/search.svelte';
-	import { constructImageUrl } from '$lib/igdb';
-	import { gameSearchResultsSchema, type GameSearchResult } from '$lib/types/game';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import Search from '#lib/components/search.svelte';
+	import { constructImageUrl } from '#lib/igdb.js';
+	import { gameSearchResultsSchema, type GameSearchResult } from '#lib/types/game.js';
 	import * as v from 'valibot';
 
 	const gameSearchErrorSchema = v.object({ error: v.string() });

@@ -4,7 +4,7 @@ import {
 	EMAIL_CODE_LENGTH_WORD,
 	RECOVERY_CODE_LENGTH,
 	TOTP_CODE_LENGTH_WORD
-} from '$lib/auth-constants';
+} from '#lib/auth-constants.js';
 import {
 	constantTimeEqual,
 	generateRandomOTP,

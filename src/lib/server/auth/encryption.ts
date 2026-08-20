@@ -1,7 +1,7 @@
 import { building } from '$app/env';
 import { AUTH_ENCRYPTION_KEY } from '$app/env/private';
 import { createCipheriv, createDecipheriv } from 'node:crypto';
-import { decodeBase64 } from '$lib/encoding';
+import { decodeBase64 } from '#lib/encoding.js';
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;

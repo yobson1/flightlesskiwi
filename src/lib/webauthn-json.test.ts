@@ -4,7 +4,7 @@ import {
 	parseAuthenticationResponse,
 	parseRegistrationOptions,
 	parseRegistrationResponse
-} from '$lib/webauthn-json';
+} from '#lib/webauthn-json.js';
 
 describe('WebAuthn JSON parsing', () => {
 	test('parses authentication options without an optional RP ID', () => {

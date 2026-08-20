@@ -1,4 +1,4 @@
-import type { OAuthProvider } from '$lib/types/oauth';
+import type { OAuthProvider } from '#lib/types/oauth.js';
 import * as v from 'valibot';
 
 export const AUTH_MODAL_VIEWS = [

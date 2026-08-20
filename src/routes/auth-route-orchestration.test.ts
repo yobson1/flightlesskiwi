@@ -1,11 +1,11 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { isRedirect } from '@sveltejs/kit';
-import { encodeBase64, encodeBase64url } from '$lib/encoding';
-import * as schema from '$lib/server/db/schema';
-import type { OAuthTokenSet, OAuthUserProfile } from '$lib/server/oauth';
-import { createTestDatabase } from '$lib/server/test-db';
-import { TEST_PRIVATE_ENV } from '$lib/server/test-env';
-import type { OAuthErrorCode, OAuthProvider } from '$lib/types/oauth';
+import { encodeBase64, encodeBase64url } from '#lib/encoding.js';
+import * as schema from '#lib/server/db/schema.js';
+import type { OAuthTokenSet, OAuthUserProfile } from '#lib/server/oauth.js';
+import { createTestDatabase } from '#lib/server/test-db.js';
+import { TEST_PRIVATE_ENV } from '#lib/server/test-env.js';
+import type { OAuthErrorCode, OAuthProvider } from '#lib/types/oauth.js';
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
@@ -28,15 +28,15 @@ class TestOAuthCallbackError extends Error {
 
 mock.module('$app/env', () => ({ building: false, dev: true }));
 mock.module('$app/env/private', () => TEST_PRIVATE_ENV);
-mock.module('$lib/server/db', () => ({ db: testDb }));
-mock.module('$lib/server/auth/encryption', () => ({
+mock.module('#lib/server/db/index.js', () => ({ db: testDb }));
+mock.module('#lib/server/auth/encryption.js', () => ({
 	encrypt: (value: Uint8Array) => Buffer.from(value),
 	encryptString: (value: string) => Buffer.from(value),
 	decrypt: (value: Uint8Array) => Buffer.from(value),
 	decryptToString: (value: Uint8Array) => Buffer.from(value).toString(),
 	hashAuthCode: (value: string) => Buffer.from(value)
 }));
-mock.module('$lib/server/auth/oauth', () => ({
+mock.module('#lib/server/auth/oauth.js', () => ({
 	OAuthCallbackError: TestOAuthCallbackError,
 	validateOAuthCallback: async () => {
 		if (callbackError !== null) throw callbackError;
@@ -46,18 +46,18 @@ mock.module('$lib/server/auth/oauth', () => ({
 		revokedAuthorizations.push({ provider, tokens });
 	}
 }));
-mock.module('$lib/server/benchmark-files', () => ({
+mock.module('#lib/server/benchmark-files.js', () => ({
 	readBenchmarkFilePrefix: async () => '',
 	deleteBenchmarkFiles: async () => {},
 	writeBenchmarkFiles: async () => {}
 }));
-mock.module('$lib/server/benchmark-search', () => ({
+mock.module('#lib/server/benchmark-search.js', () => ({
 	flushBenchmarkSearchQueue: async () => {},
 	queueBenchmarksForSearch: () => {}
 }));
 
-const { validateSessionToken } = await import('$lib/server/auth');
-const { hashSecret } = await import('$lib/server/auth/utils');
+const { validateSessionToken } = await import('#lib/server/auth.js');
+const { hashSecret } = await import('#lib/server/auth/utils.js');
 const { GET: completeOAuth } = await import('./auth/oauth/[provider]/callback/+server');
 const { actions: settingsActions } = await import('./settings/+page.server');
 

@@ -6,8 +6,8 @@
 		getBenchmarkRunMetric,
 		stripFileExtension,
 		type BenchmarkChartRun
-	} from '$lib/benchmark-chart';
-	import BenchmarkChartCard from '$lib/components/benchmark-chart-card.svelte';
+	} from '#lib/benchmark-chart.js';
+	import BenchmarkChartCard from '#lib/components/benchmark-chart-card.svelte';
 	import {
 		getBenchmarkEChartAxis,
 		getBenchmarkEChartBaseOption,
@@ -17,7 +17,7 @@
 		getBenchmarkEChartZoomablePlotOption,
 		type BenchmarkEChartOption,
 		type BenchmarkEChartTheme
-	} from '$lib/benchmark-echart';
+	} from '#lib/benchmark-echart.js';
 	import type { DefaultLabelFormatterCallbackParams } from 'echarts';
 
 	type EChartValue = DefaultLabelFormatterCallbackParams['value'];

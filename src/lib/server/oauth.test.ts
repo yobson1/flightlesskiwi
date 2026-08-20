@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
-import { getOAuthErrorMessage } from '$lib/types/oauth';
+import { getOAuthErrorMessage } from '#lib/types/oauth.js';
 import {
 	Discord,
 	formatOAuthError,

@@ -1,21 +1,21 @@
-import { error as logError } from '$lib/logger';
+import { error as logError } from '#lib/logger.js';
 import {
 	EMAIL_CODE_LENGTH,
 	MAX_PASSWORD_LENGTH,
 	MIN_PASSWORD_LENGTH,
 	TOTP_CODE_LENGTH_WORD
-} from '$lib/auth-constants';
-import { createSessionAndSetCookie } from '$lib/server/auth';
-import { parseRecoveryCode, verifyUserRecoveryCode } from '$lib/server/auth/2fa';
-import { authError, authSuccess, getClientIP } from '$lib/server/auth/api';
+} from '#lib/auth-constants.js';
+import { createSessionAndSetCookie } from '#lib/server/auth.js';
+import { parseRecoveryCode, verifyUserRecoveryCode } from '#lib/server/auth/2fa.js';
+import { authError, authSuccess, getClientIP } from '#lib/server/auth/api.js';
 import {
 	checkCodeEmailSendRateLimit,
 	CodeEmailRateLimitError,
 	consumeCodeEmailSendRateLimit,
 	getCodeEmailSendRetryAfterSeconds,
 	sendPasswordResetEmail
-} from '$lib/server/auth/email';
-import { parsePasswordInput, verifyPasswordStrength } from '$lib/server/auth/password';
+} from '#lib/server/auth/email.js';
+import { parsePasswordInput, verifyPasswordStrength } from '#lib/server/auth/password.js';
 import {
 	completePasswordReset,
 	createPasswordResetSession,
@@ -28,16 +28,16 @@ import {
 	validatePasswordResetSessionRequest,
 	verifyPasswordResetCode,
 	type PasswordResetSession
-} from '$lib/server/auth/password-reset';
-import { ExpiringTokenBucket, RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { parseTOTPCode, verifyUserTOTP } from '$lib/server/auth/totp';
+} from '#lib/server/auth/password-reset.js';
+import { ExpiringTokenBucket, RefillingTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { parseTOTPCode, verifyUserTOTP } from '#lib/server/auth/totp.js';
 import {
 	getUserFromEmail,
 	normalizeEmail,
 	setUserAsEmailVerifiedIfEmailMatches,
 	verifyEmailInput,
 	type AuthUser
-} from '$lib/server/auth/user';
+} from '#lib/server/auth/user.js';
 import type { RequestEvent } from './$types';
 import * as v from 'valibot';
 

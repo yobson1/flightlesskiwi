@@ -1,6 +1,6 @@
 import { WEBAUTHN_RP_NAME } from '$app/env/private';
-import { rotateSessionFor2FAEnrollment } from '$lib/server/auth';
-import { authError, authSuccess, requireVerifiedSession } from '$lib/server/auth/api';
+import { rotateSessionFor2FAEnrollment } from '#lib/server/auth.js';
+import { authError, authSuccess, requireVerifiedSession } from '#lib/server/auth/api.js';
 import {
 	deleteTOTPSetupCookie,
 	createTOTPKeyURI,
@@ -11,7 +11,7 @@ import {
 	updateUserTOTPKey,
 	parseTOTPCode,
 	verifyTOTPKey
-} from '$lib/server/auth/totp';
+} from '#lib/server/auth/totp.js';
 import type { RequestEvent } from './$types';
 
 export function POST(event: RequestEvent) {

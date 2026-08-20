@@ -5,7 +5,7 @@ import {
 	type BenchmarkMetricKey,
 	type BenchmarkRun,
 	type BenchmarkSystemInfo
-} from '$lib/benchmark-run-model';
+} from '#lib/benchmark-run-model.js';
 import * as v from 'valibot';
 
 const MAXIMUM_DATA_POINTS = 100_000;

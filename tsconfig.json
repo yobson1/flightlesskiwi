@@ -1,26 +1,13 @@
 {
-	"extends": "./.svelte-kit/tsconfig.json",
-	"files": ["drizzle.config.ts"],
+	"extends": "$app/tsconfig",
+	"files": ["drizzle.config.ts", "vite.config.ts"],
 	"compilerOptions": {
-		"types": ["bun-types", "node", "unplugin-icons/types/svelte"],
-		"allowJs": true,
-		"checkJs": true,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"moduleDetection": "force",
-		"allowImportingTsExtensions": true,
-		"skipLibCheck": true,
+		"types": ["bun-types", "node", "unplugin-icons/types/svelte", "$app/types"],
 		"sourceMap": true,
 		"strict": true,
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedIndexedAccess": true,
-		"noImplicitOverride": true,
-		"moduleResolution": "bundler"
-	}
-	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
-	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
-	//
-	// To make changes to top-level options such as include and exclude, we recommend extending
-	// the generated config; see https://svelte.dev/docs/kit/configuration#typescript
+		"noImplicitOverride": true
+	},
+	"include": ["src"]
 }

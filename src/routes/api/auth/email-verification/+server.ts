@@ -1,11 +1,11 @@
-import { error as logError } from '$lib/logger';
-import { authError, authSuccess, requireAuthenticated } from '$lib/server/auth/api';
+import { error as logError } from '#lib/logger.js';
+import { authError, authSuccess, requireAuthenticated } from '#lib/server/auth/api.js';
 import {
 	checkCodeEmailSendRateLimit,
 	CodeEmailRateLimitError,
 	getCodeEmailSendRetryAfterSeconds,
 	sendVerificationEmail
-} from '$lib/server/auth/email';
+} from '#lib/server/auth/email.js';
 import {
 	completeEmailVerificationRequest,
 	createEmailVerificationRequest,
@@ -13,10 +13,10 @@ import {
 	getUserEmailVerificationRequestFromRequest,
 	setEmailVerificationRequestCookie,
 	verifyEmailVerificationCode
-} from '$lib/server/auth/email-verification';
-import { invalidateUserPasswordResetSessions } from '$lib/server/auth/password-reset';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
-import { matchesUserUniqueConstraintError } from '$lib/server/auth/user';
+} from '#lib/server/auth/email-verification.js';
+import { invalidateUserPasswordResetSessions } from '#lib/server/auth/password-reset.js';
+import { ExpiringTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { matchesUserUniqueConstraintError } from '#lib/server/auth/user.js';
 import type { RequestEvent } from './$types';
 import * as v from 'valibot';
 

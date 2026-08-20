@@ -1,13 +1,12 @@
 import { WEBAUTHN_RP_ID } from '$app/env/private';
-import { json } from '@sveltejs/kit';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
-import { encodeBase64url } from '$lib/encoding';
-import { getClientIP } from '$lib/server/auth/api';
-import { validatePasswordResetSessionRequest } from '$lib/server/auth/password-reset';
-import { validateLoginAttemptRequest } from '$lib/server/auth/login-attempt';
-import { RefillingTokenBucket } from '$lib/server/auth/rate-limit';
-import { getUserPasskeyCredentials, storeWebAuthnChallenge } from '$lib/server/auth/webauthn';
-import type { WebAuthnChallengePurpose } from '$lib/types/webauthn';
+import { encodeBase64url } from '#lib/encoding.js';
+import { getClientIP } from '#lib/server/auth/api.js';
+import { validatePasswordResetSessionRequest } from '#lib/server/auth/password-reset.js';
+import { validateLoginAttemptRequest } from '#lib/server/auth/login-attempt.js';
+import { RefillingTokenBucket } from '#lib/server/auth/rate-limit.js';
+import { getUserPasskeyCredentials, storeWebAuthnChallenge } from '#lib/server/auth/webauthn.js';
+import type { WebAuthnChallengePurpose } from '#lib/types/webauthn.js';
 import type { RequestEvent } from './$types';
 import * as v from 'valibot';
 
@@ -78,5 +77,5 @@ export async function POST(event: RequestEvent) {
 	});
 
 	storeWebAuthnChallenge(options.challenge, userId, purpose);
-	return json(options, { headers: { 'cache-control': 'no-store' } });
+	return Response.json(options, { headers: { 'cache-control': 'no-store' } });
 }

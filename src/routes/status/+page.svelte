@@ -6,9 +6,9 @@
 	import { invalidate } from '$app/navigation';
 	import { toString as describeCron } from 'cronstrue';
 	import { onMount } from 'svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import type { IgdbImportPhase } from '$lib/igdb';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import type { IgdbImportPhase } from '#lib/igdb.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

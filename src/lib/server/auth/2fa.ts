@@ -1,15 +1,15 @@
 import { and, eq } from 'drizzle-orm';
-import { MAX_RECOVERY_CODE_LENGTH } from '$lib/auth-constants';
-import { db } from '$lib/server/db';
+import { MAX_RECOVERY_CODE_LENGTH } from '#lib/auth-constants.js';
+import { db } from '#lib/server/db/index.js';
 import {
 	loginAttempt,
 	passkeyCredential,
 	session,
 	totpCredential,
 	user as userTable
-} from '$lib/server/db/schema';
-import { verifyRecoveryCodeHash } from '$lib/server/auth/password';
-import { ExpiringTokenBucket } from '$lib/server/auth/rate-limit';
+} from '#lib/server/db/schema.js';
+import { verifyRecoveryCodeHash } from '#lib/server/auth/password.js';
+import { ExpiringTokenBucket } from '#lib/server/auth/rate-limit.js';
 import * as v from 'valibot';
 
 const recoveryCodeBucket = new ExpiringTokenBucket<string>('recovery-code', 3, 60 * 60);

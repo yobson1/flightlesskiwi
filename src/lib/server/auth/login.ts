@@ -1,8 +1,8 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import { createSessionAndSetCookie } from '$lib/server/auth';
-import { createLoginAttempt } from '$lib/server/auth/login-attempt';
-import type { AuthUser } from '$lib/server/auth/user';
-import type { AuthModalView } from '$lib/types/auth';
+import { createSessionAndSetCookie } from '#lib/server/auth.js';
+import { createLoginAttempt } from '#lib/server/auth/login-attempt.js';
+import type { AuthUser } from '#lib/server/auth/user.js';
+import type { AuthModalView } from '#lib/types/auth.js';
 
 export function completeLoginFirstFactor(
 	event: RequestEvent,

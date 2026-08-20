@@ -1,15 +1,15 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
-import * as schema from '$lib/server/db/schema';
-import { createTestDatabase } from '$lib/server/test-db';
-import { TEST_PRIVATE_ENV } from '$lib/server/test-env';
+import * as schema from '#lib/server/db/schema.js';
+import { createTestDatabase } from '#lib/server/test-db.js';
+import { TEST_PRIVATE_ENV } from '#lib/server/test-env.js';
 
 const testDatabase = await createTestDatabase();
 const testDb = testDatabase.db;
 
 mock.module('$app/env', () => ({ dev: true }));
 mock.module('$app/env/private', () => TEST_PRIVATE_ENV);
-mock.module('$lib/server/db', () => ({ db: testDb }));
-mock.module('$lib/server/auth/encryption', () => ({
+mock.module('#lib/server/db/index.js', () => ({ db: testDb }));
+mock.module('#lib/server/auth/encryption.js', () => ({
 	encrypt: (value: Uint8Array) => Buffer.from(value),
 	encryptString: (value: string) => Buffer.from(value),
 	decrypt: (value: Uint8Array) => Buffer.from(value),
