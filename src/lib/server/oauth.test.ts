@@ -106,9 +106,13 @@ describe('OAuth provider clients', () => {
 		const redirectURI = 'https://example.com/auth/oauth/github/callback';
 		const github = new GitHub('github-client', 'github-secret', redirectURI);
 		const codeVerifier = generateCodeVerifier();
+		const callbackURL = new URL(redirectURI);
+		callbackURL.searchParams.set('code', 'authorization-code');
+		callbackURL.searchParams.set('state', 'expected-state');
+		callbackURL.searchParams.set('iss', 'https://github.com/login/oauth');
 
 		const tokens = await github.validateAuthorizationCode(
-			new URL(`${redirectURI}?code=authorization-code&state=expected-state`),
+			callbackURL,
 			'expected-state',
 			codeVerifier
 		);

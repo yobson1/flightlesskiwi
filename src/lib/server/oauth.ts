@@ -170,7 +170,7 @@ export class GitHub extends OAuth2Provider {
 		super(
 			new client.Configuration(
 				{
-					issuer: 'https://github.com',
+					issuer: 'https://github.com/login/oauth',
 					authorization_endpoint: 'https://github.com/login/oauth/authorize',
 					token_endpoint: 'https://github.com/login/oauth/access_token'
 				},
