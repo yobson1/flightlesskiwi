@@ -110,7 +110,11 @@
 						</p>
 					</div>
 					<div class="flex shrink-0 gap-2">
-						<Button href={`/benchmark/${data.benchmark.id}/download`} variant="outline">
+						<Button
+							href={resolve('/benchmark/[id]/download', { id: data.benchmark.id })}
+							variant="outline"
+							download
+						>
 							<DownloadIcon />
 							Download
 						</Button>
