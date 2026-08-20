@@ -37,7 +37,6 @@
 	let currentPage = $state(untrack(() => pagination?.initialPage ?? 1));
 	let jumping = $state(false);
 	let readyForRanges = $state(untrack(() => pagination === undefined));
-	let rangeTargetPage = $state<number | null>(null);
 	let listItems = $derived<(Benchmark | number)[]>(pagination?.indices ?? benchmarks);
 
 	onMount(() => {
@@ -53,17 +52,12 @@
 	}
 
 	function handleRangeChange(range: SvelteVirtualListRangeInfo) {
-		if (!pagination || !readyForRanges || pagination.totalCount === 0) return;
+		if (!pagination || !readyForRanges || jumping || pagination.totalCount === 0) return;
 		const inferredFirstVisibleIndex = Math.min(
 			pagination.totalCount - 1,
 			range.start === 0 ? 0 : range.start + BUFFER_SIZE + 1
 		);
 		const visiblePage = Math.floor(inferredFirstVisibleIndex / pagination.pageSize) + 1;
-		if (rangeTargetPage !== null) {
-			if (visiblePage !== rangeTargetPage) return;
-			rangeTargetPage = null;
-			return;
-		}
 		if (visiblePage === currentPage) return;
 		currentPage = visiblePage;
 		pagination.onPageChange(visiblePage);
@@ -74,15 +68,12 @@
 		if (!pagination || jumping) return;
 		const previousPage = currentPage;
 		jumping = true;
-		rangeTargetPage = targetPage;
 		currentPage = targetPage;
 		try {
 			await pagination.loadPageWindow(targetPage);
 			await scrollToPage(targetPage, pagination);
-			rangeTargetPage = null;
 			pagination.onPageChange(targetPage);
 		} catch (cause) {
-			rangeTargetPage = null;
 			currentPage = previousPage;
 			showLoadError(cause);
 		} finally {

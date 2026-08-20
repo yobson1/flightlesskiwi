@@ -147,9 +147,10 @@ export async function getPublicBenchmarksPage(options: PublicBenchmarkPageOption
 		gameId === undefined ? undefined : eq(benchmarkResult.gameId, gameId),
 		userId === undefined ? undefined : eq(benchmarkResult.userId, userId)
 	);
-	const totalCount =
-		db.select({ totalCount: count() }).from(benchmarkResult).where(filterCondition).get()
-			?.totalCount ?? 0;
+	const totalCount = cursor
+		? 0
+		: (db.select({ totalCount: count() }).from(benchmarkResult).where(filterCondition).get()
+				?.totalCount ?? 0);
 	const totalPages = Math.max(1, Math.ceil(totalCount / PUBLIC_BENCHMARK_PAGE_SIZE));
 	const resolvedPage = Math.min(page, totalPages);
 	const cursorCondition = cursor

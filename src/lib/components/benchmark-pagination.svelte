@@ -45,6 +45,7 @@
 	}
 
 	async function submitJump() {
+		if (jumpValue === '') return;
 		const requestedPage = Number(jumpValue);
 		const totalPages = Math.max(1, Math.ceil(count / pageSize));
 		if (!Number.isSafeInteger(requestedPage)) return;
