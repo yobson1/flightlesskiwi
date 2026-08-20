@@ -737,7 +737,6 @@ function getImportSchedulerState() {
 }
 
 function getNextImportAt() {
-	// @ts-expect-error The published Bun canary types do not include the Bun 1.4 tz option yet.
 	return Bun.cron.parse(IGDB_IMPORT_CRON!, Date.now(), importCronOptions)?.toISOString() ?? null;
 }
 
@@ -819,7 +818,6 @@ export function startIgdbImportScheduler() {
 			state.nextImportAt = getNextImportAt();
 		}
 	};
-	// @ts-expect-error The published Bun canary types do not include the Bun 1.4 tz option yet.
 	importScheduler = Bun.cron(IGDB_IMPORT_CRON!, runImport, importCronOptions).unref();
 
 	info(

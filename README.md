@@ -9,12 +9,7 @@
 
 ## Developing
 
-This project uses [Bun](https://bun.sh/):
-
-> [!NOTE]
-> Development currently uses Bun canary for the timezone-aware cron APIs coming in
-> Bun 1.4. Once Bun 1.4 is released, switch the project tooling, Docker build stage and release
-> workflow back to stable and remove the temporary `@ts-expect-error` comments for those APIs.
+This project uses [Bun 1.4](https://bun.sh/):
 
 ```sh
 bun install
