@@ -1,4 +1,6 @@
 <script lang="ts">
+	// TODO: Remove this override once rsvelte-lint supports SvelteKit 3 shallow goto() calls with SvelteURL.
+	/* eslint svelte/no-navigation-without-resolve: ["error", { "ignoreGoto": true, "ignoreLinks": true, "ignorePushState": false, "ignoreReplaceState": false }] */
 	import '../app.css';
 	import { browser, version } from '$app/env';
 	import { goto, refreshAll } from '$app/navigation';
