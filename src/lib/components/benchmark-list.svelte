@@ -8,18 +8,15 @@
 	import BenchmarkListing from '$lib/components/benchmark-listing.svelte';
 	import type { BenchmarkListing as Benchmark } from '$lib/client/benchmark-page-cache.svelte';
 
-	type PageChangeReason = 'control' | 'scroll';
-
 	interface SparsePagination {
 		benchmarks: SvelteMap<number, Benchmark>;
 		indices: number[];
 		initialPage: number;
 		pageSize: number;
-		requestedPage: number;
 		totalCount: number;
 		totalPages: number;
 		loadPageWindow: (page: number) => Promise<void>;
-		onPageChange: (page: number, reason: PageChangeReason) => void;
+		onPageChange: (page: number) => void;
 	}
 
 	interface Props {
@@ -40,39 +37,12 @@
 	let currentPage = $state(untrack(() => pagination?.initialPage ?? 1));
 	let jumping = $state(false);
 	let readyForRanges = $state(untrack(() => pagination === undefined));
-	let requestedPageInProgress = $state<number | null>(null);
 	let rangeTargetPage = $state<number | null>(null);
-	let handledRequestedPage = $state(untrack(() => pagination?.initialPage ?? 1));
 	let listItems = $derived<(Benchmark | number)[]>(pagination?.indices ?? benchmarks);
 
 	onMount(() => {
 		if (!pagination) return;
-		const handleHistoryNavigation = () => {
-			const targetPage = readHistoryPage(pagination);
-			handledRequestedPage = targetPage;
-			if (targetPage !== currentPage) void jumpToPage(targetPage, false);
-		};
-		window.addEventListener('popstate', handleHistoryNavigation);
 		void initializePagination(pagination);
-		return () => window.removeEventListener('popstate', handleHistoryNavigation);
-	});
-
-	$effect(() => {
-		if (!pagination || !readyForRanges) return;
-		const requestedPage = pagination.requestedPage;
-		if (requestedPage === handledRequestedPage) return;
-		if (jumping || rangeTargetPage !== null || requestedPageInProgress !== null) {
-			return;
-		}
-		handledRequestedPage = requestedPage;
-		if (
-			requestedPage === currentPage ||
-			requestedPage < 1 ||
-			requestedPage > pagination.totalPages
-		) {
-			return;
-		}
-		void jumpToPage(requestedPage, false);
 	});
 
 	async function initializePagination(activePagination: SparsePagination) {
@@ -96,27 +66,26 @@
 		}
 		if (visiblePage === currentPage) return;
 		currentPage = visiblePage;
-		pagination.onPageChange(visiblePage, 'scroll');
+		pagination.onPageChange(visiblePage);
 		void pagination.loadPageWindow(visiblePage).catch(showLoadError);
 	}
 
-	async function jumpToPage(targetPage: number, addHistory = true) {
+	async function jumpToPage(targetPage: number) {
 		if (!pagination || jumping) return;
 		const previousPage = currentPage;
 		jumping = true;
-		requestedPageInProgress = targetPage;
 		rangeTargetPage = targetPage;
 		currentPage = targetPage;
 		try {
 			await pagination.loadPageWindow(targetPage);
 			await scrollToPage(targetPage, pagination);
-			if (addHistory) pagination.onPageChange(targetPage, 'control');
+			rangeTargetPage = null;
+			pagination.onPageChange(targetPage);
 		} catch (cause) {
 			rangeTargetPage = null;
 			currentPage = previousPage;
 			showLoadError(cause);
 		} finally {
-			requestedPageInProgress = null;
 			jumping = false;
 		}
 	}
@@ -127,14 +96,6 @@
 			smoothScroll: false,
 			align: 'top'
 		});
-	}
-
-	function readHistoryPage(activePagination: SparsePagination) {
-		const value = new URL(window.location.href).searchParams.get('page');
-		if (value === null) return 1;
-		const parsed = Number(value);
-		if (!Number.isSafeInteger(parsed) || parsed < 1) return 1;
-		return Math.min(parsed, activePagination.totalPages);
 	}
 
 	function showLoadError(cause: unknown) {

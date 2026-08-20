@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FilterIcon from '@lucide/svelte/icons/list-filter';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { invalidateAll, pushState, replaceState } from '$app/navigation';
+	import { invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
 	import {
@@ -52,10 +52,6 @@
 		},
 		fetchActiveBenchmarkPage
 	);
-	let requestedPage = $derived(
-		Math.min(readURLPositiveInteger('page') ?? 1, benchmarkPages.pagination.totalPages)
-	);
-
 	onDestroy(() => {
 		filterController?.abort();
 		benchmarkPages.destroy();
@@ -175,14 +171,13 @@
 		void applyGameFilter(game);
 	}
 
-	function handlePageChange(pageNumber: number, reason: 'control' | 'scroll') {
+	function handlePageChange(pageNumber: number) {
 		const url = new SvelteURL(window.location.href);
 		if (pageNumber === 1) url.searchParams.delete('page');
 		else url.searchParams.set('page', pageNumber.toString());
 		// SAFETY: this is the current application pathname with only its query changed.
 		const href = resolve(`${url.pathname}${url.search}` as '/');
-		if (reason === 'control') pushState(href, appPage.state);
-		else replaceState(href, appPage.state);
+		replaceState(href, appPage.state);
 	}
 
 	function updateFilterURL(game: GameSearchResult | null) {
@@ -307,7 +302,6 @@
 							indices: benchmarkPages.indices,
 							initialPage: listInitialPage,
 							pageSize: benchmarkPages.pagination.pageSize,
-							requestedPage,
 							totalCount: benchmarkPages.pagination.totalCount,
 							totalPages: benchmarkPages.pagination.totalPages,
 							loadPageWindow: (pageNumber) => benchmarkPages.loadPageWindow(pageNumber),

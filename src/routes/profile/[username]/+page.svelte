@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pushState, replaceState } from '$app/navigation';
+	import { replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
 	import {
@@ -32,8 +32,6 @@
 		},
 		fetchProfileBenchmarkPage
 	);
-	let requestedPage = $derived(Math.min(readURLPage(), benchmarkPages.pagination.totalPages));
-
 	onDestroy(() => benchmarkPages.destroy());
 
 	$effect.pre(() => {
@@ -67,21 +65,13 @@
 		return normalizeBenchmarkPage(result.output);
 	}
 
-	function handlePageChange(pageNumber: number, reason: 'control' | 'scroll') {
+	function handlePageChange(pageNumber: number) {
 		const url = new SvelteURL(window.location.href);
 		if (pageNumber === 1) url.searchParams.delete('page');
 		else url.searchParams.set('page', pageNumber.toString());
 		// SAFETY: this is the current application pathname with only its query changed.
 		const href = resolve(`${url.pathname}${url.search}` as '/');
-		if (reason === 'control') pushState(href, appPage.state);
-		else replaceState(href, appPage.state);
-	}
-
-	function readURLPage() {
-		const value = appPage.url.searchParams.get('page');
-		if (value === null) return 1;
-		const parsed = Number(value);
-		return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
+		replaceState(href, appPage.state);
 	}
 
 	function requirePagination(pagination: BenchmarkPageResponse['pagination']): BenchmarkPagination {
@@ -126,7 +116,6 @@
 						indices: benchmarkPages.indices,
 						initialPage: listInitialPage,
 						pageSize: benchmarkPages.pagination.pageSize,
-						requestedPage,
 						totalCount: benchmarkPages.pagination.totalCount,
 						totalPages: benchmarkPages.pagination.totalPages,
 						loadPageWindow: (pageNumber) => benchmarkPages.loadPageWindow(pageNumber),
