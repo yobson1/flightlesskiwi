@@ -273,6 +273,7 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
+<div class="navigation-progress" aria-hidden="true"></div>
 <ModeWatcher />
 <Toaster richColors position="top-right" />
 
@@ -327,3 +328,55 @@
 	onClose={closeAuthModal}
 	onComplete={handleComplete}
 />
+
+<style>
+	.navigation-progress {
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: 100;
+		height: 2px;
+		width: 100%;
+		pointer-events: none;
+		transform: scaleX(0);
+		transform-origin: left;
+		background: var(--kiwi-green);
+		opacity: 0;
+	}
+
+	:global(html.navigation-progress-visible) .navigation-progress {
+		opacity: 1;
+		animation: navigation-progress 8s cubic-bezier(0.1, 0.5, 0.2, 1) forwards;
+	}
+
+	:global(html.navigation-complete) .navigation-progress {
+		animation: none;
+		opacity: 0;
+		transform: scaleX(1);
+		transition:
+			transform 120ms ease-out,
+			opacity 120ms ease-in 100ms;
+	}
+
+	@keyframes navigation-progress {
+		0% {
+			transform: scaleX(0);
+		}
+		15% {
+			transform: scaleX(0.3);
+		}
+		50% {
+			transform: scaleX(0.65);
+		}
+		100% {
+			transform: scaleX(0.9);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:global(html.navigation-progress-visible) .navigation-progress {
+			animation: none;
+			transform: scaleX(0.65);
+		}
+	}
+</style>

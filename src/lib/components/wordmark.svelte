@@ -20,8 +20,6 @@
 >
 	<img src={favicon} alt="" class={size === 'large' ? 'size-10' : 'size-8'} />
 	<span>
-		<span class="text-[#966645] dark:text-[#c59068]">flightless</span><span
-			class="text-[#668c2f] dark:text-[#bbe383]">kiwi</span
-		>
+		<span class="text-kiwi-brown">flightless</span><span class="text-kiwi-green">kiwi</span>
 	</span>
 </span>

@@ -6,6 +6,8 @@
 
 :root {
 	--radius: 0.625rem;
+	--kiwi-brown: #966645;
+	--kiwi-green: #668c2f;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.141 0.005 285.823);
 	--card: oklch(1 0 0);
@@ -40,6 +42,8 @@
 }
 
 .dark {
+	--kiwi-brown: #c59068;
+	--kiwi-green: #bbe383;
 	--background: oklch(0.141 0.005 285.823);
 	--foreground: oklch(0.985 0 0);
 	--card: oklch(0.21 0.006 285.885);
@@ -74,6 +78,8 @@
 }
 
 @theme inline {
+	--color-kiwi-brown: var(--kiwi-brown);
+	--color-kiwi-green: var(--kiwi-green);
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
