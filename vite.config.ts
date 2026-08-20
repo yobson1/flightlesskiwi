@@ -16,6 +16,7 @@ export default defineConfig({
 			// for more information about preprocessors
 			preprocess: vitePreprocess(),
 			adapter: adapter(),
+			output: { linkHeaderPreload: true },
 			version: { name: pkg.version }
 		}),
 		Icons({ compiler: 'svelte' })
