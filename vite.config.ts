@@ -6,6 +6,8 @@ import Icons from 'unplugin-icons/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
+// Keep @sveltejs/kit in dependencies until svelte-adapter-bun supports SvelteKit 3. The adapter
+// only externalizes dependencies, and otherwise bundles Kit's browser redirect implementation.
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
