@@ -67,5 +67,5 @@ export async function GET(event: RequestEvent) {
 		}
 		return new Response('OAuth provider is unavailable', { status: 503 });
 	}
-	redirect(303, authorizationURL.href);
+	redirect(303, authorizationURL, { external: true });
 }
