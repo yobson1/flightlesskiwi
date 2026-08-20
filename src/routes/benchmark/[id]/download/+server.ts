@@ -1,7 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { createGzip } from 'node:zlib';
 import { eq } from 'drizzle-orm';
-import { pack } from 'tar-stream';
 import { getBenchmarkFilePath } from '#lib/server/benchmark-files.js';
 import { db } from '#lib/server/db/index.js';
 import { benchmarkFile, benchmarkResult } from '#lib/server/db/schema.js';
@@ -61,27 +59,15 @@ export const GET: RequestHandler = async ({ params }) => {
 			data: Buffer.from(await contents.arrayBuffer())
 		}))
 	);
-	const archive = pack();
-	const compressedArchive = archive.pipe(createGzip());
-	for (const entry of entries) {
-		archive.entry({ name: entry.name, size: entry.data.length }, entry.data);
-	}
-	archive.finalize();
-	const archiveName = `benchmark-${benchmark.id}.tar.gz`;
-	const archiveIterator = compressedArchive[Symbol.asyncIterator]();
-	const body = new ReadableStream<Uint8Array>({
-		async pull(controller) {
-			const chunk = await archiveIterator.next();
-			if (chunk.done) controller.close();
-			else controller.enqueue(chunk.value);
-		},
-		async cancel() {
-			await archiveIterator.return?.();
-			compressedArchive.destroy();
+	const archive = new Bun.Archive(
+		Object.fromEntries(entries.map(({ name, data }) => [name, data])),
+		{
+			compress: 'gzip'
 		}
-	});
+	);
+	const archiveName = `benchmark-${benchmark.id}.tar.gz`;
 
-	return new Response(body, {
+	return new Response(await archive.blob(), {
 		headers: {
 			...commonHeaders,
 			'content-type': 'application/gzip',
