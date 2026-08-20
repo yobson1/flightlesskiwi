@@ -1,11 +1,15 @@
 import { debug, error } from '#lib/logger.js';
 import { db } from '#lib/server/db/index.js';
+import { LONG_MAX_AGE } from '#lib/cache-control.js';
 import LRUCache from '#lib/lrucache.js';
 import type { RequestHandler } from './$types';
 import type { FullGame } from '#lib/server/db/schema.js';
 
 // each game is about 0.5-2KB in size
 const gameCache = new LRUCache<number, FullGame>(1000);
+const browserCacheHeaders = {
+	'cache-control': `public, max-age=${LONG_MAX_AGE}, must-revalidate`
+};
 
 export const GET: RequestHandler = ({ params }) => {
 	const gameID = Number(params.id);
@@ -18,7 +22,7 @@ export const GET: RequestHandler = ({ params }) => {
 		const cachedGame = gameCache.get(gameID);
 		if (cachedGame) {
 			debug(`Cache hit for game ID ${gameID}`);
-			return Response.json(cachedGame);
+			return Response.json(cachedGame, { headers: browserCacheHeaders });
 		}
 		debug(`Cache miss for game ID ${gameID}`);
 
@@ -59,7 +63,7 @@ export const GET: RequestHandler = ({ params }) => {
 		debug(`Size of game data for ID ${gameID}: ${sizeInKB}KB`);
 
 		gameCache.set(gameID, gameResult);
-		return Response.json(gameResult);
+		return Response.json(gameResult, { headers: browserCacheHeaders });
 	} catch (err) {
 		error(`Failed to fetch game ID ${gameID}:`, err);
 		return Response.json(

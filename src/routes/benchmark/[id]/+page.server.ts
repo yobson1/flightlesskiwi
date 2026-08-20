@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
+import { SHORT_MAX_AGE } from '#lib/cache-control.js';
 import { error as logError, info } from '#lib/logger.js';
 import { requireVerifiedSession } from '#lib/server/auth/api.js';
 import { deleteBenchmarkFiles } from '#lib/server/benchmark-files.js';
@@ -14,7 +15,10 @@ import { getMessage } from '#lib/utils.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) => {
-	setHeaders({ 'cache-control': 'private, max-age=120' });
+	setHeaders({
+		'cache-control': `private, max-age=${SHORT_MAX_AGE}, must-revalidate`,
+		vary: 'cookie'
+	});
 
 	const benchmark = db
 		.select({

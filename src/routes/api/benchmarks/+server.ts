@@ -1,3 +1,4 @@
+import { SHORT_MAX_AGE } from '#lib/cache-control.js';
 import {
 	getPublicBenchmarksPage,
 	parsePublicBenchmarkCursor,
@@ -24,5 +25,9 @@ export const GET: RequestHandler = async ({ url }) => {
 		return Response.json({ message: 'Invalid game filter' }, { status: 400 });
 	}
 
-	return Response.json(await getPublicBenchmarksPage({ cursor, gameId, page }));
+	return Response.json(await getPublicBenchmarksPage({ cursor, gameId, page }), {
+		headers: {
+			'cache-control': `private, max-age=${SHORT_MAX_AGE}, must-revalidate`
+		}
+	});
 };

@@ -1,9 +1,15 @@
 import { error } from '@sveltejs/kit';
+import { SHORT_MAX_AGE } from '#lib/cache-control.js';
 import { getPublicBenchmarksPage, parsePublicBenchmarkPage } from '#lib/server/benchmarks.js';
 import { getPublicProfile } from '#lib/server/profiles.js';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
+	setHeaders({
+		'cache-control': `private, max-age=${SHORT_MAX_AGE}, must-revalidate`,
+		vary: 'cookie'
+	});
+
 	const profile = getPublicProfile(params.username);
 	if (!profile) error(404, 'Profile not found');
 	const page = parsePublicBenchmarkPage(url.searchParams);

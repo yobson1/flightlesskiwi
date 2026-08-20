@@ -1,3 +1,4 @@
+import { SHORT_MAX_AGE } from '#lib/cache-control.js';
 import {
 	getPublicBenchmarksPage,
 	parsePublicBenchmarkCursor,
@@ -23,5 +24,9 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		);
 	}
 
-	return Response.json(await getPublicBenchmarksPage({ cursor, page, userId: profile.id }));
+	return Response.json(await getPublicBenchmarksPage({ cursor, page, userId: profile.id }), {
+		headers: {
+			'cache-control': `private, max-age=${SHORT_MAX_AGE}, must-revalidate`
+		}
+	});
 };
