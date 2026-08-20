@@ -80,11 +80,14 @@
 </script>
 
 <AuthCard>
-	<Card.Header class="items-center text-center">
-		<div class="mb-2 flex size-11 items-center justify-center rounded-full bg-muted">
-			<ShieldCheckIcon class="size-5" />
+	<Card.Header class="gap-2 text-center">
+		<div class="grid grid-cols-[2rem_1fr_2rem] items-center">
+			<div class="flex size-8 items-center justify-center rounded-full bg-muted">
+				<ShieldCheckIcon class="size-4" />
+			</div>
+			<Card.Title class="text-lg">Confirm it’s you</Card.Title>
+			<span aria-hidden="true"></span>
 		</div>
-		<Card.Title>Confirm it’s you</Card.Title>
 		<Card.Description>This is a sensitive change. Re-authenticate to continue.</Card.Description>
 	</Card.Header>
 	<Card.Content class="space-y-4">
