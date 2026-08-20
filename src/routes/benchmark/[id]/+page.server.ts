@@ -14,7 +14,7 @@ import { getMessage } from '#lib/utils.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, setHeaders, url }) => {
-	setHeaders({ 'cache-control': 'private, no-store' });
+	setHeaders({ 'cache-control': 'private, max-age=120' });
 
 	const benchmark = db
 		.select({
