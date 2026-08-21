@@ -3,7 +3,7 @@
 	/* eslint svelte/no-navigation-without-resolve: ["error", { "ignoreGoto": true, "ignoreLinks": true, "ignorePushState": false, "ignoreReplaceState": false }] */
 	import FilterIcon from '@lucide/svelte/icons/list-filter';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { goto, refreshAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
 	import {
@@ -27,7 +27,7 @@
 	} from '#lib/types/benchmark-api.js';
 	import type { GameSearchResult } from '#lib/types/game.js';
 	import { onDestroy, untrack } from 'svelte';
-	import { SvelteMap, SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
+	import { SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import type { PageProps } from './$types';
 	import * as v from 'valibot';
@@ -44,9 +44,6 @@
 	let filterController: AbortController | undefined;
 	let benchmarkListVersion = $state(0);
 	let listInitialPage = $state(initialPagination.page);
-	const knownGames = new SvelteMap<number, GameSearchResult>();
-	if (initialPage.selectedGame)
-		knownGames.set(initialPage.selectedGame.id, initialPage.selectedGame);
 	const benchmarkPages = new BenchmarkPageCache(
 		{
 			benchmarks: [...initialPage.benchmarks],
@@ -57,17 +54,6 @@
 	onDestroy(() => {
 		filterController?.abort();
 		benchmarkPages.destroy();
-	});
-
-	$effect(() => {
-		const urlGameId = readURLPositiveInteger('game_id') ?? null;
-		if (urlGameId === (selectedGame?.id ?? null) || loadingGameFilter) return;
-		const restoredGame = urlGameId === null ? null : knownGames.get(urlGameId);
-		if (urlGameId !== null && !restoredGame) {
-			void refreshAll();
-			return;
-		}
-		void applyGameFilter(restoredGame ?? null, false, readURLPositiveInteger('page') ?? 1);
 	});
 
 	async function searchBenchmarks(query: string, signal: AbortSignal): Promise<BenchmarkListing[]> {
@@ -139,7 +125,7 @@
 		return fetchBenchmarkPage(pageNumber, selectedGame?.id, signal);
 	}
 
-	async function applyGameFilter(game: GameSearchResult | null, updateURL = true, pageNumber = 1) {
+	async function applyGameFilter(game: GameSearchResult | null) {
 		filterController?.abort();
 		const controller = new AbortController();
 		filterController = controller;
@@ -147,9 +133,8 @@
 		loadingGameFilter = true;
 
 		try {
-			const loadedPage = await fetchBenchmarkPage(pageNumber, game?.id, controller.signal);
+			const loadedPage = await fetchBenchmarkPage(1, game?.id, controller.signal);
 			if (controller.signal.aborted) return;
-			if (game) knownGames.set(game.id, game);
 			selectedGame = game;
 			benchmarkPages.reset(loadedPage, fetchActiveBenchmarkPage);
 			listInitialPage = loadedPage.pagination.page;
@@ -157,7 +142,7 @@
 			benchmarkSearchKey += 1;
 			activeSearchQuery = '';
 			searchResults = [];
-			if (updateURL) updateFilterURL(game);
+			updateFilterURL(game);
 		} catch (cause) {
 			if (cause instanceof Error && cause.name === 'AbortError') return;
 			toast.error(cause instanceof Error ? cause.message : 'Unable to apply the game filter');
@@ -192,16 +177,6 @@
 			replace: true,
 			state: appPage.state
 		});
-	}
-
-	function readURLPositiveInteger(name: string): number | null {
-		const value = appPage.url.searchParams.get(name);
-		if (value === null) return null;
-		const result = v.safeParse(
-			v.pipe(v.string(), v.regex(/^[1-9]\d*$/), v.transform(Number), v.safeInteger()),
-			value
-		);
-		return result.success ? result.output : null;
 	}
 
 	function requirePagination(pagination: BenchmarkPageResponse['pagination']): BenchmarkPagination {
