@@ -3,7 +3,7 @@
 	/* eslint svelte/no-navigation-without-resolve: ["error", { "ignoreGoto": true, "ignoreLinks": true, "ignorePushState": false, "ignoreReplaceState": false }] */
 	import FilterIcon from '@lucide/svelte/icons/list-filter';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
 	import {
@@ -37,11 +37,10 @@
 	const initialPagination = requirePagination(initialPage.pagination);
 	let searchResults = $state<BenchmarkListing[]>([]);
 	let activeSearchQuery = $state('');
-	let selectedGame = $state<GameSearchResult | null>(initialPage.selectedGame);
+	let selectedGame = $derived(data.selectedGame);
 	let gameFilterOpen = $state(false);
 	let loadingGameFilter = $state(false);
 	let benchmarkSearchKey = $state(0);
-	let filterController: AbortController | undefined;
 	let benchmarkListVersion = $state(0);
 	let listInitialPage = $state(initialPagination.page);
 	const benchmarkPages = new BenchmarkPageCache(
@@ -51,10 +50,48 @@
 		},
 		fetchActiveBenchmarkPage
 	);
+	afterNavigate(({ shallow, to, type }) => {
+		if (to?.route.id !== '/' || type === 'enter') return;
+		if (shallow) {
+			if (type === 'popstate') void loadShallowHistoryURL(to.url);
+			return;
+		}
+		applyLoadedPage(data);
+	});
 	onDestroy(() => {
-		filterController?.abort();
 		benchmarkPages.destroy();
 	});
+
+	function applyLoadedPage(loadedPage: PageProps['data']) {
+		const pagination = requirePagination(loadedPage.pagination);
+		loadingGameFilter = false;
+		gameFilterOpen = false;
+		benchmarkPages.reset(
+			{ benchmarks: [...loadedPage.benchmarks], pagination },
+			fetchActiveBenchmarkPage
+		);
+		listInitialPage = pagination.page;
+		benchmarkListVersion += 1;
+		benchmarkSearchKey += 1;
+		activeSearchQuery = '';
+		searchResults = [];
+	}
+
+	async function loadShallowHistoryURL(url: URL) {
+		loadingGameFilter = true;
+		try {
+			await goto(url, {
+				refreshAll: true,
+				replace: true,
+				reset: false,
+				state: appPage.state
+			});
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'Unable to restore benchmark filters');
+		} finally {
+			loadingGameFilter = false;
+		}
+	}
 
 	async function searchBenchmarks(query: string, signal: AbortSignal): Promise<BenchmarkListing[]> {
 		const searchParams = new SvelteURLSearchParams();
@@ -126,31 +163,15 @@
 	}
 
 	async function applyGameFilter(game: GameSearchResult | null) {
-		filterController?.abort();
-		const controller = new AbortController();
-		filterController = controller;
 		gameFilterOpen = false;
 		loadingGameFilter = true;
 
 		try {
-			const loadedPage = await fetchBenchmarkPage(1, game?.id, controller.signal);
-			if (controller.signal.aborted) return;
-			selectedGame = game;
-			benchmarkPages.reset(loadedPage, fetchActiveBenchmarkPage);
-			listInitialPage = loadedPage.pagination.page;
-			benchmarkListVersion += 1;
-			benchmarkSearchKey += 1;
-			activeSearchQuery = '';
-			searchResults = [];
-			updateFilterURL(game);
+			await updateFilterURL(game);
 		} catch (cause) {
-			if (cause instanceof Error && cause.name === 'AbortError') return;
 			toast.error(cause instanceof Error ? cause.message : 'Unable to apply the game filter');
 		} finally {
-			if (filterController === controller) {
-				filterController = undefined;
-				loadingGameFilter = false;
-			}
+			loadingGameFilter = false;
 		}
 	}
 
@@ -171,10 +192,8 @@
 		url.searchParams.delete('page');
 		if (game) url.searchParams.set('game_id', game.id.toString());
 		else url.searchParams.delete('game_id');
-		// This is the current application URL with only its query changed.
-		void goto(url, {
-			shallow: true,
-			replace: true,
+		return goto(url, {
+			reset: false,
 			state: appPage.state
 		});
 	}
