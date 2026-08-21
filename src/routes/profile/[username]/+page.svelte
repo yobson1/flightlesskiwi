@@ -1,12 +1,14 @@
 <script lang="ts">
 	// TODO: Remove this override once rsvelte-lint supports SvelteKit 3 shallow goto() calls with SvelteURL.
 	/* eslint svelte/no-navigation-without-resolve: ["error", { "ignoreGoto": true, "ignoreLinks": true, "ignorePushState": false, "ignoreReplaceState": false }] */
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
 	import {
 		BenchmarkPageCache,
 		normalizeBenchmarkPage,
+		readBenchmarkPageNumber,
+		type BenchmarkPageChangeReason,
 		type BenchmarkPagination,
 		type LoadedBenchmarkPage
 	} from '#lib/client/benchmark-page-cache.svelte.js';
@@ -24,7 +26,6 @@
 	let { data }: PageProps = $props();
 	const initialPage = untrack(() => data);
 	const initialPagination = requirePagination(initialPage.pagination);
-	let loadedUsername = initialPage.profile.username;
 	let benchmarkListVersion = $state(0);
 	let listInitialPage = $state(initialPagination.page);
 	const benchmarkPages = new BenchmarkPageCache(
@@ -34,24 +35,31 @@
 		},
 		fetchProfileBenchmarkPage
 	);
+	let requestedPage = $derived.by(() => {
+		return readBenchmarkPageNumber(
+			appPage.shallow?.url ?? appPage.url,
+			benchmarkPages.pagination.totalPages
+		);
+	});
+	afterNavigate(({ shallow, to, type }) => {
+		if (to?.route.id !== '/profile/[username]' || type === 'enter') return;
+		if (shallow && type !== 'popstate') return;
+		applyLoadedPage(data);
+	});
 	onDestroy(() => benchmarkPages.destroy());
 
-	$effect.pre(() => {
-		const username = data.profile.username;
-		if (username === loadedUsername) return;
-
-		loadedUsername = username;
+	function applyLoadedPage(loadedPage: PageProps['data']) {
 		benchmarkListVersion += 1;
-		const pagination = requirePagination(data.pagination);
+		const pagination = requirePagination(loadedPage.pagination);
 		listInitialPage = pagination.page;
 		benchmarkPages.reset(
 			{
-				benchmarks: [...data.benchmarks],
+				benchmarks: [...loadedPage.benchmarks],
 				pagination
 			},
 			fetchProfileBenchmarkPage
 		);
-	});
+	}
 
 	async function fetchProfileBenchmarkPage(
 		pageNumber: number,
@@ -67,12 +75,16 @@
 		return normalizeBenchmarkPage(result.output);
 	}
 
-	function handlePageChange(pageNumber: number) {
+	function handlePageChange(pageNumber: number, reason: BenchmarkPageChangeReason) {
 		const url = new SvelteURL(window.location.href);
 		if (pageNumber === 1) url.searchParams.delete('page');
 		else url.searchParams.set('page', pageNumber.toString());
 		// This is the current application URL with only its query changed.
-		void goto(url, { shallow: true, replace: true, state: appPage.state });
+		void goto(url, {
+			shallow: true,
+			replace: reason === 'scroll',
+			state: appPage.state
+		});
 	}
 
 	function requirePagination(pagination: BenchmarkPageResponse['pagination']): BenchmarkPagination {
@@ -117,6 +129,7 @@
 						indices: benchmarkPages.indices,
 						initialPage: listInitialPage,
 						pageSize: benchmarkPages.pagination.pageSize,
+						requestedPage,
 						totalCount: benchmarkPages.pagination.totalCount,
 						totalPages: benchmarkPages.pagination.totalPages,
 						loadPageWindow: (pageNumber) => benchmarkPages.loadPageWindow(pageNumber),

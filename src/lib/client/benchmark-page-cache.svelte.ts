@@ -1,5 +1,13 @@
 import type { BenchmarkPageResponse } from '#lib/types/benchmark-api.js';
 import { SvelteMap } from 'svelte/reactivity';
+import * as v from 'valibot';
+
+const benchmarkPageSearchParamSchema = v.pipe(
+	v.string(),
+	v.regex(/^[1-9]\d*$/),
+	v.transform(Number),
+	v.safeInteger()
+);
 
 export type BenchmarkListing = Omit<BenchmarkPageResponse['benchmarks'][number], 'createdAt'> & {
 	createdAt: Date;
@@ -7,12 +15,22 @@ export type BenchmarkListing = Omit<BenchmarkPageResponse['benchmarks'][number],
 
 export type BenchmarkPagination = NonNullable<BenchmarkPageResponse['pagination']>;
 
+export type BenchmarkPageChangeReason = 'control' | 'scroll';
+
 export interface LoadedBenchmarkPage {
 	benchmarks: BenchmarkListing[];
 	pagination: BenchmarkPagination;
 }
 
 type PageFetcher = (page: number, signal: AbortSignal) => Promise<LoadedBenchmarkPage>;
+type BenchmarkPageURL = { searchParams: Pick<URLSearchParams, 'get'> };
+
+export function readBenchmarkPageNumber(url: BenchmarkPageURL, totalPages: number): number {
+	const value = url.searchParams.get('page');
+	if (value === null) return 1;
+	const result = v.safeParse(benchmarkPageSearchParamSchema, value);
+	return result.success ? Math.min(result.output, Math.max(1, totalPages)) : 1;
+}
 
 export function normalizeBenchmarkPage(response: BenchmarkPageResponse): LoadedBenchmarkPage {
 	if (response.pagination === null) throw new Error('Missing benchmark pagination metadata');

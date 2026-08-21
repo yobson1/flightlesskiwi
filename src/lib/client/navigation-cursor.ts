@@ -14,7 +14,7 @@ export function setupNavigationCursor(): void {
 	let completionTimer: number | undefined;
 
 	beforeNavigate((navigation) => {
-		if (navigation.shallow) return;
+		if (navigation.shallow && navigation.type !== 'popstate') return;
 		if (navigation.willUnload) return;
 
 		const cursorId = ++navigationCursorId;
@@ -44,8 +44,8 @@ export function setupNavigationCursor(): void {
 		};
 	});
 
-	afterNavigate(({ shallow }) => {
-		if (shallow) return;
+	afterNavigate(({ shallow, type }) => {
+		if (shallow && type !== 'popstate') return;
 		if (!navigationPending) return;
 
 		navigationPending = false;

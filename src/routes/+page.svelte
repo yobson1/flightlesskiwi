@@ -9,7 +9,9 @@
 	import {
 		BenchmarkPageCache,
 		normalizeBenchmarkPage,
+		readBenchmarkPageNumber,
 		type BenchmarkListing,
+		type BenchmarkPageChangeReason,
 		type BenchmarkPagination,
 		type LoadedBenchmarkPage
 	} from '#lib/client/benchmark-page-cache.svelte.js';
@@ -50,6 +52,12 @@
 		},
 		fetchActiveBenchmarkPage
 	);
+	let requestedPage = $derived.by(() => {
+		return readBenchmarkPageNumber(
+			appPage.shallow?.url ?? appPage.url,
+			benchmarkPages.pagination.totalPages
+		);
+	});
 	afterNavigate(({ shallow, to, type }) => {
 		if (to?.route.id !== '/' || type === 'enter') return;
 		if (shallow) {
@@ -175,12 +183,16 @@
 		void applyGameFilter(game);
 	}
 
-	function handlePageChange(pageNumber: number) {
+	function handlePageChange(pageNumber: number, reason: BenchmarkPageChangeReason) {
 		const url = new SvelteURL(window.location.href);
 		if (pageNumber === 1) url.searchParams.delete('page');
 		else url.searchParams.set('page', pageNumber.toString());
 		// This is the current application URL with only its query changed.
-		void goto(url, { shallow: true, replace: true, state: appPage.state });
+		void goto(url, {
+			shallow: true,
+			replace: reason === 'scroll',
+			state: appPage.state
+		});
 	}
 
 	function updateFilterURL(game: GameSearchResult | null) {
@@ -295,6 +307,7 @@
 							indices: benchmarkPages.indices,
 							initialPage: listInitialPage,
 							pageSize: benchmarkPages.pagination.pageSize,
+							requestedPage,
 							totalCount: benchmarkPages.pagination.totalCount,
 							totalPages: benchmarkPages.pagination.totalPages,
 							loadPageWindow: (pageNumber) => benchmarkPages.loadPageWindow(pageNumber),

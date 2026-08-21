@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	BenchmarkPageCache,
+	readBenchmarkPageNumber,
 	type BenchmarkListing,
 	type LoadedBenchmarkPage
 } from './benchmark-page-cache.svelte';
@@ -8,6 +9,13 @@ import {
 const PAGE_SIZE = 30;
 
 describe('BenchmarkPageCache', () => {
+	test('reads and clamps the visible benchmark page URL', () => {
+		expect(readBenchmarkPageNumber(new URL('https://example.com/?page=3'), 5)).toBe(3);
+		expect(readBenchmarkPageNumber(new URL('https://example.com/?page=8'), 5)).toBe(5);
+		expect(readBenchmarkPageNumber(new URL('https://example.com/?page=invalid'), 5)).toBe(1);
+		expect(readBenchmarkPageNumber(new URL('https://example.com/'), 5)).toBe(1);
+	});
+
 	test('loads only the target page and one neighbour either side', async () => {
 		const requestedPages: number[] = [];
 		const cache = new BenchmarkPageCache(createPage(3, 60), async (page) => {

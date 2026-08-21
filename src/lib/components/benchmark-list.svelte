@@ -6,17 +6,21 @@
 	import { toast } from 'svelte-sonner';
 	import BenchmarkPagination from '#lib/components/benchmark-pagination.svelte';
 	import BenchmarkListing from '#lib/components/benchmark-listing.svelte';
-	import type { BenchmarkListing as Benchmark } from '#lib/client/benchmark-page-cache.svelte.js';
+	import type {
+		BenchmarkListing as Benchmark,
+		BenchmarkPageChangeReason
+	} from '#lib/client/benchmark-page-cache.svelte.js';
 
 	interface SparsePagination {
 		benchmarks: SvelteMap<number, Benchmark>;
 		indices: number[];
 		initialPage: number;
 		pageSize: number;
+		requestedPage: number;
 		totalCount: number;
 		totalPages: number;
 		loadPageWindow: (page: number) => Promise<void>;
-		onPageChange: (page: number) => void;
+		onPageChange: (page: number, reason: BenchmarkPageChangeReason) => void;
 	}
 
 	interface Props {
@@ -37,11 +41,27 @@
 	let currentPage = $state(untrack(() => pagination?.initialPage ?? 1));
 	let jumping = $state(false);
 	let readyForRanges = $state(untrack(() => pagination === undefined));
+	let handledRequestedPage = $state(untrack(() => pagination?.initialPage ?? 1));
 	let listItems = $derived<(Benchmark | number)[]>(pagination?.indices ?? benchmarks);
 
 	onMount(() => {
 		if (!pagination) return;
 		void initializePagination(pagination);
+	});
+
+	$effect(() => {
+		if (!pagination || !readyForRanges || jumping) return;
+		const requestedPage = pagination.requestedPage;
+		if (requestedPage === handledRequestedPage) return;
+		handledRequestedPage = requestedPage;
+		if (
+			requestedPage === currentPage ||
+			requestedPage < 1 ||
+			requestedPage > pagination.totalPages
+		) {
+			return;
+		}
+		void jumpToPage(requestedPage, false);
 	});
 
 	async function initializePagination(activePagination: SparsePagination) {
@@ -60,11 +80,11 @@
 		const visiblePage = Math.floor(inferredFirstVisibleIndex / pagination.pageSize) + 1;
 		if (visiblePage === currentPage) return;
 		currentPage = visiblePage;
-		pagination.onPageChange(visiblePage);
+		pagination.onPageChange(visiblePage, 'scroll');
 		void pagination.loadPageWindow(visiblePage).catch(showLoadError);
 	}
 
-	async function jumpToPage(targetPage: number) {
+	async function jumpToPage(targetPage: number, updateHistory = true) {
 		if (!pagination || jumping) return;
 		const previousPage = currentPage;
 		jumping = true;
@@ -72,7 +92,7 @@
 		try {
 			await pagination.loadPageWindow(targetPage);
 			await scrollToPage(targetPage, pagination);
-			pagination.onPageChange(targetPage);
+			if (updateHistory) pagination.onPageChange(targetPage, 'control');
 		} catch (cause) {
 			currentPage = previousPage;
 			showLoadError(cause);
