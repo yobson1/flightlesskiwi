@@ -10,9 +10,10 @@ services:
     environment:
       DATABASE_URL: /data/flightlesskiwi.db
       BENCHMARK_UPLOAD_DIR: /uploads/benchmarks
-      HOST: 0.0.0.0
-      PORT: 3000
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 3000
       ORIGIN: ${ORIGIN:-http://localhost:3000}
+      HTTP_OVERRIDE_ORIGIN: ${ORIGIN:-http://localhost:3000}
       MEILI_HOST: http://meilisearch:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?Set MEILI_MASTER_KEY in .env}
     ports:

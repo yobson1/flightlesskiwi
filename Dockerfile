@@ -15,8 +15,8 @@ FROM docker.io/library/alpine:latest AS runtime
 RUN apk add --no-cache ca-certificates libgcc libstdc++ tzdata
 
 ENV NODE_ENV=production \
-	HOST=0.0.0.0 \
-	PORT=3000
+	HTTP_HOST=0.0.0.0 \
+	HTTP_PORT=3000
 
 WORKDIR /app
 
