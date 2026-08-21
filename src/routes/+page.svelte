@@ -214,6 +214,10 @@
 
 <svelte:head>
 	<title>Home · flightlesskiwi</title>
+	<meta
+		name="description"
+		content="Upload, explore, and share MangoHud and CapFrameX gaming benchmark results."
+	/>
 </svelte:head>
 
 <div class="-mb-8 flex h-[calc(100%+2rem)] min-h-0 flex-col gap-6">
