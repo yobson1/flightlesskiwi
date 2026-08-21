@@ -13,7 +13,11 @@ export default defineConfig({
 			// Consult https://svelte.dev/docs/kit/integrations
 			// for more information about preprocessors
 			preprocess: vitePreprocess(),
-			adapter: adapter(),
+			adapter: adapter({
+				bundler: 'bun',
+				bunBuildMinify: true,
+				precompress: true
+			}),
 			output: { linkHeaderPreload: true },
 			version: { name: pkg.version }
 		}),
