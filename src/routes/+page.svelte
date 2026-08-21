@@ -120,10 +120,6 @@
 		searchResults = results;
 	}
 
-	function setActiveSearchQuery(query: string) {
-		activeSearchQuery = query;
-	}
-
 	function resetBenchmarkList() {
 		activeSearchQuery = '';
 		searchResults = [];
@@ -225,7 +221,6 @@
 					<Search
 						search={searchBenchmarks}
 						onResults={setSearchResults}
-						onQueryChange={setActiveSearchQuery}
 						onClear={resetBenchmarkList}
 						inputId="benchmark-search"
 						placeholder="Search by title, game or run configuration..."

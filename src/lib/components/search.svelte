@@ -11,7 +11,6 @@
 		getLabel?: (result: T) => string;
 		onSelected?: (result: T) => void;
 		onResults?: (query: string, results: T[]) => void;
-		onQueryChange?: (query: string) => void;
 		onClear?: () => void;
 		result?: Snippet<[result: T]>;
 		inputId?: string;
@@ -26,7 +25,6 @@
 		getLabel,
 		onSelected,
 		onResults,
-		onQueryChange,
 		onClear,
 		result,
 		inputId,
@@ -89,7 +87,6 @@
 		if (!(event.currentTarget instanceof HTMLInputElement)) return;
 		const target = event.currentTarget;
 		searchQuery = target.value;
-		onQueryChange?.(searchQuery.trim());
 		clearTimeout(debounceTimer);
 
 		const query = searchQuery.trim();
@@ -98,6 +95,8 @@
 			return;
 		}
 
+		abortController?.abort();
+		currentSearchQuery = query;
 		debounceTimer = setTimeout(() => executeSearch(query), debounceMs);
 	}
 
@@ -139,7 +138,6 @@
 
 		if (searchQuery === '' && target.value.trim()) {
 			searchQuery = target.value;
-			onQueryChange?.(searchQuery.trim());
 			executeSearch(searchQuery.trim());
 			return;
 		}
